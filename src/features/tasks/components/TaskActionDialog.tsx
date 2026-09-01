@@ -4,6 +4,7 @@ import { db } from '../../../data/firebase';
 import { cancelReservation } from '../../../data/transactions/cancelReservation';
 import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
+import { respondToInvite } from '../../../data/transactions/respondToInvite';
 import { canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
 import type { PlayerId, TaskId } from '../../../domain/ids';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
@@ -32,6 +33,7 @@ export function TaskActionDialog({
   settings,
   candidates,
   reservation,
+  acceptedInvite,
   takenBy,
   turnusId,
   onClose,
@@ -41,6 +43,8 @@ export function TaskActionDialog({
   settings: TurnusSettings;
   candidates: readonly Player[];
   reservation: Reservation | null;
+  /** A pair this player accepted — reserving a different task leaves it (spec 7). */
+  acceptedInvite: Reservation | null;
   takenBy: ReadonlyMap<TaskId, string>;
   turnusId: string;
   onClose: () => void;
@@ -89,7 +93,16 @@ export function TaskActionDialog({
       setError(t('tasks.choosePartner'));
       return;
     }
-    void run(reserveTask(db, turnusId, myPlayer.id, task.id, invitees));
+    void run(reserveWithLeave());
+  };
+
+  // Reserving a different task while committed to a pair leaves that pair first (it then falls short
+  // for the initiator at evaluation), so the player never holds two reservations at once (spec 7).
+  const reserveWithLeave = async (): Promise<{ ok: boolean }> => {
+    if (acceptedInvite !== null && acceptedInvite.taskId !== task.id) {
+      await respondToInvite(db, turnusId, acceptedInvite.playerId, myPlayer.id, false);
+    }
+    return reserveTask(db, turnusId, myPlayer.id, task.id, invitees);
   };
 
   const reasonKey =

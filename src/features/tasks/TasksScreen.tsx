@@ -259,6 +259,7 @@ export function TasksScreen() {
           settings={settings}
           candidates={candidates}
           reservation={myReservation}
+          acceptedInvite={acceptedInvite}
           takenBy={takenBy}
           turnusId={turnus.id}
           onClose={() => setActing(null)}

@@ -2,10 +2,11 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * Bottom sheet — the primary mobile pattern for detail and form surfaces (spec 15.8).
- * Closes on backdrop click and Escape; the panel respects the bottom safe-area inset.
+ * Centered modal dialog — the surface for short focused prompts such as entering an
+ * access code (turnus login or the hidden admin unlock). Closes on backdrop click and
+ * Escape; the panel keeps clear of the top/bottom safe-area insets.
  */
-export function Sheet({
+export function Dialog({
   open,
   onClose,
   title,
@@ -29,7 +30,7 @@ export function Sheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+      className="safe-top safe-bottom fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -37,7 +38,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="safe-bottom w-full max-w-lg rounded-t-2xl border-t border-border bg-surface-raised p-4"
+        className="w-full max-w-sm rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
         {title !== undefined && (

@@ -108,4 +108,7 @@ comes before data/rules (phase 2) on purpose.
    turnus entry (picker, code entry via `joinTurnus`, `/t/{slug}`), remember/switch turnus,
    hidden admin long-press gesture, `RequireTurnus`/`RequireAdmin` guards. `npm run dev` runs
    Vite in `--mode emulator` (loads `.env.emulator`).
-4. Players — **next.** 5. Catalog (TSV import). 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase.
+4. Players — **done.** main screen (own card, roster, pending), create player, admin approve/reject,
+   claim character + PIN recovery, player detail. (The 5-try/15-min PIN lockout guard is deferred
+   hardening — the PIN itself is rule-enforced.)
+5. Catalog (TSV import) — **next.** 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase.

@@ -12,6 +12,7 @@ import { AppLayout } from './AppLayout';
 import { RouteError } from './ErrorBoundary';
 import { RequireAdmin } from './guards/RequireAdmin';
 import { RequireTurnus } from './guards/RequireTurnus';
+import { GameProviders } from './providers/GameProviders';
 
 // The whole admin feature is lazy — most users never load it (spec 15.13).
 const AdminScreen = lazy(() =>
@@ -26,23 +27,29 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       {
-        element: <AppLayout />,
+        // Live turnus/players listeners wrap the whole game shell.
+        element: <GameProviders />,
         children: [
-          { index: true, element: <Navigate to="/players" replace /> },
-          { path: 'players', element: <PlayersScreen /> },
-          { path: 'tasks', element: <TasksScreen /> },
-          { path: 'rewards', element: <RewardsScreen /> },
-          { path: 'rules', element: <RulesScreen /> },
           {
-            element: <RequireAdmin />,
+            element: <AppLayout />,
             children: [
+              { index: true, element: <Navigate to="/players" replace /> },
+              { path: 'players', element: <PlayersScreen /> },
+              { path: 'tasks', element: <TasksScreen /> },
+              { path: 'rewards', element: <RewardsScreen /> },
+              { path: 'rules', element: <RulesScreen /> },
               {
-                path: 'admin',
-                element: (
-                  <Suspense fallback={<Spinner />}>
-                    <AdminScreen />
-                  </Suspense>
-                ),
+                element: <RequireAdmin />,
+                children: [
+                  {
+                    path: 'admin',
+                    element: (
+                      <Suspense fallback={<Spinner />}>
+                        <AdminScreen />
+                      </Suspense>
+                    ),
+                  },
+                ],
               },
             ],
           },

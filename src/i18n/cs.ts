@@ -3,7 +3,7 @@
  * forces `en` and `de` to stay complete — a missing key fails typecheck.
  */
 export const cs = {
-  appName: 'Kvest',
+  appName: 'Kwest',
   nav: {
     players: 'Hráči',
     tasks: 'Úkoly',
@@ -45,6 +45,31 @@ export const cs = {
     unlockHint: 'Admin kód skupiny.',
     unlockSubmit: 'Odemknout',
     unlockWrong: 'Admin kód není platný.',
+  },
+  players: {
+    addPlayer: 'Přidat hráče',
+    needsPick: 'Nemá úkol',
+    pending: 'Čeká na schválení',
+    approve: 'Schválit',
+    reject: 'Zamítnout',
+    empty: 'Zatím tu nejsou žádní hráči.',
+    createTitle: 'Nový hráč',
+    nameLabel: 'Jméno',
+    pinLabel: 'Záchranný PIN (4 číslice)',
+    createSubmit: 'Přidat',
+    invalidName: 'Zadej jméno.',
+    invalidPin: 'PIN musí být 4 číslice.',
+    claimTitle: 'Jsi to ty?',
+    claimHint: 'Přihlásíš se jako {name} a příště už půjdeš rovnou dovnitř.',
+    claimConfirm: 'Ano, jsem to já',
+    recover: 'Tohle jsem já, ztratil jsem přístup',
+    recoverTitle: 'Obnovit přístup',
+    recoverHint: 'Zadej záchranný PIN, který sis zvolil při založení postavy.',
+    recoverSubmit: 'Obnovit přístup',
+    wrongPin: 'Špatný PIN.',
+    alreadyClaimed: 'Tuhle postavu už někdo vlastní.',
+    detailTitle: 'Detail hráče',
+    you: 'Ty',
   },
   screens: {
     playersPlaceholder: 'Seznam hráčů se objeví v další fázi.',

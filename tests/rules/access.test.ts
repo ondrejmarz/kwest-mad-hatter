@@ -261,6 +261,15 @@ describe('admin-only writes', () => {
       setDoc(doc(db, path('private/config')), { playerCode: 'NEW1', adminCode: 'NEW2' }),
     );
   });
+
+  it('lets an admin reject a pending player but never delete an approved one', async () => {
+    await assertSucceeds(deleteDoc(doc(authed('admin'), path('players/p5'))));
+    await assertFails(deleteDoc(doc(authed('admin'), path('players/p1'))));
+  });
+
+  it('does not let a player delete a character', async () => {
+    await assertFails(deleteDoc(doc(authed('alice'), path('players/p5'))));
+  });
 });
 
 describe('turnus entry', () => {

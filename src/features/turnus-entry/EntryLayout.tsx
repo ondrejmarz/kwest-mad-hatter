@@ -13,15 +13,18 @@ export function EntryLayout({
   children: ReactNode;
 }) {
   return (
-    <div className="safe-top safe-bottom mx-auto flex min-h-full max-w-lg flex-col justify-center gap-8 bg-surface px-6 py-10">
-      <div className="flex justify-end">
+    <div className="safe-top safe-bottom mx-auto flex min-h-full max-w-lg flex-col bg-surface">
+      {/* Language switcher sits in the same top-right corner as the in-app header. */}
+      <div className="flex justify-end px-4 py-3">
         <LanguageSwitcher />
       </div>
-      <header className="text-center">
-        <h1 className="text-2xl font-bold text-content">{title}</h1>
-        {subtitle !== undefined && <p className="mt-2 text-content-muted">{subtitle}</p>}
-      </header>
-      <div className="flex flex-col gap-3">{children}</div>
+      <div className="flex flex-1 flex-col justify-center gap-8 px-6 pb-10">
+        <header className="text-center">
+          <h1 className="text-2xl font-bold text-content">{title}</h1>
+          {subtitle !== undefined && <p className="mt-2 text-content-muted">{subtitle}</p>}
+        </header>
+        <div className="flex flex-col gap-3">{children}</div>
+      </div>
     </div>
   );
 }

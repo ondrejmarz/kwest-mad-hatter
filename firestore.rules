@@ -138,7 +138,8 @@ service cloud.firestore {
         // A player never changes their own coins/status/activeTask — only claims a character.
         // Pick and purchase writes are added with their transactions (phases 6, 7).
         allow update: if isAdmin(t) || (isMember(t) && claimsOwnership(t, pid));
-        allow delete: if false;
+        // Reject a pending character (spec 9.4); approved players are never hard-deleted.
+        allow delete: if isAdmin(t) && resource.data.status == 'pending';
 
         // Recovery PIN: unreadable by everyone (even the owner); rules compare it via get().
         match /private/auth {

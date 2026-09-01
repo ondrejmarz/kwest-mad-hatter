@@ -4,7 +4,7 @@ import { db } from '../../../data/firebase';
 import { joinTurnus } from '../../../data/transactions/joinTurnus';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
-import { Sheet } from '../../../ui/Sheet';
+import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
 import { useSession } from '../../session';
 
@@ -60,7 +60,7 @@ export function AdminUnlockGesture({ children }: { children: ReactNode }) {
       >
         {children}
       </span>
-      <Sheet open={open} onClose={() => setOpen(false)} title={t('admin.unlockTitle')}>
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('admin.unlockTitle')}>
         <form onSubmit={submit} className="flex flex-col gap-3">
           <p className="text-sm text-content-muted">{t('admin.unlockHint')}</p>
           <TextInput
@@ -75,7 +75,7 @@ export function AdminUnlockGesture({ children }: { children: ReactNode }) {
             {t('admin.unlockSubmit')}
           </Button>
         </form>
-      </Sheet>
+      </Dialog>
     </>
   );
 }

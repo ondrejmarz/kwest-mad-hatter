@@ -1,6 +1,5 @@
 import { unique } from '../../lib/arrays';
 import { invariant } from '../../lib/invariant';
-import type { GameEvent } from '../events';
 import { Day, type PlayerId, type TaskId } from '../ids';
 import type { Purchase } from '../types';
 
@@ -48,13 +47,13 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
 
   // Step 3 — assign reservations for D+1, ranked on the post-settle balances (before any auction
   // spend, so the hidden auction never leaks into who wins a contested task).
-  const { claims, expiredEvents } = buildClaims(reservations, settledCoins, nextDay);
-  const assignment = assignTasks(sortClaims(claims), tasksById, nameById, nextDay);
+  const claims = buildClaims(reservations, settledCoins, nextDay);
+  const assignment = assignTasks(sortClaims(claims), tasksById, nameById);
 
   // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance and get a
   // Purchase doc (their owned reward, spec 8). Targets stay empty here — punishment targeting fills
   // them in a later step; the id is deterministic so undo can delete exactly these docs.
-  const auction = resolveAuctions(rewards, rewardBids, settledCoins, currentDay);
+  const auction = resolveAuctions(rewards, rewardBids, settledCoins);
   const coinsById = auction.coinsAfter;
   const bidsByPlayer = new Map(rewardBids.map((bid) => [bid.playerId, bid] as const));
   const winInfo = auction.wins.map((win) => {
@@ -155,13 +154,6 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     amount: purchase.price,
   }));
 
-  const events: readonly GameEvent[] = [
-    ...settlements.map((settlement) => settlement.event),
-    ...expiredEvents,
-    ...assignment.events,
-    ...auction.events,
-  ];
-
   // Step 4 — advance the round: tomorrow's categories become today's, tomorrow resets to empty
   // (admins re-pick), and the day unlocks.
   return {
@@ -175,7 +167,6 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     playerUpdates,
     taskUpdates,
     purchases,
-    events,
     rollbackSnapshot,
     preview: {
       settlements: settlements.map((settlement) => ({

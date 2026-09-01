@@ -1,6 +1,5 @@
 import { db } from '../../../data/firebase';
 import { setCategories } from '../../../data/transactions/setCategories';
-import { type EventMeta } from '../../../data/transactions/shared';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Checkbox } from '../../../ui/Checkbox';
 
@@ -20,8 +19,6 @@ export interface CategoryOption {
  */
 export function CategoryPicker({
   turnusId,
-  day,
-  meta,
   field,
   title,
   hint,
@@ -29,8 +26,6 @@ export function CategoryPicker({
   selected,
 }: {
   turnusId: string;
-  day: number;
-  meta: EventMeta;
   field: 'nextDay' | 'currentDay';
   title: string;
   hint: string;
@@ -44,7 +39,7 @@ export function CategoryPicker({
     const next = new Set(selectedSet);
     if (checked) next.add(key);
     else next.delete(key);
-    void setCategories(db, turnusId, { [field]: [...next] }, day, meta);
+    void setCategories(db, turnusId, { [field]: [...next] });
   };
 
   return (

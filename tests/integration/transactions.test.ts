@@ -21,7 +21,6 @@ import type { ActiveTask, Player, Reward, Task } from '../../src/domain/types';
  * end to end. Reads for assertions bypass rules; the transactions themselves do not.
  */
 const T = 'demo';
-const ADMIN = { actorUid: 'admin', actorLabel: 'Admin' };
 let env: RulesTestEnvironment;
 
 const asDb = (uid: string): Firestore =>
@@ -173,21 +172,21 @@ describe('joinTurnus', () => {
 
 describe('claimPlayer', () => {
   it('claims a character with the right PIN and writes the owner index', async () => {
-    const result = await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1, '1234');
+    const result = await claimPlayer(asDb('dan'), T, 'free', 'dan', '1234');
     expect(result.ok).toBe(true);
     expect((await read('players/free'))?.ownerUids).toEqual(['dan']);
     expect((await read('ownerIndex/dan'))?.playerId).toBe('free');
   });
 
   it('refuses a wrong PIN, even on a free character', async () => {
-    const result = await claimPlayer(asDb('eve'), T, 'free', 'eve', 'Eve', 1, '9999');
+    const result = await claimPlayer(asDb('eve'), T, 'free', 'eve', '9999');
     expect(result).toEqual({ ok: false, error: { code: 'PLAYER_ALREADY_CLAIMED' } });
     expect((await read('players/free'))?.ownerUids).toEqual([]);
   });
 
   it('releases the previous character when claiming a new one', async () => {
-    await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1, '1234');
-    const result = await claimPlayer(asDb('dan'), T, 'p2', 'dan', 'Dan', 1, '1234');
+    await claimPlayer(asDb('dan'), T, 'free', 'dan', '1234');
+    const result = await claimPlayer(asDb('dan'), T, 'p2', 'dan', '1234');
     expect(result.ok).toBe(true);
     expect((await read('players/p2'))?.ownerUids).toEqual(['dan']);
     expect((await read('players/free'))?.ownerUids).toEqual([]);
@@ -197,7 +196,7 @@ describe('claimPlayer', () => {
 
 describe('admin actions', () => {
   it('approves a pending player with starting coins', async () => {
-    const result = await approvePlayer(asDb('admin'), T, 'pending', ADMIN);
+    const result = await approvePlayer(asDb('admin'), T, 'pending');
     expect(result.ok).toBe(true);
     const player = await read('players/pending');
     expect(player?.status).toBe('approved');
@@ -295,7 +294,7 @@ describe('runRollover and undoRollover', () => {
   };
 
   it('settles the day, advances the round, then fully restores on undo', async () => {
-    const rolled = await runRollover(asDb('admin'), T, input(), ADMIN);
+    const rolled = await runRollover(asDb('admin'), T, input());
     expect(rolled.ok).toBe(true);
 
     expect((await read('players/p1'))?.coins).toBe(250); // completed: +150
@@ -305,7 +304,7 @@ describe('runRollover and undoRollover', () => {
     expect((await readTurnus())?.currentDay).toBe(2);
     expect((await read('admin/rollback'))?.snapshot).toBeTruthy();
 
-    const undone = await undoRollover(asDb('admin'), T, ADMIN);
+    const undone = await undoRollover(asDb('admin'), T);
     expect(undone.ok).toBe(true);
     expect((await read('players/p1'))?.coins).toBe(100);
     expect((await read('players/p2'))?.coins).toBe(100);
@@ -337,7 +336,7 @@ describe('runRollover and undoRollover', () => {
       ],
     };
 
-    const rolled = await runRollover(asDb('admin'), T, auctionInput, ADMIN);
+    const rolled = await runRollover(asDb('admin'), T, auctionInput);
     expect(rolled.ok).toBe(true);
     // p1 completes t1 (+150 => 250), then wins r1 (−60 => 190).
     expect((await read('players/p1'))?.coins).toBe(190);
@@ -348,7 +347,7 @@ describe('runRollover and undoRollover', () => {
     expect(purchase?.price).toBe(60);
     expect(purchase?.form).toBe('reward');
 
-    const undone = await undoRollover(asDb('admin'), T, ADMIN);
+    const undone = await undoRollover(asDb('admin'), T);
     expect(undone.ok).toBe(true);
     expect((await read('players/p1'))?.coins).toBe(100);
     expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');

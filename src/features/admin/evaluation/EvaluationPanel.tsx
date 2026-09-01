@@ -8,7 +8,6 @@ import { toTurnusSettings, type Turnus } from '../../../data/schemas/turnus';
 import type { Subscription } from '../../../data/subscriptions';
 import { runRollover } from '../../../data/transactions/runRollover';
 import { setDayLock } from '../../../data/transactions/setDayLock';
-import { type EventMeta } from '../../../data/transactions/shared';
 import { undoRollover } from '../../../data/transactions/undoRollover';
 import type { PlayerId } from '../../../domain/ids';
 import { resolveRollover } from '../../../domain/rollover';
@@ -41,13 +40,11 @@ export function EvaluationPanel({
   players,
   tasks,
   rewards,
-  meta,
 }: {
   turnus: Turnus;
   players: readonly Player[];
   tasks: readonly Task[];
   rewards: readonly Reward[];
-  meta: EventMeta;
 }) {
   const { t, locale } = useTranslation();
   const [completed, setCompleted] = useState<ReadonlySet<PlayerId>>(new Set());
@@ -96,7 +93,7 @@ export function EvaluationPanel({
   const evaluate = async (): Promise<void> => {
     if (busy) return;
     setBusy(true);
-    await runRollover(db, turnus.id, input, meta);
+    await runRollover(db, turnus.id, input);
     setBusy(false);
     setCompleted(new Set());
   };
@@ -118,7 +115,7 @@ export function EvaluationPanel({
           variant={locked ? 'secondary' : 'primary'}
           className="shrink-0"
           disabled={busy}
-          onClick={() => void setDayLock(db, turnus.id, !locked, turnus.currentDay, meta)}
+          onClick={() => void setDayLock(db, turnus.id, !locked)}
         >
           {locked ? t('eval.unlock') : t('eval.lock')}
         </Button>
@@ -154,11 +151,7 @@ export function EvaluationPanel({
           {t('eval.evaluate')}
         </Button>
         {undoable && (
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() => void undoRollover(db, turnus.id, meta)}
-          >
+          <Button variant="danger" disabled={busy} onClick={() => void undoRollover(db, turnus.id)}>
             {t('eval.undo')}
           </Button>
         )}

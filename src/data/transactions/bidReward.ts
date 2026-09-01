@@ -14,7 +14,7 @@ import { readPlayer, readTurnus } from './shared';
  * Place or change a sealed bid in a reward's hidden auction (spec 8). Eligibility and the bid
  * object are decided by the pure domain; the transaction only reads state, writes the bid and
  * moves the public interest count (one per player, so switching rewards moves the count). Bids are
- * secret, so nothing is written to the public events log during the day — the win appears only at
+ * secret: only the interest count is public during the day — the win appears only at
  * evaluation (decision A3). Punishment targets ride along on the bid and stay editable all day; the
  * transaction moves a live per-target tally by the delta so a target locks once it reaches the cap,
  * yet who is actually punished is settled only at evaluation.

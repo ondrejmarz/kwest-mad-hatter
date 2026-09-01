@@ -1,4 +1,4 @@
-import { doc, type Firestore, runTransaction, Timestamp } from 'firebase/firestore';
+import { type Firestore, runTransaction, Timestamp } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
 import type { RollbackSnapshot } from '../../domain/rollover/types';
@@ -6,7 +6,6 @@ import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import {
-  eventsCol,
   playerDoc,
   purchaseDoc,
   reservationDoc,
@@ -16,18 +15,12 @@ import {
   turnusDoc,
 } from '../paths';
 
-import { actionEvent, type EventMeta } from './shared';
-
 /**
  * The admin safety brake (spec 6, decision A4): restore the complete pre-evaluation state
  * from the one-shot snapshot — coins, activeTask, needsPick, tasks' usedByPlayerIds, the
  * deleted reservations, and the turnus day/categories/lock — then consume the snapshot.
  */
-export async function undoRollover(
-  db: Firestore,
-  t: string,
-  meta: EventMeta,
-): Promise<Result<void, DomainError>> {
+export async function undoRollover(db: Firestore, t: string): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
     const snap = await tx.get(rollbackDoc(db, t));
@@ -69,7 +62,6 @@ export async function undoRollover(
       tx.delete(purchaseDoc(db, t, id));
     }
     tx.delete(rollbackDoc(db, t));
-    tx.set(doc(eventsCol(db, t)), actionEvent('rollover_undone', snapshot.currentDay, {}, meta));
     return ok(undefined);
   });
 }

@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 
+import { useTranslation } from '../../i18n/LocaleProvider';
 import { LanguageSwitcher } from '../../ui/LanguageSwitcher';
 
 /** Full-screen centered shell for the pre-turnus entry screens (spec 3, 9). */
@@ -12,20 +13,33 @@ export function EntryLayout({
   subtitle?: string | undefined;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="safe-bottom mx-auto flex min-h-full max-w-lg flex-col bg-surface">
-      {/* Match the in-app header's insets (safe-area + `px-4 py-3`) so the language switcher lands
-          in the same top-right spot on every screen, logged in or not. */}
-      <div className="safe-top">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3">
-          <span className="justify-self-start text-xs text-content-muted">©2026 Ondřej März</span>
-          <span className="justify-self-center text-xs tabular-nums text-content-muted">
-            v{__APP_VERSION__}
+      {/* Same header as the in-app one (AppLayout). The `min-h-[44px]` on the credit cell mirrors
+          the logged-in header's 44px tap-target, so both headers are exactly as tall and the
+          centered language switcher doesn't jump vertically when moving between them. */}
+      <div className="safe-top z-20 shrink-0 bg-surface-raised">
+        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-y border-border px-4 py-3">
+          {/* The `v`/`©` glyphs share a fixed-width box so the text after them (the years) lines up
+              vertically. Widen `w-[1.1em]` if the `©` ever looks cramped. */}
+          <div className="flex min-h-[44px] flex-col justify-center justify-self-start">
+            <span className="text-xs tabular-nums text-content-muted">
+              <span className="inline-block w-[1.1em] text-right">v</span>
+              {__APP_VERSION__}
+            </span>
+            <span className="text-xs tabular-nums text-content-muted">
+              <span className="inline-block w-[1.1em] text-right">©</span>2026 Ondřej März
+            </span>
+          </div>
+          <span className="justify-self-center text-lg font-semibold text-content">
+            {t('appName')}
           </span>
           <div className="justify-self-end">
             <LanguageSwitcher />
           </div>
-        </div>
+        </header>
       </div>
       <div className="flex flex-1 flex-col justify-center gap-8 px-6 pb-10">
         <header className="text-center">

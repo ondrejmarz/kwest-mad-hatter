@@ -17,7 +17,6 @@ import {
   usePurchases,
   useReservationCounts,
   useSession,
-  useTurnus,
 } from '../session';
 
 import { CreatePlayerDialog } from './components/CreatePlayerDialog';
@@ -46,9 +45,8 @@ function playerComparator(sort: PlayerSort): (a: Player, b: Player) => number {
 /** The main screen (spec 9.1): own card, sorted roster, pending section, add + claim + edit. */
 export function PlayersScreen() {
   const { t } = useTranslation();
-  const { uid, turnus, role } = useSession();
+  const { turnus, role } = useSession();
   const playersState = usePlayers();
-  const turnusState = useTurnus();
   const purchasesState = usePurchases();
   const countsState = useReservationCounts();
   const myPlayer = useMyPlayer();
@@ -61,11 +59,9 @@ export function PlayersScreen() {
 
   if (turnus === null) return null;
   const turnusId = turnus.id;
-  const day = turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay : 1;
-  const meta = { actorUid: uid ?? '', actorLabel: myPlayer?.name ?? 'Admin' };
-  // Quick coin steps from the roster; the audit note is auto-filled (spec 9.4).
+  // Quick coin steps from the roster (spec 9.4).
   const adjustCoinsFor = (playerId: string) => (delta: number) => {
-    void adjustCoins(db, turnusId, playerId, delta, t('players.quickAdjust'), meta);
+    void adjustCoins(db, turnusId, playerId, delta);
   };
 
   if (playersState.status === 'loading') {
@@ -152,35 +148,22 @@ export function PlayersScreen() {
         )}
       </div>
 
-      <PendingPlayersSection
-        pending={pending}
-        isAdmin={isAdmin}
-        turnusId={turnusId}
-        day={day}
-        meta={meta}
-      />
+      <PendingPlayersSection pending={pending} isAdmin={isAdmin} turnusId={turnusId} />
 
       <CreatePlayerDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         turnusId={turnusId}
-        day={day}
       />
       {selected !== null && (
         <PlayerDetailDialog
           player={selected}
           onClose={() => setSelected(null)}
           turnusId={turnusId}
-          day={day}
         />
       )}
       {editing !== null && (
-        <PlayerEditDialog
-          player={editing}
-          onClose={() => setEditing(null)}
-          turnusId={turnusId}
-          meta={meta}
-        />
+        <PlayerEditDialog player={editing} onClose={() => setEditing(null)} turnusId={turnusId} />
       )}
     </section>
   );

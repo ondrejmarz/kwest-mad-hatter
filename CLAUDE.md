@@ -81,8 +81,8 @@ Hard rules:
 - **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
   (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, counts, categories,
   dayLocked, currentDay), stored in an admin-only doc, not on the hot turnus doc.
-- **Reservations are secret.** Reservation/group-invite actions are not written to the public
-  `events` log during the day; reservation events only appear at evaluation.
+- **Reservations are secret.** During the day only the public interest count is visible; who won a
+  contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2 pair,
   e.g. 2/4 range), counting the initiator. The initiator's reservation carries `invitees: PlayerId[]`
   - `responses: {playerId → accepted|declined}` (invitees toggle until evaluation, rules let them
@@ -106,7 +106,13 @@ Hard rules:
   target of others' `punish_someone` (does not apply to `punish_all`).
 - **`punish_all`** targets everyone except the buyer (no explicit `targetIds`).
 - **Rules can't run queries** — a `uid -> playerId` index doc backs "my player" checks.
-- **Events** store `type` + structured `payload` (+ `actorLabel`); the message is rendered in the UI.
+- **No audit-event log.** The `turnuses/{t}/events` collection (a write-only audit log nothing read)
+  was removed — it flooded the DB after a few days of testing. Every transaction used to write an
+  `actionEvent`/`domainEvent` there via `shared.stamp` + an `EventMeta {actorUid, actorLabel}` threaded
+  through the whole call chain; all of that is gone (paths, schema, repo, rules `events` match, and the
+  domain `GameEvent` generation). Coin history will be a fresh per-player structure built over
+  `Settlement` data, not this log (backlog item 1). `adjustCoins`' note now has no store — the
+  PlayerEditDialog still requires it, but it is discarded until that per-player ledger lands.
 
 ## Implementation phases
 
@@ -304,12 +310,14 @@ März` (left) and the **app version** (centre). Versioning is a build timestamp:
 Discussed 2026-09; ordered roughly by the user's interest, not by dependency. The rules tab (item 3)
 stays LAST, after every mechanic is frozen.
 
-1. **Coin history + per-player stats.** Manual coin edits already force a note (`noteRequired`) but it
-   is shown nowhere. Add a transaction ledger to the player's own card/detail: started at 0, +160 for
-   _which_ task, −X for _which_ reward, manual edits with their note — the running story of a balance.
-   Plus totals: tasks completed, rewards won, coins earned, coins spent. Source is likely the `events`
-   log (structured payloads) folded per player; may need a dedicated per-player ledger if events are
-   not enough.
+1. **Coin history + per-player stats.** Manual coin edits still force a note in the UI
+   (`noteRequired`) but it is no longer stored anywhere (the audit-event log that held it was
+   removed — see "No audit-event log"). Build a **per-player ledger** written next to each player
+   (not the old global log, which meant complex per-player filtering): started at 0, +160 for _which_
+   task, −X for _which_ reward, manual edits with their note — the running story of a balance. Plus
+   totals: tasks completed, rewards won, coins earned, coins spent. The rollover already computes the
+   per-player deltas (`Settlement`/`preview`); the settlement/purchase/adjust transactions each append
+   a ledger entry, and `adjustCoins` regains a `note` argument (with a matching rule) at that point.
 2. **Gated turnus creation (= roadmap J-2).** Only the owner (this user) may create a group. Mechanism
    undecided: global super-admin flag, a creation code, or just editing the DB by hand (user is open
    to skipping an in-app form). Needs the `turnuses` create rule (currently `if false`). Decide the

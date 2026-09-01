@@ -1,14 +1,12 @@
 import { invariant } from '../../lib/invariant';
 import { buildActiveTask } from '../activeTask';
-import { gameEvent, type GameEvent } from '../events';
-import type { Day, PlayerId, TaskId } from '../ids';
+import type { PlayerId, TaskId } from '../ids';
 import type { ActiveTask, Task } from '../types';
 
 import type { Claim, PreviewAssignment, PreviewLoss } from './types';
 
 export interface AssignmentResult {
   readonly activeTaskById: ReadonlyMap<PlayerId, ActiveTask>;
-  readonly events: readonly GameEvent[];
   readonly assignments: readonly PreviewAssignment[];
   readonly losses: readonly PreviewLoss[];
 }
@@ -22,12 +20,10 @@ export function assignTasks(
   sortedClaims: readonly Claim[],
   tasksById: ReadonlyMap<TaskId, Task>,
   nameById: ReadonlyMap<PlayerId, string>,
-  nextDay: Day,
 ): AssignmentResult {
   const activeTaskById = new Map<PlayerId, ActiveTask>();
   const takenTasks = new Set<TaskId>();
   const winnerByTask = new Map<TaskId, string>();
-  const events: GameEvent[] = [];
   const assignments: PreviewAssignment[] = [];
   const losses: PreviewLoss[] = [];
 
@@ -38,7 +34,6 @@ export function assignTasks(
       const winnerName = winnerByTask.get(claim.taskId);
       invariant(winnerName !== undefined, 'a taken task recorded its winner');
       for (const playerId of claim.playerIds) {
-        events.push(gameEvent.reservationLost(nextDay, playerId, claim.taskId, winnerName));
         losses.push({
           playerId,
           playerName: nameOf(nameById, playerId),
@@ -59,7 +54,6 @@ export function assignTasks(
         .filter((id) => id !== playerId)
         .map((id) => nameOf(nameById, id));
       activeTaskById.set(playerId, buildActiveTask(task, partnerNames));
-      events.push(gameEvent.reservationAssigned(nextDay, playerId, claim.taskId));
       assignments.push({
         playerId,
         playerName: nameOf(nameById, playerId),
@@ -70,7 +64,7 @@ export function assignTasks(
     }
   }
 
-  return { activeTaskById, events, assignments, losses };
+  return { activeTaskById, assignments, losses };
 }
 
 function nameOf(nameById: ReadonlyMap<PlayerId, string>, playerId: PlayerId): string {

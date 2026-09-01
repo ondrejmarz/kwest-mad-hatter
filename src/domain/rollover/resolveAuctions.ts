@@ -1,5 +1,4 @@
-import { gameEvent, type GameEvent } from '../events';
-import type { Day, PlayerId, RewardId } from '../ids';
+import type { PlayerId, RewardId } from '../ids';
 import type { Reward, RewardBid } from '../types';
 
 export interface AuctionWin {
@@ -12,7 +11,6 @@ export interface AuctionResult {
   readonly wins: readonly AuctionWin[];
   /** Balances after every winner has paid — folded into the players' final coins. */
   readonly coinsAfter: ReadonlyMap<PlayerId, number>;
-  readonly events: readonly GameEvent[];
 }
 
 /**
@@ -27,7 +25,6 @@ export function resolveAuctions(
   rewards: readonly Reward[],
   bids: readonly RewardBid[],
   coins: ReadonlyMap<PlayerId, number>,
-  day: Day,
 ): AuctionResult {
   const balances = new Map(coins);
   const bidsByReward = new Map<RewardId, RewardBid[]>();
@@ -38,7 +35,6 @@ export function resolveAuctions(
   }
 
   const wins: AuctionWin[] = [];
-  const events: GameEvent[] = [];
   // Rewards resolve in catalog order (stable across the admin's preview and the committed write,
   // which share one input); the highest bid wins, ties broken by the earlier bid.
   for (const reward of rewards) {
@@ -50,11 +46,10 @@ export function resolveAuctions(
       if (balance !== undefined && balance >= bid.amount) {
         balances.set(bid.playerId, balance - bid.amount);
         wins.push({ rewardId: reward.id, playerId: bid.playerId, amount: bid.amount });
-        events.push(gameEvent.rewardWon(day, bid.playerId, reward.id, -bid.amount));
         break;
       }
     }
   }
 
-  return { wins, coinsAfter: balances, events };
+  return { wins, coinsAfter: balances };
 }

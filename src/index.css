@@ -29,7 +29,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: light dark;
-    --color-surface: 24 26 30;
+    --color-surface: 15 20 23;
     --color-surface-raised: 36 39 44;
     --color-border: 55 59 66;
     --color-text: 229 231 235;

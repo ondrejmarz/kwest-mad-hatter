@@ -1,4 +1,3 @@
-import type { GameEvent } from '../events';
 import type { Day, PlayerId, RewardId, TaskId } from '../ids';
 import type {
   ActiveTask,
@@ -33,7 +32,6 @@ export interface Settlement {
   readonly delta: number;
   readonly outcome: SettlementOutcome;
   readonly usedTaskId: TaskId | null;
-  readonly event: GameEvent;
 }
 
 /** One atomic bid for a task on day D+1; a group is one claim for all its members (spec 6). */
@@ -136,7 +134,6 @@ export interface RolloverResult {
   readonly taskUpdates: readonly TaskUpdate[];
   /** Purchase docs to create for the auction winners (owned rewards, spec 8). */
   readonly purchases: readonly Purchase[];
-  readonly events: readonly GameEvent[];
   readonly rollbackSnapshot: RollbackSnapshot;
   readonly preview: RolloverPreview;
 }

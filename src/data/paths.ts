@@ -76,6 +76,3 @@ export const purchasesCol = (db: Firestore, t: string) =>
   collection(db, 'turnuses', t, 'purchases');
 export const purchaseDoc = (db: Firestore, t: string, id: string) =>
   doc(db, 'turnuses', t, 'purchases', id);
-export const eventsCol = (db: Firestore, t: string) => collection(db, 'turnuses', t, 'events');
-export const eventDoc = (db: Firestore, t: string, id: string) =>
-  doc(db, 'turnuses', t, 'events', id);

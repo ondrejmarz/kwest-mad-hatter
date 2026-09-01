@@ -13,12 +13,10 @@ export function CreatePlayerDialog({
   open,
   onClose,
   turnusId,
-  day,
 }: {
   open: boolean;
   onClose: () => void;
   turnusId: string;
-  day: number;
 }) {
   const { t } = useTranslation();
   const { uid } = useSession();
@@ -40,10 +38,7 @@ export function CreatePlayerDialog({
     }
     setBusy(true);
     setError(null);
-    const result = await createPlayer(db, turnusId, name.trim(), pin, day, {
-      actorUid: uid,
-      actorLabel: name.trim(),
-    });
+    const result = await createPlayer(db, turnusId, name.trim(), pin, uid);
     setBusy(false);
     if (result.ok) {
       setName('');

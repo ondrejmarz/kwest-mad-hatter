@@ -110,6 +110,17 @@ beforeEach(async () => {
       difficulty: 1,
       active: true,
       coinReward: 150,
+      minPlayers: 1,
+      maxPlayers: 1,
+    });
+    await put('tasks/g1', {
+      name: 'G',
+      category: 'c',
+      difficulty: 1,
+      active: true,
+      coinReward: 150,
+      minPlayers: 2,
+      maxPlayers: 3,
     });
     await put('rewards/r1', { name: 'R', price: 10, form: 'reward', active: true });
 
@@ -272,6 +283,15 @@ describe('same-day task pick', () => {
     await assertFails(
       updateDoc(doc(authed('alice'), path('players/p1')), {
         activeTask: { ...activeT1, coinReward: 9999 },
+        needsPick: false,
+      }),
+    );
+  });
+
+  it('rejects taking a non-solo task for today', async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: { ...activeT1, taskId: 'g1' },
         needsPick: false,
       }),
     );

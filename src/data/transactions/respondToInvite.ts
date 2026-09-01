@@ -9,6 +9,8 @@ import { isOnline } from '../../platform/connectivity/isOnline';
 import { reservationCountsDoc, reservationDoc } from '../paths';
 import { parseReservation } from '../schemas/reservation';
 
+import { readTurnus } from './shared';
+
 /**
  * An invited player accepts or declines a group invite (spec 7), toggleable until evaluation. It
  * only sets that player's own key in the initiator's `responses` map (the rules allow exactly that).
@@ -25,6 +27,8 @@ export async function respondToInvite(
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
+    const turnus = await readTurnus(tx, db, t);
+    if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
     const invSnap = await tx.get(reservationDoc(db, t, initiatorPlayerId));
     const invitation = invSnap.exists() ? parseReservation(invSnap.id, invSnap.data() ?? {}) : null;
     invariant(

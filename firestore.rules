@@ -213,14 +213,16 @@ service cloud.firestore {
       match /rewards/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
 
       // Reservations are secret: readable only by the initiator, the invited players and admins.
-      // Admins may also write them — the only admin writer is the undo transaction restoring the
-      // pre-evaluation snapshot (decision A4).
+      // A locked day freezes them (players can't reserve, answer or cancel until evaluation);
+      // admins still write them — the undo transaction restoring the pre-evaluation snapshot (A4).
       match /reservations/{pid} {
         allow read: if isAdmin(t)
           || (hasPlayer(t) && (pid == myPlayerId(t) || myPlayerId(t) in resource.data.invitees));
-        allow create: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
-        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || respondsToInvite(t, pid) || isAdmin(t);
-        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+        allow create: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
+        allow update: if (hasPlayer(t) && dayUnlocked(t)
+            && (pid == myPlayerId(t) || respondsToInvite(t, pid)))
+          || isAdmin(t);
+        allow delete: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
       }
 
       // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.

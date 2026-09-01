@@ -80,23 +80,27 @@ describe('withRetry', () => {
     expect(errors).toEqual([{ code: 'not-found' }]);
   });
 
-  it('gives up after the retry budget is spent', () => {
+  it('surfaces the error past the burst yet keeps re-attaching, and recovers on a good snapshot', () => {
     const fake = fakeAttach();
+    const snaps: string[] = [];
     const errors: unknown[] = [];
     withRetry(
       fake.attach,
-      () => undefined,
+      (s) => snaps.push(s),
       (e) => errors.push(e),
     );
 
-    // 1 initial attach + 5 retries = 6 attempts; the 6th denial exhausts the budget.
+    // 1 initial attach + 5 retries = 6 attempts; the 6th denial surfaces the error but still retries.
     for (let i = 0; i < 6; i += 1) {
       fake.last().onError({ code: 'permission-denied' });
       vi.advanceTimersByTime(5000);
     }
+    expect(errors).toEqual([{ code: 'permission-denied' }]); // surfaced once, past the budget
+    expect(fake.calls.length).toBeGreaterThan(6); // still re-attaching, not given up
 
-    expect(fake.calls).toHaveLength(6);
-    expect(errors).toEqual([{ code: 'permission-denied' }]);
+    // Access is granted a moment later: a healthy snapshot recovers the subscription.
+    fake.last().onNext('data');
+    expect(snaps).toEqual(['data']);
   });
 
   it('stops retrying once unsubscribed', () => {

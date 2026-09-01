@@ -94,16 +94,33 @@ export function parseGroupSize(raw: string): { minPlayers: number; maxPlayers: n
   return { minPlayers: exact, maxPlayers: exact };
 }
 
+/**
+ * The task's size lives in the tags now, not its own column: a tag that is just a count (`2`) or a
+ * range (`2-4`) sets the group size, and the remaining tags are real categories. A task with no such
+ * tag is solo (1/1). The size tag is language-neutral, so only its `cs` part is inspected.
+ */
+function splitSizeTag(cells: readonly string[]): { size: string; categoryCells: string[] } {
+  let size = '';
+  const categoryCells: string[] = [];
+  for (const cell of cells) {
+    const cs = (cell.split('|')[0] ?? '').trim();
+    if (size === '' && /^\d+([-:]\d+)?$/.test(cs)) size = cs;
+    else categoryCells.push(cell);
+  }
+  return { size, categoryCells };
+}
+
 export function parseTasks(tsv: string): ParsedTask[] {
   return rows(tsv)
     .map((line) => {
-      const [name = '', description = '', difficulty = '', size = '', ...tags] = line.split('\t');
+      const [name = '', description = '', difficulty = '', ...tagCells] = line.split('\t');
+      const { size, categoryCells } = splitSizeTag(tagCells);
       return {
         name: parseLocalized(name),
         description: parseLocalized(description),
         difficulty: clampDifficulty(difficulty),
         ...parseGroupSize(size),
-        categories: parseTags(tags),
+        categories: parseTags(categoryCells),
       };
     })
     .filter((task) => task.name.cs.length > 0);

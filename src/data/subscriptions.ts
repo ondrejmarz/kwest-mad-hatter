@@ -26,7 +26,11 @@ const dataOf = (snap: {
 // A listener attached in the sliver before Firebase Auth has handed Firestore the anonymous token
 // (or before a freshly written membership is visible to the rules) is rejected once and then NEVER
 // retried by the SDK — which is what left every member-only screen showing "something went wrong"
-// until the user left the turnus and rejoined. We re-attach a few times with a short backoff.
+// until the user left the turnus and rejoined. We re-attach with a short backoff. A retryable denial
+// keeps re-attaching (capped backoff) rather than giving up for good, because it usually clears on
+// its own — the anonymous token lands, or a just-written membership (e.g. unlocking admin) becomes
+// visible to the rules a moment later. The error is still surfaced after the first burst so a truly
+// stuck read is not hidden behind an endless spinner, but a later healthy snapshot recovers it.
 const RETRYABLE_CODES = new Set([
   'permission-denied',
   'unauthenticated',
@@ -35,6 +39,7 @@ const RETRYABLE_CODES = new Set([
 ]);
 const MAX_RETRIES = 5;
 const RETRY_BASE_MS = 350;
+const MAX_BACKOFF_MS = 5000;
 
 export function isRetryable(error: unknown): boolean {
   return (
@@ -69,9 +74,14 @@ export function withRetry<S>(
       },
       (error) => {
         unsubscribe();
-        if (!cancelled && isRetryable(error) && attempts < MAX_RETRIES) {
+        if (cancelled) return;
+        if (isRetryable(error)) {
           attempts += 1;
-          timer = setTimeout(start, RETRY_BASE_MS * attempts);
+          // Surface the error once the first burst is spent, but keep re-attaching — access often
+          // becomes permitted shortly after (token/membership propagation), and a healthy snapshot
+          // then resets `attempts` and recovers the subscription without a reload.
+          if (attempts > MAX_RETRIES) onError(error);
+          timer = setTimeout(start, Math.min(RETRY_BASE_MS * attempts, MAX_BACKOFF_MS));
         } else {
           onError(error);
         }

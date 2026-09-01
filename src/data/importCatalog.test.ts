@@ -46,6 +46,32 @@ describe('parseTasks', () => {
       },
     ]);
   });
+
+  it('is solo when no size tag is present, all trailing cells are categories', () => {
+    expect(parseTasks('Úklid\tZameteš\t3\tPořádek\tVenku\n')).toEqual([
+      {
+        name: L('Úklid'),
+        description: L('Zameteš'),
+        difficulty: 3,
+        minPlayers: 1,
+        maxPlayers: 1,
+        categories: [L('Pořádek'), L('Venku')],
+      },
+    ]);
+  });
+
+  it('finds the size tag even after a category', () => {
+    expect(parseTasks('Štafeta\tBěh\t4\tSport\t3-5\n')).toEqual([
+      {
+        name: L('Štafeta'),
+        description: L('Běh'),
+        difficulty: 4,
+        minPlayers: 3,
+        maxPlayers: 5,
+        categories: [L('Sport')],
+      },
+    ]);
+  });
 });
 
 describe('parseGroupSize', () => {

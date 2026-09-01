@@ -169,13 +169,13 @@ export function TasksScreen() {
     countsState.status === 'ready' && countsState.data ? countsState.data.counts : {};
   const statusFor = (
     task: Task,
-  ): { mine: boolean; taken: boolean; reserved: boolean; hasInterest: boolean } => {
+  ): { mine: boolean; taken: boolean; reserved: boolean; interestCount: number } => {
     const reserved = myReservedTaskId === task.id;
     return {
       mine: myPlayer?.activeTask?.taskId === task.id,
       taken: takenBy.has(task.id),
       reserved,
-      hasInterest: (reservationCounts[task.id] ?? 0) - (reserved ? 1 : 0) > 0,
+      interestCount: (reservationCounts[task.id] ?? 0) - (reserved ? 1 : 0),
     };
   };
 

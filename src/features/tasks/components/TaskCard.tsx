@@ -22,7 +22,7 @@ export const TaskCard = memo(function TaskCard({
   mine = false,
   taken = false,
   reserved = false,
-  hasInterest = false,
+  interestCount = 0,
   isAdmin,
   onOpen,
   onEdit,
@@ -34,8 +34,8 @@ export const TaskCard = memo(function TaskCard({
   taken?: boolean;
   /** The viewer reserved this task for tomorrow. */
   reserved?: boolean;
-  /** Another player reserved this task for tomorrow (existence only, no name). */
-  hasInterest?: boolean;
+  /** How many other players reserved this task for tomorrow (no names). */
+  interestCount?: number;
   isAdmin: boolean;
   onOpen?: () => void;
   onEdit: () => void;
@@ -62,7 +62,13 @@ export const TaskCard = memo(function TaskCard({
           {mine && <Chip tone="success">{t('tasks.selectedChip')}</Chip>}
           {taken && <Chip tone="danger">{t('tasks.takenChip')}</Chip>}
           {reserved && <Chip tone="success">{t('tasks.reservedChip')}</Chip>}
-          {hasInterest && <Chip tone="warning">{t('tasks.hasInterest')}</Chip>}
+          {interestCount > 0 && (
+            <Chip tone="warning">
+              {interestCount > 1
+                ? t('tasks.hasInterestCount', { count: interestCount })
+                : t('tasks.hasInterest')}
+            </Chip>
+          )}
         </>
       }
       description={localize(task.description, locale)}

@@ -4,7 +4,7 @@ import { TYPE_KEYS } from '../../lib/group';
 import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../eligibility';
 import type { TaskId } from '../ids';
 
-import { loc, makePlayer, makeTask, makeTurnus } from './fixtures';
+import { loc, makeActiveTask, makePlayer, makeTask, makeTurnus } from './fixtures';
 
 describe('canReserveTask', () => {
   const turnus = makeTurnus({ nextDayCategories: ['chores'] });
@@ -41,6 +41,22 @@ describe('canReserveTask', () => {
     expect(canReserveTask(player, makeTask({ usedByPlayerIds: [player.id] }), turnus)).toEqual({
       ok: false,
       error: { code: 'TASK_ALREADY_USED_BY_PLAYER' },
+    });
+  });
+
+  it('rejects reserving the task the player is doing today', () => {
+    const player = makePlayer({ activeTask: makeActiveTask({ taskId: makeTask().id }) });
+    expect(canReserveTask(player, makeTask(), turnus)).toEqual({
+      ok: false,
+      error: { code: 'TASK_ALREADY_USED_BY_PLAYER' },
+    });
+  });
+
+  it('rejects any reservation while the day is locked', () => {
+    const locked = makeTurnus({ nextDayCategories: ['chores'], dayLocked: true });
+    expect(canReserveTask(makePlayer(), makeTask(), locked)).toEqual({
+      ok: false,
+      error: { code: 'DAY_LOCKED' },
     });
   });
 });

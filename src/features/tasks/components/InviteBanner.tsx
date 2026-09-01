@@ -123,7 +123,7 @@ function DismissButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** The inviter's own pair: the partner's name and answer on the left, cancel-for-both on the right. */
+/** The inviter's own pair: the partner's answer on the left (like the invitee sees), cancel right. */
 function InitiatorCard({
   reservation,
   description,
@@ -139,6 +139,9 @@ function InitiatorCard({
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const answered = reservation.invitees.every((id) => reservation.responses[id] !== undefined);
+  // A pair has a single invited partner; show their answer, the same badge the partner sees.
+  const partner = reservation.invitees[0];
+  const answer = partner !== undefined ? reservation.responses[partner] : undefined;
   if (dismissed) return null;
 
   return (
@@ -155,13 +158,7 @@ function InitiatorCard({
       </p>
       {description !== '' && <p className="mt-1 text-sm text-content-muted">{description}</p>}
       <div className="mt-3 flex items-center justify-between gap-2">
-        <div className="flex flex-col gap-0.5">
-          {reservation.invitees.map((id) => (
-            <span key={id} className="text-sm text-content">
-              {nameOf(id)}
-            </span>
-          ))}
-        </div>
+        <ResultBadge answer={answer} />
         <Button
           variant="danger"
           disabled={busy || answered}

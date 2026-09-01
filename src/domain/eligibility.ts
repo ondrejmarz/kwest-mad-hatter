@@ -15,9 +15,15 @@ export function canReserveTask(
   task: Task,
   turnus: TurnusSettings,
 ): Result<void, DomainError> {
+  // A locked day freezes everything until evaluation — task picks, reservations and reward bids.
+  if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
   if (!task.active) return err({ code: 'TASK_INACTIVE' });
   if (!isCategoryOpen(task, turnus.nextDayCategories)) {
     return err({ code: 'TASK_CATEGORY_CLOSED' });
+  }
+  // No point reserving the task you are already doing today.
+  if (player.activeTask?.taskId === task.id) {
+    return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });
   }
   if (task.usedByPlayerIds.includes(player.id)) {
     return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });

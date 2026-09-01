@@ -32,6 +32,11 @@ coverage
 !.firebaserc.example
 /emulator-data
 
+# Service-account key for `npm run seed:cloud` — SECRET, never commit
+service-account.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
 # Local / editor
 *.local
 .vscode/*

@@ -26,6 +26,7 @@
     "test:coverage": "vitest run --coverage",
     "test:rules": "firebase emulators:exec --only firestore --project demo-tabor \"vitest run --config vitest.rules.config.ts\"",
     "seed": "node --experimental-strip-types seed/seed.ts",
+    "seed:cloud": "node --experimental-strip-types seed/cloud.ts",
     "verify": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "prepare": "husky"
   },
@@ -63,6 +64,7 @@
     "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "firebase-admin": "^14.2.0",
     "firebase-tools": "^15.27.0",
     "globals": "^17.11.0",
     "husky": "^9.1.7",

@@ -7,6 +7,7 @@ import type {
   Purchase,
   Reservation,
   Reward,
+  RewardBid,
   Task,
   TurnusSettings,
 } from '../../../domain/types';
@@ -14,6 +15,7 @@ import { rewardSchema, taskSchema } from '../catalog';
 import { activeTaskSchema, playerSchema } from '../player';
 import { purchaseSchema } from '../purchase';
 import { reservationSchema } from '../reservation';
+import { rewardBidSchema } from '../rewardBid';
 import { turnusSchema } from '../turnus';
 
 /**
@@ -39,6 +41,9 @@ it('schemas stay compatible with the domain types', () => {
 
   expectTypeOf<Reservation>().toExtend<z.infer<typeof reservationSchema>>();
   expectTypeOf<keyof z.infer<typeof reservationSchema>>().toEqualTypeOf<keyof Reservation>();
+
+  expectTypeOf<RewardBid>().toExtend<z.infer<typeof rewardBidSchema>>();
+  expectTypeOf<keyof z.infer<typeof rewardBidSchema>>().toEqualTypeOf<keyof RewardBid>();
 
   expectTypeOf<z.infer<typeof taskSchema>>().toExtend<Task>();
   expectTypeOf<z.infer<typeof purchaseSchema>>().toExtend<Purchase>();

@@ -94,6 +94,19 @@ export interface Reservation {
   readonly createdAt: number;
 }
 
+/**
+ * A sealed bid in a reward's hidden auction (spec 8, reimagined). `amount` is what the player
+ * offered (at least the reward's price). Only the count of bids is public; the bidder and amount
+ * are secret. Resolved at day evaluation: the highest bidder who can still afford it wins and pays.
+ */
+export interface RewardBid {
+  readonly playerId: PlayerId;
+  readonly day: Day;
+  readonly rewardId: RewardId;
+  readonly amount: number;
+  readonly createdAt: number;
+}
+
 export interface Purchase {
   readonly id: string;
   readonly day: Day;

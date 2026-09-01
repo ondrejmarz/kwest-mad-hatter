@@ -48,7 +48,12 @@ beforeEach(async () => {
     const put = (suffix: string, data: Record<string, unknown>): Promise<void> =>
       setDoc(doc(db, path(suffix)), data);
 
-    await setDoc(doc(db, `turnuses/${T}`), { name: 'Demo', slug: 'demo', currentDay: 1 });
+    await setDoc(doc(db, `turnuses/${T}`), {
+      name: 'Demo',
+      slug: 'demo',
+      currentDay: 1,
+      dayLocked: false,
+    });
     await put('private/config', { playerCode: 'PLAY01', adminCode: 'ADMIN1' });
 
     for (const [uid, role] of [
@@ -111,6 +116,12 @@ beforeEach(async () => {
       maxPlayers: 2,
       invitees: ['p2'],
       responses: {},
+      createdAt: serverTimestamp(),
+    });
+    await put('rewardBids/p1', {
+      day: 1,
+      rewardId: 'r1',
+      amount: 20,
       createdAt: serverTimestamp(),
     });
     await put('events/e1', {
@@ -195,6 +206,41 @@ describe('reservations are secret', () => {
 
   it('does not let an uninvolved member delete a reservation', async () => {
     await assertFails(deleteDoc(doc(authed('carol'), path('reservations/p1'))));
+  });
+});
+
+describe('reward bids are secret', () => {
+  it("denies any other member reading someone's sealed bid", async () => {
+    await assertFails(getDoc(doc(authed('carol'), path('rewardBids/p1'))));
+    await assertFails(getDoc(doc(authed('bob'), path('rewardBids/p1'))));
+  });
+
+  it('lets the bidder and an admin read it', async () => {
+    await assertSucceeds(getDoc(doc(authed('alice'), path('rewardBids/p1'))));
+    await assertSucceeds(getDoc(doc(authed('admin'), path('rewardBids/p1'))));
+  });
+
+  it('lets the bidder change and withdraw their own bid', async () => {
+    await assertSucceeds(updateDoc(doc(authed('alice'), path('rewardBids/p1')), { amount: 50 }));
+    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1'))));
+  });
+
+  it("forbids a member writing someone else's bid", async () => {
+    await assertFails(updateDoc(doc(authed('carol'), path('rewardBids/p1')), { amount: 50 }));
+    await assertFails(deleteDoc(doc(authed('carol'), path('rewardBids/p1'))));
+  });
+
+  it('freezes new and raised bids while the day is locked, but still allows withdrawal', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `turnuses/${T}`), {
+        name: 'Demo',
+        slug: 'demo',
+        currentDay: 1,
+        dayLocked: true,
+      });
+    });
+    await assertFails(updateDoc(doc(authed('alice'), path('rewardBids/p1')), { amount: 50 }));
+    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1'))));
   });
 });
 

@@ -1,5 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { db } from '../../data/firebase';
+import { subscribeRewardBidCounts } from '../../data/repositories/rewardBids';
+import type { RewardBidCounts } from '../../data/schemas/rewardBid';
+import { toTurnusSettings } from '../../data/schemas/turnus';
+import type { Subscription } from '../../data/subscriptions';
 import type { Reward, RewardForm } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { localize } from '../../i18n/localize';
@@ -11,8 +16,9 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { useCatalogRewards, useSession, useTurnus } from '../session';
+import { useCatalogRewards, useMyBid, useMyPlayer, useSession, useTurnus } from '../session';
 
+import { RewardBidDialog } from './components/RewardBidDialog';
 import { RewardCard } from './components/RewardCard';
 import { RewardEditDialog } from './components/RewardEditDialog';
 
@@ -33,19 +39,34 @@ function rewardComparator(sort: RewardSort, locale: Locale): (a: Reward, b: Rewa
   }
 }
 
-/** Reward catalog (spec 9.3): sort, filter by form, admin add/edit. Buying lands in phase 7. */
+/** Reward catalog (spec 9.3): sort, filter by form, admin add/edit, tap to bid (hidden auction). */
 export function RewardsScreen() {
   const { t, locale } = useTranslation();
   const { role } = useSession();
   const rewardsState = useCatalogRewards();
   const turnusState = useTurnus();
+  const myPlayer = useMyPlayer();
+  const bidState = useMyBid();
   const isAdmin = role === 'admin';
 
   const [sort, setSort] = usePersistentState<RewardSort>('kwest.rewards.sort', 'nameAsc');
   const [formFilter, setFormFilter] = usePersistentState<'' | RewardForm>('kwest.rewards.form', '');
   const [editing, setEditing] = useState<Reward | null | undefined>(undefined);
+  const [acting, setActing] = useState<Reward | null>(null);
+  const [counts, setCounts] = useState<Subscription<RewardBidCounts | null>>({ status: 'loading' });
 
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
+  const settings = turnus !== null ? toTurnusSettings(turnus) : null;
+  const myBid = bidState.status === 'ready' ? bidState.data : null;
+  const countMap = counts.status === 'ready' && counts.data !== null ? counts.data.counts : {};
+
+  const turnusId = turnus?.id ?? null;
+  const currentDay = turnus?.currentDay ?? null;
+  useEffect(() => {
+    if (turnusId === null || currentDay === null) return;
+    return subscribeRewardBidCounts(db, turnusId, currentDay, setCounts);
+  }, [turnusId, currentDay]);
+
   const rewards = useMemo(() => {
     if (rewardsState.status !== 'ready') return [];
     const compare = rewardComparator(sort, locale);
@@ -114,6 +135,11 @@ export function RewardsScreen() {
               key={reward.id}
               reward={reward}
               isAdmin={isAdmin}
+              reserved={myBid?.rewardId === reward.id}
+              interested={countMap[reward.id] ?? 0}
+              {...(myPlayer !== null && settings !== null
+                ? { onOpen: () => setActing(reward) }
+                : {})}
               onEdit={() => setEditing(reward)}
             />
           ))}
@@ -125,6 +151,18 @@ export function RewardsScreen() {
           reward={editing}
           onClose={() => setEditing(undefined)}
           turnusId={turnus.id}
+        />
+      )}
+
+      {acting !== null && turnus !== null && settings !== null && myPlayer !== null && (
+        <RewardBidDialog
+          reward={acting}
+          myPlayer={myPlayer}
+          settings={settings}
+          bid={myBid}
+          count={countMap[acting.id] ?? 0}
+          turnusId={turnus.id}
+          onClose={() => setActing(null)}
         />
       )}
     </section>

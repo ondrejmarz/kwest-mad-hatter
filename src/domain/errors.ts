@@ -12,6 +12,7 @@ export type DomainError =
   | { readonly code: 'TASK_TAKEN_TODAY'; readonly byPlayerName: string }
   | { readonly code: 'DAY_LOCKED' }
   | { readonly code: 'REWARD_INACTIVE' }
+  | { readonly code: 'BID_BELOW_MINIMUM'; readonly min: number }
   | { readonly code: 'REWARD_EXCLUSIVE_TAKEN'; readonly byPlayerName: string }
   | { readonly code: 'TOO_MANY_ACTIVE_REWARDS'; readonly max: number }
   | { readonly code: 'CANNOT_TARGET_SELF' }

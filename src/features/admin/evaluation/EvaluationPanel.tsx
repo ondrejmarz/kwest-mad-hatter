@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { db } from '../../../data/firebase';
 import { subscribeAllReservations } from '../../../data/repositories/reservations';
+import { subscribeAllBids } from '../../../data/repositories/rewardBids';
 import { subscribeRollbackPresence } from '../../../data/repositories/rollback';
 import { toTurnusSettings, type Turnus } from '../../../data/schemas/turnus';
 import type { Subscription } from '../../../data/subscriptions';
@@ -12,7 +13,7 @@ import { undoRollover } from '../../../data/transactions/undoRollover';
 import type { PlayerId } from '../../../domain/ids';
 import { resolveRollover } from '../../../domain/rollover';
 import type { RolloverInput, RolloverPreview } from '../../../domain/rollover';
-import type { Player, Reservation, Task } from '../../../domain/types';
+import type { Player, Reservation, Reward, RewardBid, Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { csCollator } from '../../../lib/collator';
@@ -39,11 +40,13 @@ export function EvaluationPanel({
   turnus,
   players,
   tasks,
+  rewards,
   meta,
 }: {
   turnus: Turnus;
   players: readonly Player[];
   tasks: readonly Task[];
+  rewards: readonly Reward[];
   meta: EventMeta;
 }) {
   const { t, locale } = useTranslation();
@@ -51,10 +54,12 @@ export function EvaluationPanel({
   const [reservations, setReservations] = useState<Subscription<readonly Reservation[]>>({
     status: 'loading',
   });
+  const [bids, setBids] = useState<Subscription<readonly RewardBid[]>>({ status: 'loading' });
   const [rollback, setRollback] = useState<Subscription<true | null>>({ status: 'loading' });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => subscribeAllReservations(db, turnus.id, setReservations), [turnus.id]);
+  useEffect(() => subscribeAllBids(db, turnus.id, setBids), [turnus.id]);
   useEffect(() => subscribeRollbackPresence(db, turnus.id, setRollback), [turnus.id]);
 
   const approved = players
@@ -62,6 +67,7 @@ export function EvaluationPanel({
     .sort((a, b) => csCollator.compare(a.name, b.name));
   const withTask = approved.filter((player) => player.activeTask !== null);
   const reservationList = reservations.status === 'ready' ? reservations.data : [];
+  const bidList = bids.status === 'ready' ? bids.data : [];
 
   const toggle = (id: PlayerId, done: boolean): void =>
     setCompleted((prev) => {
@@ -76,9 +82,12 @@ export function EvaluationPanel({
     players: approved,
     tasks,
     reservations: reservationList,
+    rewards,
+    rewardBids: bidList,
     completedPlayerIds: completed,
   };
-  const preview = reservations.status === 'ready' ? safePreview(input) : null;
+  const ready = reservations.status === 'ready' && bids.status === 'ready';
+  const preview = ready ? safePreview(input) : null;
   const undoable = rollback.status === 'ready' && rollback.data === true;
   // Locking the day gates the whole evaluation: no ticking completions, no evaluating, until
   // the admin deliberately freezes the day (spec 6, decision).
@@ -141,10 +150,7 @@ export function EvaluationPanel({
       {preview !== null && <EvaluationPreview preview={preview} />}
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
-        <Button
-          disabled={busy || reservations.status !== 'ready' || !locked}
-          onClick={() => void evaluate()}
-        >
+        <Button disabled={busy || !ready || !locked} onClick={() => void evaluate()}>
           {t('eval.evaluate')}
         </Button>
         {undoable && (
@@ -211,6 +217,28 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
           </ul>
         )}
       </section>
+
+      {preview.auctions.length > 0 && (
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+            {t('eval.auctions')}
+          </h3>
+          <ul className="flex flex-col gap-1">
+            {preview.auctions.map((auction) => (
+              <li key={auction.rewardId} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 truncate text-content">{auction.winnerName}</span>
+                  <span className="text-content-muted">→</span>
+                  <span className="min-w-0 truncate text-content-muted">
+                    {localize(auction.rewardName, locale)}
+                  </span>
+                </span>
+                <CoinAmount amount={-auction.amount} signed />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {preview.losses.length > 0 && (
         <section>

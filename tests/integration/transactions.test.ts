@@ -1,18 +1,19 @@
 import { readFileSync } from 'node:fs';
 
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, type Firestore, getDoc, setDoc } from 'firebase/firestore';
+import { doc, type Firestore, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { approvePlayer } from '../../src/data/transactions/approvePlayer';
+import { bidReward } from '../../src/data/transactions/bidReward';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
 import { runRollover } from '../../src/data/transactions/runRollover';
 import { undoRollover } from '../../src/data/transactions/undoRollover';
-import { Day, PlayerId, TaskId } from '../../src/domain/ids';
+import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
-import type { ActiveTask, Player, Task } from '../../src/domain/types';
+import type { ActiveTask, Player, Reward, Task } from '../../src/domain/types';
 
 /**
  * Integration tests for the transactions layer (spec 15.10): the real transaction functions
@@ -121,6 +122,20 @@ beforeEach(async () => {
     await put('tasks/t1', task({ name: L('Task 1') }));
     await put('tasks/t2', task({ name: L('Task 2') }));
     await put('tasks/t3', task({ name: L('Task 3') }));
+
+    const reward = (over: Record<string, unknown>): Record<string, unknown> => ({
+      name: L('R'),
+      description: L(''),
+      categories: [L('c')],
+      price: 40,
+      form: 'reward',
+      minTargets: 0,
+      maxTargets: 0,
+      exclusivePerDay: false,
+      active: true,
+      ...over,
+    });
+    await put('rewards/r1', reward({ name: L('Reward 1') }));
   });
 });
 
@@ -207,6 +222,24 @@ describe('reserveTask', () => {
   });
 });
 
+describe('bidReward', () => {
+  it('places a sealed bid for the current day and bumps the interest count', async () => {
+    const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 70);
+    expect(result.ok).toBe(true);
+    const bid = await read('rewardBids/p1');
+    expect(bid?.rewardId).toBe('r1');
+    expect(bid?.amount).toBe(70);
+    const counts = await read('rewardBidCounts/1');
+    expect((counts?.counts as Record<string, number>).r1).toBe(1);
+  });
+
+  it('refuses a bid below the reward price', async () => {
+    const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 10);
+    expect(result).toEqual({ ok: false, error: { code: 'BID_BELOW_MINIMUM', min: 40 } });
+    expect(await read('rewardBids/p1')).toBeUndefined();
+  });
+});
+
 describe('runRollover and undoRollover', () => {
   const player = (id: string, activeTask: ActiveTask): Player => ({
     id: PlayerId(id),
@@ -250,8 +283,22 @@ describe('runRollover and undoRollover', () => {
     ],
     tasks: [task('t1'), task('t2')],
     reservations: [],
+    rewards: [],
+    rewardBids: [],
     completedPlayerIds: new Set([PlayerId('p1')]),
   });
+  const auctionReward: Reward = {
+    id: RewardId('r1'),
+    name: L('Reward 1'),
+    description: L(''),
+    categories: [L('c')],
+    price: 40,
+    form: 'reward',
+    minTargets: 0,
+    maxTargets: 0,
+    exclusivePerDay: false,
+    active: true,
+  };
 
   it('settles the day, advances the round, then fully restores on undo', async () => {
     const rolled = await runRollover(asDb('admin'), T, input(), ADMIN);
@@ -270,5 +317,40 @@ describe('runRollover and undoRollover', () => {
     expect((await read('players/p2'))?.coins).toBe(100);
     expect((await readTurnus())?.currentDay).toBe(1);
     expect(await read('admin/rollback')).toBeUndefined();
+  });
+
+  it('resolves the reward auction: charges the winner, consumes the bid, restores on undo', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1`), {
+        day: 1,
+        rewardId: 'r1',
+        amount: 60,
+        createdAt: Timestamp.fromMillis(1000),
+      });
+    });
+    const auctionInput: RolloverInput = {
+      ...input(),
+      rewards: [auctionReward],
+      rewardBids: [
+        {
+          playerId: PlayerId('p1'),
+          day: Day(1),
+          rewardId: RewardId('r1'),
+          amount: 60,
+          createdAt: 1000,
+        },
+      ],
+    };
+
+    const rolled = await runRollover(asDb('admin'), T, auctionInput, ADMIN);
+    expect(rolled.ok).toBe(true);
+    // p1 completes t1 (+150 => 250), then wins r1 (−60 => 190).
+    expect((await read('players/p1'))?.coins).toBe(190);
+    expect(await read('rewardBids/p1')).toBeUndefined();
+
+    const undone = await undoRollover(asDb('admin'), T, ADMIN);
+    expect(undone.ok).toBe(true);
+    expect((await read('players/p1'))?.coins).toBe(100);
+    expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');
   });
 });

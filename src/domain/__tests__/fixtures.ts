@@ -5,6 +5,7 @@ import type {
   Player,
   Reservation,
   Reward,
+  RewardBid,
   Task,
   TurnusSettings,
 } from '../types';
@@ -89,6 +90,15 @@ export const makeReservation = (over: Partial<Reservation> = {}): Reservation =>
   maxPlayers: 1,
   invitees: [],
   responses: {},
+  createdAt: 1000,
+  ...over,
+});
+
+export const makeRewardBid = (over: Partial<RewardBid> = {}): RewardBid => ({
+  playerId: PlayerId('p1'),
+  day: Day(1),
+  rewardId: RewardId('r1'),
+  amount: 50,
   createdAt: 1000,
   ...over,
 });

@@ -1,17 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { Day, PlayerId, TaskId } from '../ids';
+import { Day, PlayerId, RewardId, TaskId } from '../ids';
 import { resolveRollover } from '../rollover';
 import type { PlayerUpdate, RolloverResult } from '../rollover';
-import type { Player, Reservation, Task, TurnusSettings } from '../types';
+import type { Player, Reservation, Reward, RewardBid, Task, TurnusSettings } from '../types';
 
-import { loc, makeActiveTask, makePlayer, makeReservation, makeTask, makeTurnus } from './fixtures';
+import {
+  loc,
+  makeActiveTask,
+  makePlayer,
+  makeReservation,
+  makeReward,
+  makeRewardBid,
+  makeTask,
+  makeTurnus,
+} from './fixtures';
 
 interface RunInput {
   readonly turnus?: Partial<TurnusSettings>;
   readonly players?: readonly Player[];
   readonly tasks?: readonly Task[];
   readonly reservations?: readonly Reservation[];
+  readonly rewards?: readonly Reward[];
+  readonly rewardBids?: readonly RewardBid[];
   readonly completed?: readonly PlayerId[];
 }
 
@@ -21,6 +32,8 @@ function run(input: RunInput): RolloverResult {
     players: input.players ?? [],
     tasks: input.tasks ?? [],
     reservations: input.reservations ?? [],
+    rewards: input.rewards ?? [],
+    rewardBids: input.rewardBids ?? [],
     completedPlayerIds: new Set(input.completed ?? []),
   });
 }
@@ -380,6 +393,36 @@ describe('resolveRollover — groups (step 3)', () => {
       .filter((e) => e.type === 'reservation_lost')
       .map((e) => (e.type === 'reservation_lost' ? e.playerId : ''));
     expect(lostPlayers).toEqual(expect.arrayContaining(['a', 'b']));
+  });
+});
+
+describe('resolveRollover — reward auctions (step 2)', () => {
+  it('charges the winner, reports it in the preview, and snapshots the bids', () => {
+    const result = run({
+      turnus: { currentDay: Day(1), noPickPenalty: 0 },
+      players: [makePlayer({ id: PlayerId('p1'), name: 'Jana', coins: 100 })],
+      rewards: [makeReward({ id: RewardId('r1'), name: loc('Extra dessert'), price: 40 })],
+      rewardBids: [
+        makeRewardBid({
+          playerId: PlayerId('p1'),
+          rewardId: RewardId('r1'),
+          amount: 60,
+          day: Day(1),
+        }),
+      ],
+    });
+    expect(pu(result, 'p1').coins).toBe(40); // 100 − 60
+    expect(result.preview.auctions).toEqual([
+      { rewardId: 'r1', rewardName: loc('Extra dessert'), winnerName: 'Jana', amount: 60 },
+    ]);
+    expect(result.events).toContainEqual({
+      type: 'reward_won',
+      day: 1,
+      playerId: 'p1',
+      rewardId: 'r1',
+      coins: -60,
+    });
+    expect(result.rollbackSnapshot.rewardBids).toHaveLength(1);
   });
 });
 

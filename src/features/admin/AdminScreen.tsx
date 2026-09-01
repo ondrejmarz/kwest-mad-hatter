@@ -51,7 +51,13 @@ export function AdminScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <EvaluationPanel turnus={settings} players={players} tasks={tasks} meta={meta} />
+      <EvaluationPanel
+        turnus={settings}
+        players={players}
+        tasks={tasks}
+        rewards={rewards}
+        meta={meta}
+      />
       <CatalogImport
         turnusId={turnus.id}
         coinsPerDifficulty={settings.coinsPerDifficulty}

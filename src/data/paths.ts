@@ -54,6 +54,12 @@ export const reservationDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'reservations', playerId);
 export const reservationCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'reservationCounts', String(day));
+export const rewardBidsCol = (db: Firestore, t: string) =>
+  collection(db, 'turnuses', t, 'rewardBids');
+export const rewardBidDoc = (db: Firestore, t: string, playerId: string) =>
+  doc(db, 'turnuses', t, 'rewardBids', playerId);
+export const rewardBidCountsDoc = (db: Firestore, t: string, day: number) =>
+  doc(db, 'turnuses', t, 'rewardBidCounts', String(day));
 export const purchasesCol = (db: Firestore, t: string) =>
   collection(db, 'turnuses', t, 'purchases');
 export const purchaseDoc = (db: Firestore, t: string, id: string) =>

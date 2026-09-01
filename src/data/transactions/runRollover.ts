@@ -11,6 +11,8 @@ import {
   playerDoc,
   reservationCountsDoc,
   reservationDoc,
+  rewardBidCountsDoc,
+  rewardBidDoc,
   rollbackDoc,
   taskDoc,
   turnusDoc,
@@ -63,6 +65,11 @@ export async function runRollover(
       tx.delete(reservationDoc(db, t, reservation.playerId));
     }
     tx.set(reservationCountsDoc(db, t, result.nextDay), { counts: {} });
+    // Consume the sealed bids: winners already paid via the coin updates above (spec 8).
+    for (const bid of input.rewardBids) {
+      tx.delete(rewardBidDoc(db, t, bid.playerId));
+    }
+    tx.set(rewardBidCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
     for (const event of result.events) {
       tx.set(doc(eventsCol(db, t)), domainEvent(event, meta));
     }

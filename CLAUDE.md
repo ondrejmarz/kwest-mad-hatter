@@ -132,5 +132,14 @@ comes before data/rules (phase 2) on purpose.
    editors put name/description/each tag in one `cs|en|de` field (keeps the create form usable on a
    phone); `Dialog` locks background scroll and scrolls internally. Still to do: same-day manual
    `pickTaskNow` (needs a player-writes-`activeTask` rule + rule tests).
-7. Rewards — reimagined as a hidden auction (min price = starting bid, higher bids, count-only
-   visible, resolved at evaluation; no same-day buy). 8. PWA + polish. 9. Showcase.
+7. Rewards — **done.** Hidden auction (min price = starting bid, players may bid higher, only the
+   interest _count_ is public). Tap a reward → `RewardBidDialog` (bid ≥ price / raise / withdraw);
+   one sealed bid per player (`rewardBids/{playerId}`, secret like a reservation, `useMyBid`).
+   Resolved at day evaluation by pure `resolveAuctions` (folded into `resolveRollover`): rewards in
+   catalog order, highest bid wins, ties → earlier bid; the winner must afford it on the post-settle
+   balance (else it forfeits to the next, or goes unsold — **no escrow**). Winners pay via the coin
+   updates + a `reward_won` event; the eval preview lists auctions; undo restores the bids from the
+   snapshot. **Rule fix:** undo runs as admin over the client SDK, so `reservations`/`rewardBids`
+   create+update now also allow `isAdmin` (the only admin writer is the snapshot restore) — this
+   closes a latent reservation-undo gap too. Deferred: persistent "owned reward" (`Purchase` doc +
+   "má odměnu" chip); punish-target selection/effects (handled off-app for now). 8. PWA + polish. 9. Showcase.

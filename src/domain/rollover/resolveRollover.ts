@@ -5,10 +5,12 @@ import { Day, type PlayerId, type TaskId } from '../ids';
 
 import { assignTasks } from './assignTasks';
 import { buildClaims } from './buildClaims';
+import { resolveAuctions } from './resolveAuctions';
 import { settleDay } from './settleDay';
 import { sortClaims } from './sortClaims';
 import type {
   PlayerUpdate,
+  PreviewAuction,
   PreviewWithoutTask,
   RollbackSnapshot,
   RolloverInput,
@@ -22,13 +24,14 @@ import type {
  * The admin preview screen runs this exact function, so it shows what will happen.
  */
 export function resolveRollover(input: RolloverInput): RolloverResult {
-  const { turnus, players, tasks, reservations, completedPlayerIds } = input;
+  const { turnus, players, tasks, reservations, rewards, rewardBids, completedPlayerIds } = input;
   const currentDay = turnus.currentDay;
   const nextDay = Day(currentDay + 1);
 
   const approved = players.filter((player) => player.status === 'approved');
   const nameById = new Map(approved.map((player) => [player.id, player.name] as const));
   const tasksById = new Map(tasks.map((task) => [task.id, task] as const));
+  const rewardsById = new Map(rewards.map((reward) => [reward.id, reward] as const));
   const nameOf = (playerId: PlayerId): string => {
     const name = nameById.get(playerId);
     invariant(name !== undefined, 'every approved player has a name');
@@ -37,13 +40,18 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
 
   // Step 1 — settle day D.
   const settlements = settleDay(approved, completedPlayerIds, turnus);
-  const coinsById = new Map(
+  const settledCoins = new Map(
     settlements.map((settlement) => [settlement.playerId, settlement.coins] as const),
   );
 
-  // Step 3 — assign reservations for D+1, ranked on the post-settle balances.
-  const { claims, expiredEvents } = buildClaims(reservations, coinsById, nextDay);
+  // Step 3 — assign reservations for D+1, ranked on the post-settle balances (before any auction
+  // spend, so the hidden auction never leaks into who wins a contested task).
+  const { claims, expiredEvents } = buildClaims(reservations, settledCoins, nextDay);
   const assignment = assignTasks(sortClaims(claims), tasksById, nameById, nextDay);
+
+  // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance.
+  const auction = resolveAuctions(rewards, rewardBids, settledCoins, currentDay);
+  const coinsById = auction.coinsAfter;
 
   const playerUpdates: readonly PlayerUpdate[] = approved.map((player) => {
     const coins = coinsById.get(player.id);
@@ -84,16 +92,29 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
       .filter((task) => changedTaskIds.has(task.id))
       .map((task) => ({ taskId: task.id, usedByPlayerIds: task.usedByPlayerIds })),
     reservations,
+    rewardBids,
   };
 
   const withoutTask: readonly PreviewWithoutTask[] = playerUpdates
     .filter((update) => update.activeTask === null)
     .map((update) => ({ playerId: update.playerId, playerName: nameOf(update.playerId) }));
 
+  const auctions: readonly PreviewAuction[] = auction.wins.map((win) => {
+    const reward = rewardsById.get(win.rewardId);
+    invariant(reward !== undefined, 'a won reward exists in the catalog');
+    return {
+      rewardId: win.rewardId,
+      rewardName: reward.name,
+      winnerName: nameOf(win.playerId),
+      amount: win.amount,
+    };
+  });
+
   const events: readonly GameEvent[] = [
     ...settlements.map((settlement) => settlement.event),
     ...expiredEvents,
     ...assignment.events,
+    ...auction.events,
   ];
 
   // Step 4 — advance the round: tomorrow's categories become today's, tomorrow resets to empty
@@ -120,6 +141,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
       assignments: assignment.assignments,
       losses: assignment.losses,
       withoutTask,
+      auctions,
     },
   };
 }

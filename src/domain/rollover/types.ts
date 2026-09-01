@@ -1,10 +1,12 @@
 import type { GameEvent } from '../events';
-import type { Day, PlayerId, TaskId } from '../ids';
+import type { Day, PlayerId, RewardId, TaskId } from '../ids';
 import type {
   ActiveTask,
   LocalizedText,
   Player,
   Reservation,
+  Reward,
+  RewardBid,
   Task,
   TurnusSettings,
 } from '../types';
@@ -15,6 +17,8 @@ export interface RolloverInput {
   readonly players: readonly Player[];
   readonly tasks: readonly Task[];
   readonly reservations: readonly Reservation[];
+  readonly rewards: readonly Reward[];
+  readonly rewardBids: readonly RewardBid[];
   readonly completedPlayerIds: ReadonlySet<PlayerId>;
 }
 
@@ -69,6 +73,7 @@ export interface RollbackSnapshot {
   readonly players: readonly PlayerSnapshot[];
   readonly tasks: readonly TaskUpdate[];
   readonly reservations: readonly Reservation[];
+  readonly rewardBids: readonly RewardBid[];
 }
 
 export interface PreviewSettlement {
@@ -98,12 +103,20 @@ export interface PreviewWithoutTask {
   readonly playerName: string;
 }
 
+export interface PreviewAuction {
+  readonly rewardId: RewardId;
+  readonly rewardName: LocalizedText;
+  readonly winnerName: string;
+  readonly amount: number;
+}
+
 /** Structured data for the admin summary screen — the same computation the write uses. */
 export interface RolloverPreview {
   readonly settlements: readonly PreviewSettlement[];
   readonly assignments: readonly PreviewAssignment[];
   readonly losses: readonly PreviewLoss[];
   readonly withoutTask: readonly PreviewWithoutTask[];
+  readonly auctions: readonly PreviewAuction[];
 }
 
 export interface TurnusUpdate {

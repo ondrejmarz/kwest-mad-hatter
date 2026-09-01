@@ -1,4 +1,4 @@
-import type { Day, PlayerId, TaskId } from './ids';
+import type { Day, PlayerId, RewardId, TaskId } from './ids';
 
 /**
  * Typed audit events (spec 4, 15.13). The domain emits `type` + structured payload;
@@ -44,6 +44,13 @@ export type GameEvent =
       readonly day: Day;
       readonly playerId: PlayerId;
       readonly taskId: TaskId;
+    }
+  | {
+      readonly type: 'reward_won';
+      readonly day: Day;
+      readonly playerId: PlayerId;
+      readonly rewardId: RewardId;
+      readonly coins: number;
     };
 
 export type GameEventType = GameEvent['type'];
@@ -92,5 +99,12 @@ export const gameEvent = {
     day,
     playerId,
     taskId,
+  }),
+  rewardWon: (day: Day, playerId: PlayerId, rewardId: RewardId, coins: number): GameEvent => ({
+    type: 'reward_won',
+    day,
+    playerId,
+    rewardId,
+    coins,
   }),
 };

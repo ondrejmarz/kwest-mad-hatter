@@ -5,7 +5,15 @@ import type { RollbackSnapshot } from '../../domain/rollover/types';
 import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { eventsCol, playerDoc, reservationDoc, rollbackDoc, taskDoc, turnusDoc } from '../paths';
+import {
+  eventsCol,
+  playerDoc,
+  reservationDoc,
+  rewardBidDoc,
+  rollbackDoc,
+  taskDoc,
+  turnusDoc,
+} from '../paths';
 
 import { actionEvent, type EventMeta } from './shared';
 
@@ -44,6 +52,13 @@ export async function undoRollover(
     for (const reservation of snapshot.reservations) {
       const { playerId, createdAt, ...rest } = reservation;
       tx.set(reservationDoc(db, t, playerId), {
+        ...rest,
+        createdAt: Timestamp.fromMillis(createdAt),
+      });
+    }
+    for (const bid of snapshot.rewardBids) {
+      const { playerId, createdAt, ...rest } = bid;
+      tx.set(rewardBidDoc(db, t, playerId), {
         ...rest,
         createdAt: Timestamp.fromMillis(createdAt),
       });

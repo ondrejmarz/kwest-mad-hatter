@@ -32,6 +32,10 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    function dayUnlocked(t) {
+      return get(/databases/$(database)/documents/turnuses/$(t)).data.get('dayLocked', false) == false;
+    }
+
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
     // on an empty character — needs a claimAttempt whose PIN matches, so nobody grabs the wrong
     // character (spec 3b, 11).
@@ -159,16 +163,33 @@ service cloud.firestore {
       match /rewards/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
 
       // Reservations are secret: readable only by the initiator, the invited players and admins.
+      // Admins may also write them — the only admin writer is the undo transaction restoring the
+      // pre-evaluation snapshot (decision A4).
       match /reservations/{pid} {
         allow read: if isAdmin(t)
           || (hasPlayer(t) && (pid == myPlayerId(t) || myPlayerId(t) in resource.data.invitees));
-        allow create: if hasPlayer(t) && pid == myPlayerId(t);
-        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || respondsToInvite(t, pid);
+        allow create: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || respondsToInvite(t, pid) || isAdmin(t);
         allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
       }
 
       // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.
       match /reservationCounts/{day} {
+        allow read: if isMember(t);
+        allow write: if isMember(t);
+      }
+
+      // Sealed auction bids are secret: readable only by the bidder and admins (spec 8). A bid is a
+      // purchase, so placing or raising one is frozen while the day is locked; withdrawing stays
+      // open. Admins may write them too — evaluation deletes them, and undo restores them (A4).
+      match /rewardBids/{pid} {
+        allow read: if isAdmin(t) || (hasPlayer(t) && pid == myPlayerId(t));
+        allow create, update: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
+        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+      }
+
+      // Public aggregate interest per reward — a count only, no bidders or amounts (spec 8).
+      match /rewardBidCounts/{day} {
         allow read: if isMember(t);
         allow write: if isMember(t);
       }

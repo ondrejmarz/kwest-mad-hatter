@@ -55,6 +55,24 @@ service cloud.firestore {
         && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
     }
 
+    // Accepting a same-day pair pick (spec 7): the invited partner is the only writer, so they set
+    // BOTH members' `activeTask` — `pid` is the doc being written (the initiator's or their own).
+    // Allowed only against a real claim that invited them for this task, with the catalog coins, so a
+    // player can never hand someone else an arbitrary task.
+    function picksPairTask(t, pid) {
+      let at = request.resource.data.activeTask;
+      let day = get(/databases/$(database)/documents/turnuses/$(t)).data.currentDay;
+      let claimPath = /databases/$(database)/documents/turnuses/$(t)/taskClaims/$(string(day) + '_' + at.taskId);
+      return onlyChanged(['activeTask', 'needsPick'])
+        && request.resource.data.needsPick == false
+        && dayUnlocked(t)
+        && exists(claimPath)
+        && get(claimPath).data.invitee == myPlayerId(t)
+        && (get(claimPath).data.playerId == pid || get(claimPath).data.invitee == pid)
+        && at.taskId == get(claimPath).data.taskId
+        && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
+    }
+
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
     // on an empty character — needs a claimAttempt whose PIN matches, so nobody grabs the wrong
     // character (spec 3b, 11).
@@ -173,11 +191,13 @@ service cloud.firestore {
           && request.resource.data.ownerUids.size() == 0
           && request.resource.data.createdByUid == uid()
           && request.resource.data.name is string;
-        // A player never changes their own coins/status — only claims/releases a character, or
-        // takes a task for today (activeTask + needsPick, coins validated against the catalog).
+        // A player never changes their own coins/status — only claims/releases a character, takes a
+        // solo task for today (their own doc), or, as the invited partner of a pair pick, hands the
+        // task to both members. Coins are always validated against the catalog.
         allow update: if isAdmin(t)
           || (isMember(t) && (claimsOwnership(t, pid) || releasesOwnership(t, pid)))
-          || (hasPlayer(t) && pid == myPlayerId(t) && picksTaskNow(t));
+          || (hasPlayer(t) && pid == myPlayerId(t) && picksTaskNow(t))
+          || (hasPlayer(t) && picksPairTask(t, pid));
         // Reject a pending character (spec 9.4); approved players are never hard-deleted.
         allow delete: if isAdmin(t) && resource.data.status == 'pending';
 
@@ -225,18 +245,24 @@ service cloud.firestore {
       }
 
       // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the
-      // first writer wins the task for the day. The paired activeTask write is checked by
-      // `picksTaskNow`; here we only bind the claim to its player. Admin may clear them.
+      // first writer wins the task for the day. A solo claim binds the task to its player; a pair
+      // claim also names an `invitee` and stays `accepted: false` until they confirm. The paired
+      // activeTask writes are checked by `picksTaskNow` / `picksPairTask`. Admin may clear any.
       match /taskClaims/{id} {
         allow read: if isMember(t);
         allow create: if hasPlayer(t)
           && request.resource.data.playerId == myPlayerId(t)
           && dayUnlocked(t);
-        // A player releases their own claim when they switch tasks (deleted in the same pick that
-        // claims the new one), freeing the old task; admins may clear any.
+        // Either member releases the claim — the initiator switching or cancelling, the invitee
+        // declining — freeing the task; admins may clear any.
         allow delete: if isAdmin(t)
-          || (hasPlayer(t) && resource.data.playerId == myPlayerId(t) && dayUnlocked(t));
-        allow update: if isAdmin(t);
+          || (hasPlayer(t) && dayUnlocked(t)
+              && (resource.data.playerId == myPlayerId(t)
+                  || resource.data.get('invitee', '') == myPlayerId(t)));
+        // The invited partner accepts by flipping only `accepted` to true.
+        allow update: if isAdmin(t)
+          || (hasPlayer(t) && resource.data.get('invitee', '') == myPlayerId(t)
+              && onlyChanged(['accepted']) && request.resource.data.accepted == true);
       }
 
       // Owned rewards: created by day evaluation and removed by undo — both run as admin. Members

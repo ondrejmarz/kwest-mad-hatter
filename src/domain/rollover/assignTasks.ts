@@ -1,4 +1,5 @@
 import { invariant } from '../../lib/invariant';
+import { buildActiveTask } from '../activeTask';
 import { gameEvent, type GameEvent } from '../events';
 import type { Day, PlayerId, TaskId } from '../ids';
 import type { ActiveTask, Task } from '../types';
@@ -70,17 +71,6 @@ export function assignTasks(
   }
 
   return { activeTaskById, events, assignments, losses };
-}
-
-function buildActiveTask(task: Task, partnerNames: readonly string[]): ActiveTask {
-  return {
-    taskId: task.id,
-    name: task.name,
-    description: task.description,
-    difficulty: task.difficulty,
-    coinReward: task.coinReward,
-    partnerNames,
-  };
 }
 
 function nameOf(nameById: ReadonlyMap<PlayerId, string>, playerId: PlayerId): string {

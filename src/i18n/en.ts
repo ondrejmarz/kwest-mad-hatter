@@ -142,6 +142,7 @@ export const en: Dictionary = {
     takeNowHint: 'No reservation came through? Grab this task for today.',
     switchNow: 'Switch to this',
     switchNowHint: 'Want a different task? Switch to this one while it is free.',
+    takePairToday: 'Take for today',
     takenToday: 'Someone already took this task today.',
     reservedChip: 'Reserved',
     cancelReservation: 'Cancel reservation',
@@ -162,6 +163,12 @@ export const en: Dictionary = {
     declinedResult: 'Declined',
     pending: 'Waiting for an answer',
     cancelInvite: 'Cancel for both',
+  },
+  todayPick: {
+    chip: "Today's pair",
+    youInvited: 'You invited {name} to today’s task “{task}”',
+    invited: '{name} invites you to today’s task “{task}”',
+    waiting: 'Waiting for confirmation',
   },
   rewards: {
     forms: {

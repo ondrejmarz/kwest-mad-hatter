@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { AdminUnlockGesture } from '../features/admin/unlock/AdminUnlockGesture';
 import { useSession } from '../features/session';
 import { InviteBanner } from '../features/tasks/components/InviteBanner';
+import { TodayPickBanner } from '../features/tasks/components/TodayPickBanner';
 import { useTranslation } from '../i18n/LocaleProvider';
 import { useOnlineStatus } from '../platform/connectivity/useOnlineStatus';
 import { ConnectionBanner } from '../ui/ConnectionBanner';
@@ -58,6 +59,7 @@ export function AppLayout() {
       {/* Only this area scrolls. Bottom gap is consistent on every platform, plus the iPhone
           home-indicator inset. The invite cards ride at the top of the content on every screen. */}
       <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <TodayPickBanner />
         <InviteBanner />
         <Outlet />
       </main>

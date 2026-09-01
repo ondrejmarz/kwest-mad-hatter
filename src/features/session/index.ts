@@ -9,5 +9,6 @@ export {
   useMyInvites,
   useMyReservation,
   useReservationCounts,
+  useTaskClaims,
 } from './ReservationProvider';
 export { useMyPlayer } from './useMyPlayer';

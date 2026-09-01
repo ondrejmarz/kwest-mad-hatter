@@ -2,10 +2,11 @@ import { type FormEvent, useState } from 'react';
 
 import { db } from '../../../data/firebase';
 import { cancelReservation } from '../../../data/transactions/cancelReservation';
+import { initiatePairPick } from '../../../data/transactions/initiatePairPick';
 import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
 import { respondToInvite } from '../../../data/transactions/respondToInvite';
-import { canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
+import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
 import type { PlayerId, TaskId } from '../../../domain/ids';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
@@ -65,6 +66,18 @@ export function TaskActionDialog({
   // are switching from one — as long as it is not already their own task today (spec 7).
   const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
   const canPickToday = !isMyTaskToday && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
+  // A pair can be taken for today too, but the chosen partner has to accept first (spec 7).
+  const canPairToday =
+    isPair && !isMyTaskToday && canInitiatePairPick(myPlayer, task, settings, takenBy).ok;
+
+  const initiateToday = (): void => {
+    const partner = invitees[0];
+    if (partner === undefined) {
+      setError(t('tasks.choosePartner'));
+      return;
+    }
+    void run(initiatePairPick(db, turnusId, myPlayer.id, task.id, partner));
+  };
 
   const takeNow = async (): Promise<void> => {
     if (busy) return;
@@ -157,9 +170,9 @@ export function TaskActionDialog({
               {t('tasks.cancelReservation')}
             </Button>
           </div>
-        ) : eligible.ok ? (
+        ) : eligible.ok || canPairToday ? (
           <form onSubmit={reserve} className="flex flex-col gap-3">
-            {reservation !== null && (
+            {reservation !== null && eligible.ok && (
               <p className="text-sm text-content-muted">
                 {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
               </p>
@@ -187,12 +200,20 @@ export function TaskActionDialog({
                   </Select>
                 </label>
               ))}
-            <Button
-              type="submit"
-              disabled={busy || !countOk || (isPair && candidates.length === 0)}
-            >
-              {t('tasks.reserve')}
-            </Button>
+            {canPairToday && candidates.length > 0 && (
+              <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
+                {t('tasks.takePairToday')}
+              </Button>
+            )}
+            {eligible.ok && (
+              <Button
+                type="submit"
+                variant={canPairToday ? 'secondary' : 'primary'}
+                disabled={busy || !countOk || (isPair && candidates.length === 0)}
+              >
+                {t('tasks.reserve')}
+              </Button>
+            )}
           </form>
         ) : (
           <p className="text-sm text-content-muted">{t(reasonKey)}</p>

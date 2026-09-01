@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { TYPE_KEYS } from '../../lib/group';
-import { canPickTaskNow, canReserveTask } from '../eligibility';
+import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../eligibility';
 import type { TaskId } from '../ids';
 
 import { loc, makePlayer, makeTask, makeTurnus } from './fixtures';
@@ -59,6 +59,21 @@ describe('canPickTaskNow', () => {
   it('rejects a non-solo task — pairs and groups are reservation-only', () => {
     const pair = makeTask({ categories: [loc('chores')], minPlayers: 2, maxPlayers: 2 });
     expect(canPickTaskNow(makePlayer(), pair, turnus, noneTaken)).toEqual({
+      ok: false,
+      error: { code: 'SAME_DAY_SOLO_ONLY' },
+    });
+  });
+
+  it('allows a pair for a same-day pair pick', () => {
+    const pair = makeTask({ categories: [loc('chores')], minPlayers: 2, maxPlayers: 2 });
+    expect(canInitiatePairPick(makePlayer(), pair, turnus, noneTaken)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+  });
+
+  it('rejects a non-pair for a pair pick', () => {
+    expect(canInitiatePairPick(makePlayer(), makeTask(), turnus, noneTaken)).toEqual({
       ok: false,
       error: { code: 'SAME_DAY_SOLO_ONLY' },
     });

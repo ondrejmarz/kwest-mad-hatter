@@ -143,6 +143,7 @@ export const de: Dictionary = {
     takeNowHint: 'Keine Reservierung bekommen? Schnapp dir diese Aufgabe für heute',
     switchNow: 'Zu dieser wechseln',
     switchNowHint: 'Andere Aufgabe? Wechsle zu dieser, solange sie frei ist.',
+    takePairToday: 'Für heute nehmen',
     takenToday: 'Diese Aufgabe hat sich heute schon jemand genommen.',
     reservedChip: 'Reserviert',
     cancelReservation: 'Reservierung stornieren',
@@ -163,6 +164,12 @@ export const de: Dictionary = {
     declinedResult: 'Abgelehnt',
     pending: 'Wartet auf Antwort',
     cancelInvite: 'Für beide abbrechen',
+  },
+  todayPick: {
+    chip: 'Heutige Paarung',
+    youInvited: 'Du hast {name} zur heutigen Aufgabe „{task}“ eingeladen',
+    invited: '{name} lädt dich zur heutigen Aufgabe „{task}“ ein',
+    waiting: 'Wartet auf Bestätigung',
   },
   rewards: {
     forms: {

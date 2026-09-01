@@ -7,7 +7,9 @@ import {
   subscribeReservationCounts,
 } from '../../data/repositories/reservations';
 import { subscribeMyBid } from '../../data/repositories/rewardBids';
+import { subscribeTaskClaims } from '../../data/repositories/taskClaims';
 import type { ReservationCounts } from '../../data/schemas/reservation';
+import type { TaskClaim } from '../../data/schemas/taskClaim';
 import type { Subscription } from '../../data/subscriptions';
 import type { Reservation, RewardBid } from '../../domain/types';
 
@@ -27,6 +29,8 @@ interface ReservationValue {
   readonly bid: Subscription<RewardBid | null>;
   /** Public aggregates for tomorrow's reservations — per-task interest and who holds one. */
   readonly counts: Subscription<ReservationCounts | null>;
+  /** Same-day claim markers, incl. pending pair picks (member-readable). */
+  readonly claims: Subscription<readonly TaskClaim[]>;
 }
 
 const empty = <T,>(data: T): Subscription<T> => ({ status: 'ready', data, fromCache: false });
@@ -50,6 +54,7 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
   const [counts, setCounts] = useState<Subscription<ReservationCounts | null>>({
     status: 'loading',
   });
+  const [claims, setClaims] = useState<Subscription<readonly TaskClaim[]>>({ status: 'loading' });
 
   useEffect(() => {
     if (turnus === null || playerId === null) {
@@ -87,9 +92,18 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
     return subscribeReservationCounts(db, turnus.id, nextDay, setCounts);
   }, [turnus, nextDay]);
 
+  useEffect(() => {
+    if (turnus === null) {
+      setClaims(empty([]));
+      return;
+    }
+    setClaims({ status: 'loading' });
+    return subscribeTaskClaims(db, turnus.id, setClaims);
+  }, [turnus]);
+
   const value = useMemo<ReservationValue>(
-    () => ({ mine, invites, bid, counts }),
-    [mine, invites, bid, counts],
+    () => ({ mine, invites, bid, counts, claims }),
+    [mine, invites, bid, counts, claims],
   );
   return <ReservationContext.Provider value={value}>{children}</ReservationContext.Provider>;
 }
@@ -107,3 +121,4 @@ export const useMyInvites = (): Subscription<readonly Reservation[]> => useReser
 export const useMyBid = (): Subscription<RewardBid | null> => useReservation().bid;
 export const useReservationCounts = (): Subscription<ReservationCounts | null> =>
   useReservation().counts;
+export const useTaskClaims = (): Subscription<readonly TaskClaim[]> => useReservation().claims;

@@ -144,6 +144,7 @@ export const cs = {
     takeNowHint: 'Nevyšla ti rezervace? Vezmi si tenhle úkol na dnešek',
     switchNow: 'Přepnout na tenhle',
     switchNowHint: 'Chceš jiný úkol? Přepni se na tenhle, dokud je volný.',
+    takePairToday: 'Vzít na dnešek',
     takenToday: 'Tenhle úkol už si dnes někdo vzal.',
     reservedChip: 'Rezervováno',
     cancelReservation: 'Zrušit rezervaci',
@@ -164,6 +165,12 @@ export const cs = {
     declinedResult: 'Odmítnuto',
     pending: 'Čeká na odpověď',
     cancelInvite: 'Zrušit pro oba',
+  },
+  todayPick: {
+    chip: 'Dnešní dvojice',
+    youInvited: 'Pozval(a) jsi {name} na dnešní úkol „{task}“',
+    invited: '{name} tě zve na dnešní úkol „{task}“',
+    waiting: 'Čeká na potvrzení',
   },
   rewards: {
     forms: {

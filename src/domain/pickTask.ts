@@ -1,5 +1,6 @@
 import { err, ok, type Result } from '../lib/result';
 
+import { buildActiveTask } from './activeTask';
 import { canPickTaskNow } from './eligibility';
 import type { DomainError } from './errors';
 import type { TaskId } from './ids';
@@ -19,12 +20,5 @@ export function pickTaskNow(
 ): Result<ActiveTask, DomainError> {
   const eligible = canPickTaskNow(player, task, turnus, takenBy);
   if (!eligible.ok) return err(eligible.error);
-  return ok({
-    taskId: task.id,
-    name: task.name,
-    description: task.description,
-    difficulty: task.difficulty,
-    coinReward: task.coinReward,
-    partnerNames: [],
-  });
+  return ok(buildActiveTask(task, []));
 }

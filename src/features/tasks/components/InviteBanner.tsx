@@ -157,10 +157,9 @@ function InitiatorCard({
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           {reservation.invitees.map((id) => (
-            <div key={id} className="flex items-center gap-2">
-              <span className="text-sm text-content">{nameOf(id)}</span>
-              <ResultBadge answer={reservation.responses[id]} />
-            </div>
+            <span key={id} className="text-sm text-content">
+              {nameOf(id)}
+            </span>
           ))}
         </div>
         <Button

@@ -44,6 +44,7 @@ export const de: Dictionary = {
     unlockHint: 'Der Admin-Code der Gruppe.',
     unlockSubmit: 'Entsperren',
     unlockWrong: 'Ungültiger Admin-Code.',
+    leaveAdmin: 'Admin verlassen',
   },
   sort: {
     nameAsc: 'A–Z',
@@ -130,6 +131,11 @@ export const de: Dictionary = {
     tally: 'Angenommen {accepted}/{total} · abgelehnt {declined}',
     accept: 'Annehmen',
     decline: 'Ablehnen',
+    inviteChip: 'Einladung',
+    groupChip: 'Deine Gruppe',
+    youInvited: 'Du hast andere zu „{task}“ eingeladen',
+    confirmedTally: 'Bestätigt {accepted}/{total}',
+    cancelInvite: 'Für alle abbrechen',
   },
   rewards: {
     forms: {

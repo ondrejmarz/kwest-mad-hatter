@@ -104,12 +104,22 @@ service cloud.firestore {
       }
 
       // Membership is rules-only. Role is derived from which code the joinAttempt matched;
-      // the same rule upgrades a player to admin with a valid admin joinAttempt.
+      // the same rule upgrades a player to admin with a valid admin joinAttempt. Stepping DOWN from
+      // admin to player needs no code — reducing your own privileges is always safe (spec 3c).
       match /members/{u} {
         allow read: if false;
-        allow create, update: if signedIn() && uid() == u && exists(joinAttemptRef(t))
+        allow create: if signedIn() && uid() == u && exists(joinAttemptRef(t))
           && ((request.resource.data.role == 'player' && joinCode(t) == codes(t).playerCode)
             || (request.resource.data.role == 'admin' && joinCode(t) == codes(t).adminCode));
+        allow update: if signedIn() && uid() == u
+          && (
+            (exists(joinAttemptRef(t))
+              && ((request.resource.data.role == 'player' && joinCode(t) == codes(t).playerCode)
+                || (request.resource.data.role == 'admin' && joinCode(t) == codes(t).adminCode)))
+            || (resource.data.role == 'admin'
+              && request.resource.data.role == 'player'
+              && onlyChanged(['role']))
+          );
         allow delete: if false;
       }
 

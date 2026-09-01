@@ -46,6 +46,7 @@ export const cs = {
     unlockHint: 'Admin kód skupiny.',
     unlockSubmit: 'Odemknout',
     unlockWrong: 'Admin kód není platný.',
+    leaveAdmin: 'Odhlásit z admina',
   },
   sort: {
     nameAsc: 'Abecedně A–Z',
@@ -130,6 +131,11 @@ export const cs = {
     tally: 'Přijalo {accepted}/{total} · odmítlo {declined}',
     accept: 'Přijmout',
     decline: 'Odmítnout',
+    inviteChip: 'Pozvánka',
+    groupChip: 'Tvoje skupina',
+    youInvited: 'Pozval(a) jsi ostatní na „{task}“',
+    confirmedTally: 'Potvrdilo {accepted}/{total}',
+    cancelInvite: 'Zrušit pro všechny',
   },
   rewards: {
     forms: {

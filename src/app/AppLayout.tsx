@@ -15,9 +15,12 @@ export function AppLayout() {
   const { role, switchTurnus } = useSession();
 
   return (
-    <div className="mx-auto flex min-h-full max-w-lg flex-col bg-surface">
-      {/* Header, offline banner and nav stay pinned to the top together. */}
-      <div className="safe-top sticky top-0 z-20 bg-surface-raised">
+    // The shell is exactly one viewport tall and only `main` scrolls — so the header/nav are a
+    // static flex row, not `position: sticky`. On iOS a sticky header rides the rubber-band
+    // overscroll and detaches from the top; taking it out of the scroll container fixes that.
+    <div className="mx-auto flex h-full max-w-lg flex-col bg-surface">
+      {/* Header, offline banner and nav sit above the scroll area, so they never move. */}
+      <div className="safe-top z-20 shrink-0 bg-surface-raised">
         <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border px-4 py-3">
           {/* Leaving drops back to the turnus picker (spec 3). */}
           <button
@@ -51,10 +54,11 @@ export function AppLayout() {
         </header>
         <ConnectionBanner online={online} message={t('connection.offline')} />
         <NavBar showAdmin={role === 'admin'} />
-        <InviteBanner />
       </div>
-      {/* A consistent bottom gap on every platform, plus the iPhone home-indicator inset on top. */}
-      <main className="flex-1 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      {/* Only this area scrolls. Bottom gap is consistent on every platform, plus the iPhone
+          home-indicator inset. The invite cards ride at the top of the content on every screen. */}
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <InviteBanner />
         <Outlet />
       </main>
     </div>

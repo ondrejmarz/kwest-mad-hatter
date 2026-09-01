@@ -185,13 +185,24 @@ E. **Stability & quick UI fixes** — no rules.
   create-only for players. UI: "Vzít teď" in `TaskActionDialog` when the player `needsPick` and the
   task is open today; `TasksScreen` derives `takenBy` from live players (no extra listener). Rules
   NOT emulator-verified this session (no-emulator agreement) — rules tests written for later.
-  H. **Group tasks, reliable (#6b)** — RULES/model; needs real-device testing (my blind spot). Keep the
-  responses-map-on-the-reservation model, fix the live flow:
-
-- Invitee notification has Reject/Confirm as a toggle switch: pick one, change to the other any
-  time; the banner stays until every invitee has answered _something_.
-- The banner ALSO shows to the reservation's creator with the running tally (how many confirmed),
-  and a Cancel there that deletes the invitation for everyone.
+  H. **Group tasks, reliable (#6b) — done (client-only; needs real-device testing).** No rules/model
+  change — the parked bugs (invite not arriving, counter stuck, decline-after-accept) were the same
+  subscription race fixed in step E's `withRetry`, so this was a UI rebuild on the now-reliable data.
+  `InviteBanner` is now card-styled (matches `ListCard`) and moved into the scroll area; it shows an
+  **initiator card** for the player's own group (confirmed tally + Cancel-for-everyone via
+  `cancelReservation`) and an **invite card** per invite with a Confirm/Decline **toggle** (current
+  answer highlighted, flip freely until evaluation, via `respondToInvite`). Real-device multi-user
+  testing is the human's part. **Also fixed here (a J item):** iOS sticky-header bounce — the shell is
+  now one viewport tall (`h-full`) with the header/nav as a static flex row and only `main`
+  scrolling (`overflow-y-auto`), instead of a document-scroll + `position: sticky` header that rode
+  the iOS rubber-band. **Post-feedback tweaks:** the banner cards now hide as soon as every invitee
+  has answered (`tally.pending === 0`) — the negotiation is settled, and the accepted members compete
+  at evaluation; the already-chosen Confirm/Decline button shows disabled. `theme-color` was moved to
+  the surface-raised colour (`#ffffff` / `#24272c`) so the status bar blends into the header on
+  Android + Safari (iOS _standalone_ can't take an arbitrary status-bar colour — platform limit).
+  **New: "Odhlásit z admina"** at the bottom of the admin screen (`leaveAdmin` batch drops
+  members+roles from admin→player; a new rule allows that self-downgrade with no code — RULES,
+  redeploy `firestore:rules`).
   I. **Owned rewards + punishment targeting** — RULES.
 - Auction winner gets a `Purchase` doc (member-readable) → "má odměnu" chip on every player's
   card/detail (fills the slot from E).

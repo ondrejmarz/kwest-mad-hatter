@@ -1,6 +1,11 @@
+import { useState } from 'react';
+
+import { db } from '../../data/firebase';
+import { leaveAdmin } from '../../data/transactions/leaveAdmin';
 import type { LocalizedText } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { csCollator } from '../../lib/collator';
+import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { useCatalogRewards, useCatalogTasks, usePlayers, useSession, useTurnus } from '../session';
 
@@ -85,6 +90,26 @@ export function AdminScreen() {
         categories={categories}
         selected={settings.nextDayCategories}
       />
+      <LeaveAdminButton turnusId={turnus.id} uid={uid ?? ''} />
     </section>
+  );
+}
+
+/** Drops this device back to a regular player; the role listener then routes away from admin. */
+function LeaveAdminButton({ turnusId, uid }: { turnusId: string; uid: string }) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="secondary"
+      className="mt-2"
+      disabled={busy || uid === ''}
+      onClick={() => {
+        setBusy(true);
+        void leaveAdmin(db, turnusId, uid).finally(() => setBusy(false));
+      }}
+    >
+      {t('admin.leaveAdmin')}
+    </Button>
   );
 }

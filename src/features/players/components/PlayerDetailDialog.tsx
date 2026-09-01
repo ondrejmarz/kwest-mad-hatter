@@ -11,12 +11,13 @@ import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
-import { useSession } from '../../session';
+import { useCatalogRewards, useMyBid, useMyReservation, useSession } from '../../session';
 
 /**
- * Player detail (spec 9.1). A foreign character is claimed by entering its 4-digit PIN — the same
- * whether it is the first claim or moving the character to this device; claiming releases whatever
- * character this device held before (one device, one character).
+ * Player detail (spec 9.1). For every player it surfaces the useful public facts — coins and the
+ * current task. On the player's own card it also shows their secret plans (tomorrow's reservation
+ * and any reward bid), which only they can read. A foreign character is claimed by entering its
+ * 4-digit PIN — the same whether it is the first claim or moving the character to this device.
  */
 export function PlayerDetailDialog({
   player,
@@ -36,6 +37,18 @@ export function PlayerDetailDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The reservation and bid are secret — these listeners hold *this device's* own, so they are only
+  // meaningful (and only shown) on the player's own card.
+  const reservationState = useMyReservation();
+  const bidState = useMyBid();
+  const rewardsState = useCatalogRewards();
+  const myReservation = mine && reservationState.status === 'ready' ? reservationState.data : null;
+  const myBid = mine && bidState.status === 'ready' ? bidState.data : null;
+  const bidReward =
+    myBid !== null && rewardsState.status === 'ready'
+      ? (rewardsState.data.find((reward) => reward.id === myBid.rewardId) ?? null)
+      : null;
+
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     if (uid === null || busy || !/^\d{4}$/.test(pin)) return;
@@ -49,24 +62,60 @@ export function PlayerDetailDialog({
   };
 
   const active = player.activeTask;
-  const description = active
-    ? localize(active.description, locale) || localize(active.name, locale)
-    : undefined;
   const chips = mine ? (
     <Chip tone="accent">{t('players.you')}</Chip>
   ) : player.needsPick ? (
     <Chip tone="warning">{t('players.needsPick')}</Chip>
   ) : undefined;
 
+  const label = (text: string) => (
+    <p className="text-xs font-semibold uppercase text-content-muted">{text}</p>
+  );
+
   return (
     <Dialog open onClose={onClose} ariaLabel={player.name}>
       <CardLayout
         title={player.name}
         {...(chips !== undefined ? { chips } : {})}
-        {...(description !== undefined ? { description } : {})}
         footerRight={<CoinAmount amount={player.coins} />}
-        clampDescription={false}
       />
+
+      {active !== null && (
+        <div className="mt-4 border-t border-border pt-4">
+          {label(t('players.activeTaskLabel'))}
+          <p className="mt-1 text-content">{localize(active.name, locale)}</p>
+          {localize(active.description, locale) !== '' && (
+            <p className="mt-0.5 text-sm text-content-muted">
+              {localize(active.description, locale)}
+            </p>
+          )}
+          {active.partnerNames.length > 0 && (
+            <p className="mt-0.5 text-sm text-content-muted">{active.partnerNames.join(', ')}</p>
+          )}
+        </div>
+      )}
+
+      {mine && (
+        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+          <div>
+            {label(t('players.myReservation'))}
+            <p className="mt-1 text-content">
+              {myReservation !== null
+                ? localize(myReservation.taskName, locale)
+                : t('players.noReservation')}
+            </p>
+          </div>
+          {myBid !== null && (
+            <div>
+              {label(t('players.myBid'))}
+              <p className="mt-1 flex items-center gap-2 text-content">
+                {bidReward !== null && <span>{localize(bidReward.name, locale)}</span>}
+                <CoinAmount amount={myBid.amount} />
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {!mine && (
         <form onSubmit={submit} className="mt-4 flex flex-col gap-3 border-t border-border pt-4">

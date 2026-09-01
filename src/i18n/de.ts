@@ -78,6 +78,10 @@ export const de: Dictionary = {
     noteRequired: 'Gib eine Notiz zur Münzänderung an.',
     quickAdjust: 'Schnelle Anpassung',
     save: 'Speichern',
+    activeTaskLabel: 'Aktuelle Aufgabe',
+    myReservation: 'Deine Reservierung für morgen',
+    noReservation: 'Noch keine',
+    myBid: 'Dein Gebot auf eine Belohnung',
   },
   tasks: {
     allCategories: 'Alle Kategorien',

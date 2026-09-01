@@ -12,10 +12,13 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'text-content',
 };
 
-/** `icon` is a 44px square — a single glyph like "+", matching the height of a `Select`. */
+/**
+ * `default` keeps the 44px comfortable tap target; `icon` is a compact 40px square — a single glyph
+ * like "+", matching the height of a list-toolbar `Select` (which is also 40px).
+ */
 const SIZES: Record<Size, string> = {
-  default: 'px-4 py-2 text-sm',
-  icon: 'h-11 w-11 text-xl leading-none',
+  default: 'tap-target px-4 py-2 text-sm',
+  icon: 'h-10 w-10 text-xl leading-none',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -34,7 +37,7 @@ export function Button({
     <button
       type={type ?? 'button'}
       className={cx(
-        'tap-target inline-flex items-center justify-center gap-2 rounded-xl font-medium',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-medium',
         'transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         SIZES[size],
         VARIANTS[variant],

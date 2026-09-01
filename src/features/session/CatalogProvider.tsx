@@ -16,21 +16,24 @@ interface CatalogValue {
 const CatalogContext = createContext<CatalogValue | null>(null);
 
 export function CatalogProvider({ children }: { children: ReactNode }) {
-  const { turnus } = useSession();
+  const { turnus, uid } = useSession();
   const [tasks, setTasks] = useState<Subscription<readonly Task[]>>({ status: 'loading' });
   const [rewards, setRewards] = useState<Subscription<readonly Reward[]>>({ status: 'loading' });
 
+  // Wait for the anonymous uid: a catalog listener attached before sign-in finishes is rejected by
+  // the rules (member-only reads) and Firestore never retries it — the classic "tasks stay blank
+  // until you leave and come back" bug. Keying on `uid` re-subscribes once auth resolves.
   useEffect(() => {
-    if (turnus === null) return;
+    if (turnus === null || uid === null) return;
     setTasks({ status: 'loading' });
     return subscribeTasks(db, turnus.id, setTasks);
-  }, [turnus]);
+  }, [turnus, uid]);
 
   useEffect(() => {
-    if (turnus === null) return;
+    if (turnus === null || uid === null) return;
     setRewards({ status: 'loading' });
     return subscribeRewards(db, turnus.id, setRewards);
-  }, [turnus]);
+  }, [turnus, uid]);
 
   const value = useMemo<CatalogValue>(() => ({ tasks, rewards }), [tasks, rewards]);
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;

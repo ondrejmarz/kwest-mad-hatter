@@ -7,7 +7,7 @@ import { EditButton } from '../../../ui/EditButton';
  * size so the group reads as a toolbar. Every button stops propagation so it never triggers the
  * row's own click (the player detail). The pencil reuses `EditButton` for one shared look.
  */
-const STEPS = [-20, -5, 5, 20] as const;
+const STEPS = [-50, -10, 10, 50] as const;
 const BTN =
   'inline-flex h-8 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-xs font-medium text-content';
 

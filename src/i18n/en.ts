@@ -77,6 +77,10 @@ export const en: Dictionary = {
     noteRequired: 'Add a note for the coin change.',
     quickAdjust: 'Quick adjustment',
     save: 'Save',
+    activeTaskLabel: 'Current task',
+    myReservation: 'Your reservation for tomorrow',
+    noReservation: 'None yet',
+    myBid: 'Your reward bid',
   },
   tasks: {
     allCategories: 'All categories',

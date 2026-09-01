@@ -152,4 +152,55 @@ comes before data/rules (phase 2) on purpose.
    an unlayered `@media (pointer: coarse)` rule pins form controls to 16px `!important` so focusing a
    `text-sm` field no longer zooms the page. SW registration only runs on a real browser/HTTPS (the
    sandboxed in-app preview browser blocks it — build artifacts verified by curl instead).
-9. Showcase.
+
+## Remaining roadmap (steps E–K, confirmed with the user)
+
+Ordered by risk/dependency. "RULES" marks a step that touches `firestore.rules`; per the
+token-saving agreement those are validated on the deployed app (not the emulator) — I can't run
+`test:rules` here, so rules steps carry more risk and the human tests them. No browser/emulator runs.
+
+E. **Stability & quick UI fixes** — no rules.
+
+- Fix: per-turnus listeners (`CatalogProvider`, players, reservations) can attach before the
+  just-joined `members/{uid}` is visible to rules → permission-denied → Firestore never retries →
+  tasks stay blank until you leave+return. Gate the subscriptions on confirmed membership
+  (`role != null`) and/or retry a transient denial.
+- Admin coin steps → `-50 / -10 / +10 / +50`.
+- Shrink `LanguageSwitcher` ~20%, list toolbar (sort/filter/"+") ~10%; add vertical breathing room
+  around the "Jen dostupné" checkbox.
+- Redesign `PlayerDetailDialog` to actually show useful info (coins, active task, needsPick; for
+  self also my reservation/bid). Player card + detail get a slot for the WON reward — layout now,
+  data in step I.
+  F. **Dark mode** — no rules. Dark palette under `@media (prefers-color-scheme: dark)` in `index.css`
+
+* a dark `theme-color`; the tokens were built for this. (Safari only looked dark via browser
+  chrome; the app has no dark theme yet.)
+  G. **Same-day task pick `pickTaskNow` (#6a)** — RULES. First-come exclusive claim via a
+  compare-and-set marker doc `taskClaims/{day}/{taskId}` (rule allows the write only if unclaimed —
+  the user's status/selectedBy idea). Solo only (groups go via reservations). `canPickTaskNow`
+  exists in the domain; add the transaction + rule + a "Vzít teď" button (shown when the day is
+  current + unlocked and the player `needsPick`).
+  H. **Group tasks, reliable (#6b)** — RULES/model; needs real-device testing (my blind spot). Keep the
+  responses-map-on-the-reservation model, fix the live flow:
+
+- Invitee notification has Reject/Confirm as a toggle switch: pick one, change to the other any
+  time; the banner stays until every invitee has answered _something_.
+- The banner ALSO shows to the reservation's creator with the running tally (how many confirmed),
+  and a Cancel there that deletes the invitation for everyone.
+  I. **Owned rewards + punishment targeting** — RULES.
+- Auction winner gets a `Purchase` doc (member-readable) → "má odměnu" chip on every player's
+  card/detail (fills the slot from E).
+- `punish_someone` carries a target COUNT (reuse `Reward.minTargets`/`maxTargets`, already in the
+  type) like a group size; when the buyer wins, they pick that many targets (targets do NOT
+  confirm). Enforce `maxActivePunishesPerPlayer` (default 1): a character can be targeted by at
+  most N `punish_someone` per day.
+  J. **Turnus settings & creation** — RULES for creation.
+- Admin settings form to edit their turnus params (`startingCoins`, `coinsPerDifficulty`,
+  `penaltyRatio`, `noPickPenalty`, `allowNegativeBalance`, `maxActiveRewardsPerPlayer`,
+  `maxActivePunishesPerPlayer`, `lockTime`). Rules already allow `isAdmin(t)` to update the turnus
+  doc — this is just the UI.
+- Gated turnus CREATION (not every user may create a group): needs a gating decision
+  (global super-admin / creation code) + a rules change (`turnuses` create is currently `if false`).
+  K. **Showcase + README + player rules page (LAST).** Representative seed, README refresh (still says
+  "Phase 0"), final visual pass, optional 5-try/15-min PIN lockout. Then a simple trilingual
+  "how to play" page — only once every mechanic above is frozen.

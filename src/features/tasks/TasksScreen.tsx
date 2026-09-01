@@ -157,11 +157,13 @@ export function TasksScreen() {
             ))}
           </Select>
           {myPlayer !== null && (
-            <Checkbox
-              label={t('tasks.onlyAvailable')}
-              checked={onlyAvailable}
-              onChange={setOnlyAvailable}
-            />
+            <div className="w-full py-1">
+              <Checkbox
+                label={t('tasks.onlyAvailable')}
+                checked={onlyAvailable}
+                onChange={setOnlyAvailable}
+              />
+            </div>
           )}
         </div>
         {isAdmin && (

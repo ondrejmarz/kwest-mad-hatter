@@ -11,17 +11,19 @@ import { useSession } from './SessionProvider';
 const PlayersContext = createContext<Subscription<readonly Player[]> | null>(null);
 
 export function PlayersProvider({ children }: { children: ReactNode }) {
-  const { turnus } = useSession();
+  const { turnus, uid } = useSession();
   const [state, setState] = useState<Subscription<readonly Player[]>>({ status: 'loading' });
 
+  // Only listen once signed in — a listener attached before the uid arrives is denied by the rules
+  // and never retried, so keying on `uid` re-subscribes as soon as auth resolves (spec 15.7).
   useEffect(() => {
-    if (turnus === null) {
+    if (turnus === null || uid === null) {
       setState({ status: 'loading' });
       return;
     }
     setState({ status: 'loading' });
     return subscribePlayers(db, turnus.id, setState);
-  }, [turnus]);
+  }, [turnus, uid]);
 
   return <PlayersContext.Provider value={state}>{children}</PlayersContext.Provider>;
 }

@@ -11,17 +11,20 @@ import { useSession } from './SessionProvider';
 const TurnusContext = createContext<Subscription<Turnus | null> | null>(null);
 
 export function TurnusProvider({ children }: { children: ReactNode }) {
-  const { turnus } = useSession();
+  const { turnus, uid } = useSession();
   const [state, setState] = useState<Subscription<Turnus | null>>({ status: 'loading' });
 
+  // Wait for the anonymous uid before listening: a listener attached before sign-in finishes is
+  // rejected by the rules (not signed in) and Firestore never retries it, leaving the screen stuck
+  // until a remount. Keying on `uid` re-subscribes the moment auth resolves.
   useEffect(() => {
-    if (turnus === null) {
+    if (turnus === null || uid === null) {
       setState({ status: 'loading' });
       return;
     }
     setState({ status: 'loading' });
     return subscribeTurnus(db, turnus.id, setState);
-  }, [turnus]);
+  }, [turnus, uid]);
 
   return <TurnusContext.Provider value={state}>{children}</TurnusContext.Provider>;
 }

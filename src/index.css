@@ -21,6 +21,26 @@
   --color-coin: 202 138 4;
 }
 
+/*
+ * Dark theme (spec 15.8): follow the device setting. Only the tokens change — every component reads
+ * them through the semantic Tailwind utilities, so nothing else needs touching. Surfaces go dark,
+ * text light, and the status colours are brightened so they keep enough contrast on a dark ground.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: 15 23 42;
+    --color-surface-raised: 30 41 59;
+    --color-border: 51 65 85;
+    --color-text: 226 232 240;
+    --color-text-muted: 148 163 184;
+    --color-accent: 96 165 250;
+    --color-danger: 248 113 113;
+    --color-warning: 251 191 36;
+    --color-success: 74 222 128;
+    --color-coin: 250 204 21;
+  }
+}
+
 @layer base {
   html,
   body,
@@ -51,14 +71,14 @@
 }
 
 /*
- * iOS Safari zooms the whole page toward any form control it focuses whose computed font-size is
- * below 16px. Several of our controls use Tailwind's 14px `text-sm`, so on touch devices we pin
- * form controls to 16px — kept out of a layer and marked important so it beats the utility, and
- * behind a coarse-pointer query so desktop keeps its designed sizing.
+ * iOS Safari zooms the whole page toward a focused text-entry field whose computed font-size is
+ * below 16px. Our fields use Tailwind's 14px `text-sm`, so on touch devices we pin inputs and
+ * textareas to 16px — kept out of a layer and marked important so it beats the utility, behind a
+ * coarse-pointer query so desktop keeps its designed sizing. `select` is deliberately excluded: it
+ * opens a native picker (no zoom) and reads better small on a phone.
  */
 @media (pointer: coarse) {
   input,
-  select,
   textarea {
     font-size: 16px !important;
   }

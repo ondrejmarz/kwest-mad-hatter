@@ -79,6 +79,10 @@ export const cs = {
     noteRequired: 'U změny mincí doplň poznámku.',
     quickAdjust: 'Rychlá úprava',
     save: 'Uložit',
+    activeTaskLabel: 'Aktuální úkol',
+    myReservation: 'Tvoje rezervace na zítra',
+    noReservation: 'Zatím žádná',
+    myBid: 'Tvůj přihoz na odměnu',
   },
   tasks: {
     allCategories: 'Všechny kategorie',

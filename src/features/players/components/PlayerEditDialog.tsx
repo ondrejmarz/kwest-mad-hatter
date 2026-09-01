@@ -1,0 +1,97 @@
+import { type FormEvent, useState } from 'react';
+
+import { db } from '../../../data/firebase';
+import { renamePlayer } from '../../../data/playerAdmin';
+import { adjustCoins } from '../../../data/transactions/adjustCoins';
+import { type EventMeta } from '../../../data/transactions/shared';
+import type { Player } from '../../../domain/types';
+import { useTranslation } from '../../../i18n/LocaleProvider';
+import { Button } from '../../../ui/Button';
+import { CoinAmount } from '../../../ui/CoinAmount';
+import { Dialog } from '../../../ui/Dialog';
+import { TextInput } from '../../../ui/TextInput';
+
+/**
+ * Admin edit of a player (spec 9.4): rename, and a coin adjustment that needs a note for
+ * the audit log (the `adjustCoins` transaction floors the balance and records the reason).
+ * Renaming is a plain write; a coin change requires being online.
+ */
+export function PlayerEditDialog({
+  player,
+  onClose,
+  turnusId,
+  meta,
+}: {
+  player: Player;
+  onClose: () => void;
+  turnusId: string;
+  meta: EventMeta;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(player.name);
+  const [delta, setDelta] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (busy) return;
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+      setError(t('players.invalidName'));
+      return;
+    }
+    const change = Number(delta);
+    const hasChange = delta.trim() !== '' && Number.isFinite(change) && change !== 0;
+    if (hasChange && note.trim().length === 0) {
+      setError(t('players.noteRequired'));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    if (trimmed !== player.name) void renamePlayer(db, turnusId, player.id, trimmed);
+    if (hasChange) {
+      const result = await adjustCoins(db, turnusId, player.id, change, note.trim(), meta);
+      if (!result.ok) {
+        setBusy(false);
+        setError(t('entry.offline'));
+        return;
+      }
+    }
+    setBusy(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open onClose={onClose} title={t('players.editTitle')}>
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-content-muted">{t('players.coinsLabel')}</span>
+          <CoinAmount amount={player.coins} />
+        </div>
+        <TextInput
+          label={t('players.nameLabel')}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <TextInput
+          label={t('players.coinsAdjustLabel')}
+          value={delta}
+          onChange={(event) => setDelta(event.target.value)}
+          inputMode="numeric"
+          placeholder="0"
+        />
+        <TextInput
+          label={t('players.coinsNoteLabel')}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <Button type="submit" disabled={busy}>
+          {t('players.save')}
+        </Button>
+      </form>
+    </Dialog>
+  );
+}

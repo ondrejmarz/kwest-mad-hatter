@@ -29,6 +29,10 @@ export type TaskDoc = z.infer<typeof taskSchema>;
 export const parseTask = (id: string, data: DocumentData): Task | null =>
   parseDoc(taskSchema, 'task', id, data) as Task | null;
 
+/** Full document incl. `manualCoins` — used by the importer to preserve overridden coins. */
+export const parseTaskDoc = (id: string, data: DocumentData): TaskDoc | null =>
+  parseDoc(taskSchema, 'task', id, data);
+
 export const rewardSchema = z.object({
   id: zRewardId,
   name: z.string(),

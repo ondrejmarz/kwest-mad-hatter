@@ -111,4 +111,8 @@ comes before data/rules (phase 2) on purpose.
 4. Players — **done.** main screen (own card, roster, pending), create player, admin approve/reject,
    claim character + PIN recovery, player detail. (The 5-try/15-min PIN lockout guard is deferred
    hardening — the PIN itself is rule-enforced.)
-5. Catalog (TSV import) — **next.** 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase.
+5. Catalog — **done.** TSV import (`data/importCatalog.ts`: parse + preview + apply, preserves
+   usedByPlayerIds/active/manualCoins). Players/Tasks/Rewards share one `ui/ListCard` layout with
+   a sort control + filters; admins edit any row in place via a pencil dialog and add tasks/rewards
+   directly. Admin screen is just import + a task-category picker (`setCategories`).
+6. Game loop — **next.** 7. Rewards. 8. PWA + polish. 9. Showcase.

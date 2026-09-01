@@ -2,51 +2,47 @@ import { memo } from 'react';
 
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
-import { cx } from '../../../lib/cx';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
+import { EditButton } from '../../../ui/EditButton';
+import { ListCard } from '../../../ui/ListCard';
 
-/** One player in the list (spec 9.1): name, coins, active task, and a needs-pick chip. */
+/** One player in the list (spec 9.1): name, chips, active task, coins, admin pencil. */
 export const PlayerRow = memo(function PlayerRow({
   player,
   mine,
-  onClick,
+  isAdmin,
+  onOpen,
+  onEdit,
 }: {
   player: Player;
   mine: boolean;
-  onClick: () => void;
+  isAdmin: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
 }) {
   const { t } = useTranslation();
   const partner =
     player.activeTask?.isPair && player.activeTask.partnerName
       ? ` · ${player.activeTask.partnerName}`
       : '';
+  const hasChips = mine || player.needsPick;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        'tap-target flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left',
-        mine ? 'border-accent bg-accent/5' : 'border-border bg-surface-raised',
-      )}
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-content">{player.name}</span>
-          {mine && <Chip tone="accent">{t('players.you')}</Chip>}
-        </div>
-        {player.activeTask ? (
-          <p className="mt-0.5 truncate text-sm text-content-muted">
-            {player.activeTask.name}
-            {partner}
-          </p>
-        ) : player.needsPick ? (
-          <span className="mt-1 inline-block">
-            <Chip tone="warning">{t('players.needsPick')}</Chip>
-          </span>
-        ) : null}
-      </div>
-      <CoinAmount amount={player.coins} />
-    </button>
+    <ListCard
+      onClick={onOpen}
+      highlighted={mine}
+      title={player.name}
+      chips={
+        hasChips ? (
+          <>
+            {mine && <Chip tone="accent">{t('players.you')}</Chip>}
+            {player.needsPick && <Chip tone="warning">{t('players.needsPick')}</Chip>}
+          </>
+        ) : undefined
+      }
+      description={player.activeTask ? `${player.activeTask.name}${partner}` : undefined}
+      footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
+      footerRight={<CoinAmount amount={player.coins} />}
+    />
   );
 });

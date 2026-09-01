@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 
-import type { Player } from '../../../domain/types';
-import { usePlayers, useSession } from '../../session';
+import type { Player } from '../../domain/types';
+
+import { usePlayers } from './PlayersProvider';
+import { useSession } from './SessionProvider';
 
 /** The character this device owns (spec 9.1) — derived from the live list, never a listener. */
 export function useMyPlayer(): Player | null {

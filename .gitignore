@@ -20,10 +20,11 @@ dev-dist
 coverage
 *.tsbuildinfo
 
-# Environment (keep .env.example tracked)
+# Environment (keep .env.example and the emulator dev config tracked)
 .env
 .env.*
 !.env.example
+!.env.emulator
 
 # Firebase
 .firebase

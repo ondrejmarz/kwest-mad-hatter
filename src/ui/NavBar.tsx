@@ -9,18 +9,18 @@ interface NavItem {
   labelKey: TranslationKey;
 }
 
-const ITEMS: readonly NavItem[] = [
-  { to: '/players', labelKey: 'nav.players' },
-  { to: '/tasks', labelKey: 'nav.tasks' },
-  { to: '/rewards', labelKey: 'nav.rewards' },
-  { to: '/rules', labelKey: 'nav.rules' },
-];
-
-export function NavBar() {
+/** Rules is swapped for Admin on admin devices (spec 9). */
+export function NavBar({ showAdmin }: { showAdmin: boolean }) {
   const { t } = useTranslation();
+  const items: readonly NavItem[] = [
+    { to: '/players', labelKey: 'nav.players' },
+    { to: '/tasks', labelKey: 'nav.tasks' },
+    { to: '/rewards', labelKey: 'nav.rewards' },
+    showAdmin ? { to: '/admin', labelKey: 'nav.admin' } : { to: '/rules', labelKey: 'nav.rules' },
+  ];
   return (
     <nav className="flex items-stretch border-b border-border bg-surface-raised">
-      {ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

@@ -24,3 +24,11 @@ export async function getTurnusBySlug(db: Firestore, slug: string): Promise<Turn
   const first = snap.docs[0];
   return first ? parseTurnus(first.id, first.data({ serverTimestamps: 'estimate' })) : null;
 }
+
+/** The turnus picker lists every non-archived turnus (spec 3a). */
+export async function listTurnuses(db: Firestore): Promise<readonly Turnus[]> {
+  const snap = await getDocs(query(turnusesCol(db), where('archived', '==', false)));
+  return snap.docs
+    .map((docSnap) => parseTurnus(docSnap.id, docSnap.data({ serverTimestamps: 'estimate' })))
+    .filter((turnus): turnus is Turnus => turnus !== null);
+}

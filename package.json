@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "concurrently --kill-others-on-fail -n vite,emu,seed -c green,yellow,cyan \"npm:dev:vite\" \"npm:dev:emulators\" \"npm:dev:seed\"",
-    "dev:vite": "vite",
-    "dev:host": "vite --host",
+    "dev:vite": "vite --mode emulator",
+    "dev:host": "vite --mode emulator --host",
     "dev:emulators": "firebase emulators:start --only firestore,auth --project demo-tabor",
     "dev:seed": "node --experimental-strip-types seed/seed.ts",
     "dev:cloud": "vite",

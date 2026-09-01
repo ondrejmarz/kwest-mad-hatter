@@ -104,4 +104,8 @@ comes before data/rules (phase 2) on purpose.
    `data/transactions/` (the only `runTransaction` sites), `firestore.rules` with adversarial
    rules + transaction-integration tests, seed. `pickTaskNow`/`purchaseReward`/`refundPurchase`
    and their rule extensions land with feature phases 6/7.
-3. Auth & turnuses. 4. Players. 5. Catalog (TSV import). 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase (README, ADRs, deploy, previews).
+3. Auth & turnuses — **done.** anonymous auth + session (`features/session`: uid/turnus/role),
+   turnus entry (picker, code entry via `joinTurnus`, `/t/{slug}`), remember/switch turnus,
+   hidden admin long-press gesture, `RequireTurnus`/`RequireAdmin` guards. `npm run dev` runs
+   Vite in `--mode emulator` (loads `.env.emulator`).
+4. Players — **next.** 5. Catalog (TSV import). 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase.

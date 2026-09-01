@@ -17,7 +17,8 @@ export interface TaskFields {
   readonly description: LocalizedText;
   readonly categories: readonly LocalizedText[];
   readonly difficulty: number;
-  readonly isPair: boolean;
+  readonly minPlayers: number;
+  readonly maxPlayers: number;
   readonly coinReward: number;
   readonly coinPenalty: number;
   readonly manualCoins: boolean;

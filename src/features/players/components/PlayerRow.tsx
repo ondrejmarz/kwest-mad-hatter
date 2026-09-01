@@ -27,7 +27,8 @@ export const PlayerRow = memo(function PlayerRow({
 }) {
   const { t, locale } = useTranslation();
   const active = player.activeTask;
-  const partner = active?.isPair && active.partnerName ? ` · ${active.partnerName}` : '';
+  const partner =
+    active && active.partnerNames.length > 0 ? ` · ${active.partnerNames.join(', ')}` : '';
   // What they're actually doing reads better as the task's description than its name (spec 9.1).
   const activeLabel = active
     ? `${localize(active.description, locale) || localize(active.name, locale)}${partner}`

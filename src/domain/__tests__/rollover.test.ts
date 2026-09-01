@@ -119,14 +119,14 @@ describe('resolveRollover — settlement (step 1)', () => {
     expect(result.playerUpdates.map((u) => u.playerId)).toEqual(['p1']);
   });
 
-  it('marks a pair task used by both partners', () => {
-    const pairTask = (partner: string) =>
-      makeActiveTask({ taskId: TaskId('t1'), isPair: true, partnerId: PlayerId(partner) });
-    const a = makePlayer({ id: PlayerId('a'), activeTask: pairTask('b') });
-    const b = makePlayer({ id: PlayerId('b'), activeTask: pairTask('a') });
+  it('marks a group task used by all members', () => {
+    const groupTask = (partner: string) =>
+      makeActiveTask({ taskId: TaskId('t1'), partnerNames: [partner] });
+    const a = makePlayer({ id: PlayerId('a'), activeTask: groupTask('b') });
+    const b = makePlayer({ id: PlayerId('b'), activeTask: groupTask('a') });
     const result = run({
       players: [a, b],
-      tasks: [makeTask({ id: TaskId('t1'), isPair: true })],
+      tasks: [makeTask({ id: TaskId('t1'), minPlayers: 2, maxPlayers: 2 })],
       completed: [PlayerId('a'), PlayerId('b')],
     });
     const used = result.taskUpdates.find((t) => t.taskId === 't1')?.usedByPlayerIds;
@@ -266,12 +266,18 @@ describe('resolveRollover — reservations (step 3)', () => {
   });
 });
 
-describe('resolveRollover — pairs (step 3)', () => {
+describe('resolveRollover — groups (step 3)', () => {
   const chores = { currentDay: Day(1), noPickPenalty: 0, nextDayCategories: ['chores'] };
   const pairTaskId = TaskId('t1');
-  const pairTask = makeTask({ id: pairTaskId, categories: [loc('chores')], isPair: true });
+  // A 1–2 task: a solo bid and a two-member group can both compete for it.
+  const pairTask = makeTask({
+    id: pairTaskId,
+    categories: [loc('chores')],
+    minPlayers: 1,
+    maxPlayers: 2,
+  });
 
-  it('lets a pair compete with the poorer partner and win for both', () => {
+  it('lets a group compete with the poorer member and win for all', () => {
     const result = run({
       turnus: chores,
       players: [
@@ -285,9 +291,9 @@ describe('resolveRollover — pairs (step 3)', () => {
           playerId: PlayerId('a'),
           taskId: pairTaskId,
           day: Day(2),
-          isPair: true,
-          partnerId: PlayerId('b'),
-          confirmed: true,
+          maxPlayers: 2,
+          invitees: [PlayerId('b')],
+          responses: { b: 'accepted' },
           createdAt: 100,
         }),
         makeReservation({
@@ -298,18 +304,18 @@ describe('resolveRollover — pairs (step 3)', () => {
         }),
       ],
     });
-    // pair balance = min(80, 20) = 20 < Cyril's 50, so the pair wins despite his earlier time.
+    // group balance = min(80, 20) = 20 < Cyril's 50, so the group wins despite his earlier time.
     expect(pu(result, 'a').activeTask?.taskId).toBe('t1');
     expect(pu(result, 'b').activeTask?.taskId).toBe('t1');
-    expect(pu(result, 'a').activeTask?.partnerId).toBe('b');
-    expect(pu(result, 'b').activeTask?.partnerId).toBe('a');
+    expect(pu(result, 'a').activeTask?.partnerNames).toEqual(['Bob']);
+    expect(pu(result, 'b').activeTask?.partnerNames).toEqual(['Anna']);
     expect(pu(result, 'c').activeTask).toBeNull();
     expect(pu(result, 'c').needsPick).toBe(true);
     const lost = result.events.find((e) => e.type === 'reservation_lost');
     expect(lost && lost.type === 'reservation_lost' ? lost.winnerName : '').toBe('Anna & Bob');
   });
 
-  it('expires an unconfirmed pair and leaves both partners without a task', () => {
+  it('expires a group that falls short of its lower bound', () => {
     const result = run({
       turnus: { currentDay: Day(1), noPickPenalty: 0 },
       players: [
@@ -318,13 +324,15 @@ describe('resolveRollover — pairs (step 3)', () => {
       ],
       tasks: [pairTask],
       reservations: [
+        // Needs 2, but the invitee never accepted — only the initiator is a member.
         makeReservation({
           playerId: PlayerId('a'),
           taskId: pairTaskId,
           day: Day(2),
-          isPair: true,
-          partnerId: PlayerId('b'),
-          confirmed: false,
+          minPlayers: 2,
+          maxPlayers: 2,
+          invitees: [PlayerId('b')],
+          responses: {},
           createdAt: 100,
         }),
       ],
@@ -333,7 +341,7 @@ describe('resolveRollover — pairs (step 3)', () => {
     expect(pu(result, 'a').activeTask).toBeNull();
     expect(pu(result, 'b').needsPick).toBe(true);
     expect(pu(result, 'b').activeTask).toBeNull();
-    expect(result.events.filter((e) => e.type === 'pair_reservation_expired')).toHaveLength(2);
+    expect(result.events.filter((e) => e.type === 'reservation_expired')).toHaveLength(1);
   });
 
   it('leaves both partners without a task when their pair loses', () => {
@@ -352,14 +360,13 @@ describe('resolveRollover — pairs (step 3)', () => {
           day: Day(2),
           createdAt: 100,
         }),
-        // initiator 'b' > partner 'a' exercises the other side of the claim-key tie-break.
         makeReservation({
           playerId: PlayerId('b'),
           taskId: pairTaskId,
           day: Day(2),
-          isPair: true,
-          partnerId: PlayerId('a'),
-          confirmed: true,
+          maxPlayers: 2,
+          invitees: [PlayerId('a')],
+          responses: { a: 'accepted' },
           createdAt: 100,
         }),
       ],

@@ -14,15 +14,16 @@ import { readPlayer, readTurnus } from './shared';
 /**
  * Reserve a task for tomorrow (spec 7). Eligibility is decided by the pure domain; the
  * transaction only reads state, builds the reservation and adjusts the public interest
- * counts (a pair counts as one). Reservations are secret, so nothing is written to the
- * public events log during the day (decision A3). Changing a reservation moves the count.
+ * counts (a group counts as one). `inviteeIds` are the others invited (empty for a solo task).
+ * Reservations are secret, so nothing is written to the public events log during the day
+ * (decision A3). Changing a reservation moves the count.
  */
 export async function reserveTask(
   db: Firestore,
   t: string,
   playerId: string,
   taskId: string,
-  partner?: { readonly id: PlayerId; readonly name: string },
+  inviteeIds: readonly PlayerId[] = [],
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
@@ -36,13 +37,7 @@ export async function reserveTask(
     if (!eligible.ok) return eligible;
 
     const day = Day(turnus.currentDay + 1);
-    const built = createReservation({
-      player,
-      task,
-      day,
-      ...(partner ? { partner } : {}),
-      createdAt: 0,
-    });
+    const built = createReservation({ player, task, day, inviteeIds, createdAt: 0 });
     if (!built.ok) return err(built.error);
 
     const previous = await tx.get(reservationDoc(db, t, playerId));

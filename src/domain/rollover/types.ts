@@ -31,11 +31,10 @@ export interface Settlement {
   readonly event: GameEvent;
 }
 
-/** One atomic bid for a task on day D+1; a pair is one claim for two players (spec 6). */
+/** One atomic bid for a task on day D+1; a group is one claim for all its members (spec 6). */
 export interface Claim {
   readonly taskId: TaskId;
   readonly taskName: LocalizedText;
-  readonly isPair: boolean;
   readonly playerIds: readonly PlayerId[];
   readonly balance: number;
   readonly createdAt: number;
@@ -84,7 +83,7 @@ export interface PreviewAssignment {
   readonly playerName: string;
   readonly taskId: TaskId;
   readonly taskName: LocalizedText;
-  readonly isPair: boolean;
+  readonly isGroup: boolean;
 }
 
 export interface PreviewLoss {

@@ -14,14 +14,15 @@ import { parseReward, parseTaskDoc } from './schemas/catalog';
  * without losing their state — `usedByPlayerIds`, `active` and overridden coins (`manualCoins`)
  * are preserved; auto coins are recomputed.
  *
- *   task:   name ⇥ description ⇥ difficulty ⇥ pair(Ano/Ne) ⇥ tag ⇥ tag ⇥ …
+ *   task:   name ⇥ description ⇥ difficulty ⇥ size(N or N-M) ⇥ tag ⇥ tag ⇥ …
  *   reward: name ⇥ description ⇥ price ⇥ form ⇥ tag ⇥ tag ⇥ …
  */
 export interface ParsedTask {
   readonly name: LocalizedText;
   readonly description: LocalizedText;
   readonly difficulty: number;
-  readonly isPair: boolean;
+  readonly minPlayers: number;
+  readonly maxPlayers: number;
   readonly categories: readonly LocalizedText[];
 }
 
@@ -76,15 +77,32 @@ function clampDifficulty(raw: string): number {
   return Number.isNaN(value) ? 1 : Math.min(6, Math.max(1, value));
 }
 
+/**
+ * Group size cell: "" or "1" → solo (1/1); "N" → exactly N; "N-M" or "N:M" → a range. Counts all
+ * participants incl. the initiator. Clamped so min ≥ 1 and max ≥ min.
+ */
+export function parseGroupSize(raw: string): { minPlayers: number; maxPlayers: number } {
+  const text = raw.trim();
+  if (text === '') return { minPlayers: 1, maxPlayers: 1 };
+  const range = text.match(/^(\d+)\s*[-:]\s*(\d+)$/);
+  if (range) {
+    const min = Math.max(1, Number.parseInt(range[1] ?? '1', 10) || 1);
+    const max = Math.max(min, Number.parseInt(range[2] ?? '1', 10) || min);
+    return { minPlayers: min, maxPlayers: max };
+  }
+  const exact = Math.max(1, Number.parseInt(text, 10) || 1);
+  return { minPlayers: exact, maxPlayers: exact };
+}
+
 export function parseTasks(tsv: string): ParsedTask[] {
   return rows(tsv)
     .map((line) => {
-      const [name = '', description = '', difficulty = '', pair = '', ...tags] = line.split('\t');
+      const [name = '', description = '', difficulty = '', size = '', ...tags] = line.split('\t');
       return {
         name: parseLocalized(name),
         description: parseLocalized(description),
         difficulty: clampDifficulty(difficulty),
-        isPair: pair.trim().toLowerCase() === 'ano',
+        ...parseGroupSize(size),
         categories: parseTags(tags),
       };
     })
@@ -167,7 +185,8 @@ export async function applyTaskImport(
         description: task.description,
         categories: task.categories,
         difficulty: task.difficulty,
-        isPair: task.isPair,
+        minPlayers: task.minPlayers,
+        maxPlayers: task.maxPlayers,
       };
       if (!match.manualCoins) {
         fields.coinReward = coinReward;

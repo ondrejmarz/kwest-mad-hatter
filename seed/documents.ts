@@ -31,7 +31,8 @@ interface SeedTask {
   name: Loc;
   description: Loc;
   difficulty: number;
-  isPair: boolean;
+  minPlayers: number;
+  maxPlayers: number;
   categories: Loc[];
 }
 
@@ -60,7 +61,8 @@ function parseTasks(tsv: string): SeedTask[] {
       name: loc(name.trim()),
       description: loc(description.trim()),
       difficulty: Number.parseInt(difficultyRaw, 10) || 1,
-      isPair: pairRaw.trim().toLowerCase() === 'ano',
+      minPlayers: pairRaw.trim().toLowerCase() === 'ano' ? 2 : 1,
+      maxPlayers: pairRaw.trim().toLowerCase() === 'ano' ? 2 : 1,
       categories: [loc(category.trim() || 'Ostatní')],
     };
   });

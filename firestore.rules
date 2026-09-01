@@ -54,12 +54,14 @@ service cloud.firestore {
         && uid() in resource.data.ownerUids
         && request.resource.data.ownerUids == resource.data.ownerUids.removeAll([uid()]);
     }
-    // The invited partner accepts a pair invite (spec 7).
-    function confirmsInvite(t, pid) {
+    // An invited player sets or flips only their own answer in the reservation's `responses`
+    // map (spec 7); they must be one of the invited, and may touch no other field or key.
+    function respondsToInvite(t, pid) {
       return hasPlayer(t)
-        && resource.data.get('invitePartnerId', '') == myPlayerId(t)
-        && onlyChanged(['confirmed', 'partnerId', 'invitePartnerId'])
-        && request.resource.data.confirmed == true;
+        && myPlayerId(t) in resource.data.invitees
+        && onlyChanged(['responses'])
+        && request.resource.data.responses.diff(resource.data.responses)
+             .affectedKeys().hasOnly([myPlayerId(t)]);
     }
 
     // Global catalog templates — read-only for clients; copied into a turnus by admins.
@@ -156,18 +158,13 @@ service cloud.firestore {
       match /tasks/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
       match /rewards/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
 
-      // Reservations are secret: readable only by the initiator, the invited partner and admins.
+      // Reservations are secret: readable only by the initiator, the invited players and admins.
       match /reservations/{pid} {
         allow read: if isAdmin(t)
-          || (hasPlayer(t) && (pid == myPlayerId(t)
-            || resource.data.get('invitePartnerId', '') == myPlayerId(t)
-            || resource.data.get('partnerId', '') == myPlayerId(t)));
+          || (hasPlayer(t) && (pid == myPlayerId(t) || myPlayerId(t) in resource.data.invitees));
         allow create: if hasPlayer(t) && pid == myPlayerId(t);
-        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || confirmsInvite(t, pid);
-        // Owner, admin, or the invited partner declining the pair invite (spec 7).
-        allow delete: if (hasPlayer(t) && pid == myPlayerId(t))
-          || isAdmin(t)
-          || (hasPlayer(t) && resource.data.get('invitePartnerId', '') == myPlayerId(t));
+        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || respondsToInvite(t, pid);
+        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
       }
 
       // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.

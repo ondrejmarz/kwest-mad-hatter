@@ -9,7 +9,6 @@ import { loc } from './fixtures';
 const claim = (over: Partial<Claim>): Claim => ({
   taskId: TaskId('t'),
   taskName: loc('T'),
-  isPair: false,
   playerIds: [],
   balance: 0,
   createdAt: 0,

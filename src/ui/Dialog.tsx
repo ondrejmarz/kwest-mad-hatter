@@ -26,14 +26,20 @@ export function Dialog({
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Lock the page behind the modal so only the dialog scrolls (spec 15.8).
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return createPortal(
     <div
-      className="safe-top safe-bottom fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="safe-top safe-bottom fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -41,7 +47,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={title ?? ariaLabel}
-        className="w-full max-w-sm rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
+        className="max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
         {title !== undefined && (

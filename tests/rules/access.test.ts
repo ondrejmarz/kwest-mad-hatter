@@ -85,7 +85,7 @@ beforeEach(async () => {
           difficulty: 1,
           coinReward: 150,
           coinPenalty: 75,
-          isPair: false,
+          partnerNames: [],
         },
       }),
     );
@@ -106,11 +106,11 @@ beforeEach(async () => {
     await put('reservations/p1', {
       day: 2,
       taskId: 't1',
-      taskName: 'T',
-      isPair: true,
-      partnerId: 'p2',
-      invitePartnerId: 'p2',
-      confirmed: false,
+      taskName: { cs: 'T', en: '', de: '' },
+      minPlayers: 2,
+      maxPlayers: 2,
+      invitees: ['p2'],
+      responses: {},
       createdAt: serverTimestamp(),
     });
     await put('events/e1', {
@@ -171,17 +171,26 @@ describe('reservations are secret', () => {
     await assertSucceeds(deleteDoc(doc(authed('alice'), path('reservations/p1'))));
   });
 
-  it('lets the invited partner accept the pair invite', async () => {
+  it('lets an invited player accept by setting only their own response', async () => {
     await assertSucceeds(
-      updateDoc(doc(authed('bob'), path('reservations/p1')), {
-        confirmed: true,
-        invitePartnerId: null,
-      }),
+      updateDoc(doc(authed('bob'), path('reservations/p1')), { responses: { p2: 'accepted' } }),
     );
   });
 
-  it('lets the invited partner decline by deleting the invite', async () => {
-    await assertSucceeds(deleteDoc(doc(authed('bob'), path('reservations/p1'))));
+  it('lets an invited player decline the same way', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('bob'), path('reservations/p1')), { responses: { p2: 'declined' } }),
+    );
+  });
+
+  it("forbids an invitee writing someone else's response", async () => {
+    await assertFails(
+      updateDoc(doc(authed('bob'), path('reservations/p1')), { responses: { p3: 'accepted' } }),
+    );
+  });
+
+  it('forbids an invitee touching another field', async () => {
+    await assertFails(updateDoc(doc(authed('bob'), path('reservations/p1')), { taskId: 't2' }));
   });
 
   it('does not let an uninvolved member delete a reservation', async () => {
@@ -209,7 +218,7 @@ describe('a player cannot tamper with their own document', () => {
           difficulty: 1,
           coinReward: 9999,
           coinPenalty: 0,
-          isPair: false,
+          partnerNames: [],
         },
       }),
     );

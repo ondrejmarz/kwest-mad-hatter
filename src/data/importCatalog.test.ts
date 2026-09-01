@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   defaultTargets,
+  parseGroupSize,
   parseLocalized,
   parseRewards,
   parseTasks,
@@ -17,31 +18,42 @@ const L = (cs: string, en = '', de = ''): { cs: string; en: string; de: string }
 });
 
 describe('parseTasks', () => {
-  it('parses trilingual name/description, difficulty, pair, and trailing tags', () => {
+  it('parses trilingual name/description, difficulty, a size range, and trailing tags', () => {
     const tsv =
-      'Nosič vody|Water carrier|Wasserträger\tNosíš kbelík|Carry a bucket\t2\tNe\t💪 Výdrž|Endurance|Ausdauer\tParta\r\n';
+      'Nosič vody|Water carrier|Wasserträger\tNosíš kbelík|Carry a bucket\t2\t2-3\t💪 Výdrž|Endurance|Ausdauer\tParta\r\n';
     expect(parseTasks(tsv)).toEqual([
       {
         name: L('Nosič vody', 'Water carrier', 'Wasserträger'),
         description: L('Nosíš kbelík', 'Carry a bucket'),
         difficulty: 2,
-        isPair: false,
+        minPlayers: 2,
+        maxPlayers: 3,
         categories: [L('💪 Výdrž', 'Endurance', 'Ausdauer'), L('Parta')],
       },
     ]);
   });
 
-  it('pair from "Ano", clamps difficulty, drops nameless/blank rows', () => {
-    const tsv = 'Scénka\tU ohně\t9\tAno\tScénka\n\t\t2\tNe\tX\n   \n';
+  it('takes an exact size, clamps difficulty, drops nameless/blank rows', () => {
+    const tsv = 'Scénka\tU ohně\t9\t4\tScénka\n\t\t2\t1\tX\n   \n';
     expect(parseTasks(tsv)).toEqual([
       {
         name: L('Scénka'),
         description: L('U ohně'),
         difficulty: 6,
-        isPair: true,
+        minPlayers: 4,
+        maxPlayers: 4,
         categories: [L('Scénka')],
       },
     ]);
+  });
+});
+
+describe('parseGroupSize', () => {
+  it('reads solo, exact and range sizes', () => {
+    expect(parseGroupSize('')).toEqual({ minPlayers: 1, maxPlayers: 1 });
+    expect(parseGroupSize('3')).toEqual({ minPlayers: 3, maxPlayers: 3 });
+    expect(parseGroupSize('2-4')).toEqual({ minPlayers: 2, maxPlayers: 4 });
+    expect(parseGroupSize('2:4')).toEqual({ minPlayers: 2, maxPlayers: 4 });
   });
 });
 

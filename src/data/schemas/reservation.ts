@@ -23,11 +23,10 @@ export const reservationSchema = z.object({
   day: zDay,
   taskId: zTaskId,
   taskName: zLocalizedText,
-  isPair: z.boolean(),
-  partnerId: zPlayerId.optional(),
-  partnerName: z.string().optional(),
-  confirmed: z.boolean(),
-  invitePartnerId: zPlayerId.nullable().optional(),
+  minPlayers: z.number(),
+  maxPlayers: z.number(),
+  invitees: z.array(zPlayerId).readonly(),
+  responses: z.record(z.string(), z.enum(['accepted', 'declined'])),
   createdAt: zTimestampMillis,
 });
 

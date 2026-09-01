@@ -4,6 +4,7 @@ import type { Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
+import { formatGroupSize } from '../../../lib/group';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { DifficultyDots } from '../../../ui/DifficultyDots';
@@ -43,7 +44,11 @@ export const TaskCard = memo(function TaskCard({
           {task.categories.map((category) => (
             <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
           ))}
-          {task.isPair && <Chip tone="accent">{t('tasks.pair')}</Chip>}
+          {task.maxPlayers > 1 && (
+            <Chip tone="accent">
+              {t('tasks.groupSize', { size: formatGroupSize(task.minPlayers, task.maxPlayers) })}
+            </Chip>
+          )}
           {reserved && <Chip tone="success">{t('tasks.reservedChip')}</Chip>}
           {unavailableTomorrow && <Chip tone="warning">{t('tasks.unavailableTomorrow')}</Chip>}
           {unavailableToday && <Chip tone="danger">{t('tasks.unavailableToday')}</Chip>}

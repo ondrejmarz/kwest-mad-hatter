@@ -31,9 +31,8 @@ export interface ActiveTask {
   readonly difficulty: number;
   readonly coinReward: number;
   readonly coinPenalty: number;
-  readonly isPair: boolean;
-  readonly partnerId?: PlayerId;
-  readonly partnerName?: string;
+  /** Names of the co-members when this is a group task; empty for a solo task. */
+  readonly partnerNames: readonly string[];
   readonly detail?: string;
 }
 
@@ -53,7 +52,9 @@ export interface Task {
   readonly description: LocalizedText;
   readonly categories: readonly LocalizedText[];
   readonly difficulty: number;
-  readonly isPair: boolean;
+  /** Group size interval, counting all participants incl. the initiator (1/1 = solo, 2/2 = pair). */
+  readonly minPlayers: number;
+  readonly maxPlayers: number;
   readonly coinReward: number;
   readonly coinPenalty: number;
   readonly usedByPlayerIds: readonly PlayerId[];
@@ -73,17 +74,23 @@ export interface Reward {
   readonly active: boolean;
 }
 
-/** A reservation lives under its initiator's playerId; a pair names the partner. */
+export type ReservationResponse = 'accepted' | 'declined';
+
+/**
+ * A reservation lives under its initiator's playerId (the doc id). The initiator is always a
+ * member; a group task also invites others, who each answer in `responses` (toggleable until the
+ * day is evaluated). `invitees` is a flat id array so rules and the "my invites" query can match
+ * it. Validity is decided at evaluation: members = initiator + accepted invitees.
+ */
 export interface Reservation {
   readonly playerId: PlayerId;
   readonly day: Day;
   readonly taskId: TaskId;
   readonly taskName: LocalizedText;
-  readonly isPair: boolean;
-  readonly partnerId?: PlayerId;
-  readonly partnerName?: string;
-  readonly confirmed: boolean;
-  readonly invitePartnerId?: PlayerId | null;
+  readonly minPlayers: number;
+  readonly maxPlayers: number;
+  readonly invitees: readonly PlayerId[];
+  readonly responses: Readonly<Record<string, ReservationResponse>>;
   readonly createdAt: number;
 }
 

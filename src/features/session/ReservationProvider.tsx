@@ -1,10 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { db } from '../../data/firebase';
-import {
-  subscribeMyReservation,
-  subscribePendingInvites,
-} from '../../data/repositories/reservations';
+import { subscribeMyInvites, subscribeMyReservation } from '../../data/repositories/reservations';
 import type { Subscription } from '../../data/subscriptions';
 import type { Reservation } from '../../domain/types';
 
@@ -51,7 +48,7 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
       return;
     }
     setInvites({ status: 'loading' });
-    return subscribePendingInvites(db, turnus.id, playerId, setInvites);
+    return subscribeMyInvites(db, turnus.id, playerId, setInvites);
   }, [turnus, playerId]);
 
   const value = useMemo<ReservationValue>(() => ({ mine, invites }), [mine, invites]);
@@ -67,5 +64,4 @@ function useReservation(): ReservationValue {
 }
 
 export const useMyReservation = (): Subscription<Reservation | null> => useReservation().mine;
-export const useMyPairInvites = (): Subscription<readonly Reservation[]> =>
-  useReservation().invites;
+export const useMyInvites = (): Subscription<readonly Reservation[]> => useReservation().invites;

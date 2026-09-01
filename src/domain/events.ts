@@ -31,7 +31,6 @@ export type GameEvent =
       readonly day: Day;
       readonly playerId: PlayerId;
       readonly taskId: TaskId;
-      readonly isPair: boolean;
     }
   | {
       readonly type: 'reservation_lost';
@@ -41,7 +40,7 @@ export type GameEvent =
       readonly winnerName: string;
     }
   | {
-      readonly type: 'pair_reservation_expired';
+      readonly type: 'reservation_expired';
       readonly day: Day;
       readonly playerId: PlayerId;
       readonly taskId: TaskId;
@@ -70,17 +69,11 @@ export const gameEvent = {
     playerId,
     coins,
   }),
-  reservationAssigned: (
-    day: Day,
-    playerId: PlayerId,
-    taskId: TaskId,
-    isPair: boolean,
-  ): GameEvent => ({
+  reservationAssigned: (day: Day, playerId: PlayerId, taskId: TaskId): GameEvent => ({
     type: 'reservation_assigned',
     day,
     playerId,
     taskId,
-    isPair,
   }),
   reservationLost: (
     day: Day,
@@ -94,8 +87,8 @@ export const gameEvent = {
     taskId,
     winnerName,
   }),
-  pairReservationExpired: (day: Day, playerId: PlayerId, taskId: TaskId): GameEvent => ({
-    type: 'pair_reservation_expired',
+  reservationExpired: (day: Day, playerId: PlayerId, taskId: TaskId): GameEvent => ({
+    type: 'reservation_expired',
     day,
     playerId,
     taskId,

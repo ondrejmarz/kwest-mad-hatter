@@ -36,7 +36,7 @@ const activeTaskFor = (taskId: string, name: string): ActiveTask => ({
   difficulty: 1,
   coinReward: 150,
   coinPenalty: 75,
-  isPair: false,
+  partnerNames: [],
 });
 
 const turnusSettings = {
@@ -109,7 +109,8 @@ beforeEach(async () => {
       description: L(''),
       categories: [L('c')],
       difficulty: 1,
-      isPair: false,
+      minPlayers: 1,
+      maxPlayers: 1,
       coinReward: 150,
       coinPenalty: 75,
       usedByPlayerIds: [],
@@ -222,7 +223,8 @@ describe('runRollover and undoRollover', () => {
     description: L(''),
     categories: [L('c')],
     difficulty: 1,
-    isPair: false,
+    minPlayers: 1,
+    maxPlayers: 1,
     coinReward: 150,
     coinPenalty: 75,
     usedByPlayerIds: [],

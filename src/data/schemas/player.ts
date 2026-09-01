@@ -13,9 +13,7 @@ export const activeTaskSchema = z.object({
   difficulty: z.number(),
   coinReward: z.number(),
   coinPenalty: z.number(),
-  isPair: z.boolean(),
-  partnerId: zPlayerId.optional(),
-  partnerName: z.string().optional(),
+  partnerNames: z.array(z.string()).readonly(),
   detail: z.string().optional(),
 });
 

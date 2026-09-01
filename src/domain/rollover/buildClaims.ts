@@ -1,6 +1,7 @@
 import { invariant } from '../../lib/invariant';
 import { gameEvent, type GameEvent } from '../events';
 import type { Day, PlayerId } from '../ids';
+import { reservationMembers } from '../reservation';
 import type { Reservation } from '../types';
 
 import type { Claim } from './types';
@@ -11,9 +12,9 @@ export interface BuildClaimsResult {
 }
 
 /**
- * Step 3.1–3.2 (spec 6): unconfirmed pair reservations expire (both partners lose
- * out); the rest become claims. A pair is one claim for two players, and its balance
- * is the poorer of the two so a poor partner can win the task for both.
+ * Step 3.1–3.2 (spec 6): a reservation whose accepted members fall short of `minPlayers` expires
+ * (everyone who was in loses out); the rest become claims. A group is one claim for all its
+ * members, and its balance is the poorest member's, so a poor member can win the task for the group.
  */
 export function buildClaims(
   reservations: readonly Reservation[],
@@ -25,29 +26,24 @@ export function buildClaims(
 
   for (const reservation of reservations) {
     if (reservation.day !== nextDay) continue;
+    const members = reservationMembers(reservation);
 
-    if (reservation.isPair) {
-      const partnerId = reservation.partnerId;
-      invariant(partnerId !== undefined, 'a pair reservation names a partner');
-
-      if (!reservation.confirmed) {
-        expiredEvents.push(
-          gameEvent.pairReservationExpired(nextDay, reservation.playerId, reservation.taskId),
-          gameEvent.pairReservationExpired(nextDay, partnerId, reservation.taskId),
-        );
-        continue;
+    if (members.length < reservation.minPlayers) {
+      for (const playerId of members) {
+        expiredEvents.push(gameEvent.reservationExpired(nextDay, playerId, reservation.taskId));
       }
-
-      const balance = Math.min(
-        balanceOf(coinsById, reservation.playerId),
-        balanceOf(coinsById, partnerId),
-      );
-      const key = reservation.playerId < partnerId ? reservation.playerId : partnerId;
-      claims.push(toClaim(reservation, [reservation.playerId, partnerId], balance, key));
-    } else {
-      const balance = balanceOf(coinsById, reservation.playerId);
-      claims.push(toClaim(reservation, [reservation.playerId], balance, reservation.playerId));
+      continue;
     }
+
+    const balance = Math.min(...members.map((playerId) => balanceOf(coinsById, playerId)));
+    claims.push({
+      taskId: reservation.taskId,
+      taskName: reservation.taskName,
+      playerIds: members,
+      balance,
+      createdAt: reservation.createdAt,
+      key: reservation.playerId,
+    });
   }
 
   return { claims, expiredEvents };
@@ -57,21 +53,4 @@ function balanceOf(coinsById: ReadonlyMap<PlayerId, number>, playerId: PlayerId)
   const balance = coinsById.get(playerId);
   invariant(balance !== undefined, 'every reserving player was settled first');
   return balance;
-}
-
-function toClaim(
-  reservation: Reservation,
-  playerIds: readonly PlayerId[],
-  balance: number,
-  key: PlayerId,
-): Claim {
-  return {
-    taskId: reservation.taskId,
-    taskName: reservation.taskName,
-    isPair: reservation.isPair,
-    playerIds,
-    balance,
-    createdAt: reservation.createdAt,
-    key,
-  };
 }

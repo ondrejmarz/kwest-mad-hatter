@@ -2,5 +2,5 @@ export { SessionProvider, useSession } from './SessionProvider';
 export { TurnusProvider, useTurnus } from './TurnusProvider';
 export { PlayersProvider, usePlayers } from './PlayersProvider';
 export { CatalogProvider, useCatalogRewards, useCatalogTasks } from './CatalogProvider';
-export { ReservationProvider, useMyPairInvites, useMyReservation } from './ReservationProvider';
+export { ReservationProvider, useMyInvites, useMyReservation } from './ReservationProvider';
 export { useMyPlayer } from './useMyPlayer';

@@ -78,8 +78,13 @@ Hard rules:
 - **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
   (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, counts, categories,
   dayLocked, currentDay), stored in an admin-only doc, not on the hot turnus doc.
-- **Reservations are secret.** Reservation/pair-invite actions are not written to the public
+- **Reservations are secret.** Reservation/group-invite actions are not written to the public
   `events` log during the day; reservation events only appear at evaluation.
+- **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2 pair,
+  e.g. 2/4 range), counting the initiator. The initiator's reservation carries `invitees: PlayerId[]`
+  - `responses: {playerId → accepted|declined}` (invitees toggle until evaluation, rules let them
+    touch only their own key). At evaluation the members are the initiator + accepted invitees; the
+    group competes only if it reaches `minPlayers` (else it expires), balance = poorest member.
 - **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the 4-digit
   PIN** — even the first on an empty character — so nobody grabs the wrong one (updated from the
   original "first claim is free"). **One device owns one character:** claiming a new one releases
@@ -116,9 +121,16 @@ comes before data/rules (phase 2) on purpose.
    usedByPlayerIds/active/manualCoins). Players/Tasks/Rewards share one `ui/ListCard` layout with
    a sort control + filters; admins edit any row in place via a pencil dialog and add tasks/rewards
    directly. Admin screen is just import + a task-category picker (`setCategories`).
-6. Game loop — **core done.** Task-click reservations + pair invites (`ReservationProvider`,
-   `TaskActionDialog`: reserve / invite a partner / cancel; app-wide `PairInviteBanner`), day
-   evaluation (`EvaluationPanel`: mark completed → live `resolveRollover` preview → `runRollover`
-   → full `undoRollover`), day-lock toggle. Verified end-to-end. Still to do: same-day manual
-   `pickTaskNow` (needs a player-writes-`activeTask` rule + adversarial rule tests).
-7. Rewards. 8. PWA + polish. 9. Showcase.
+6. Game loop — **done.** Task-click reservations + group invites (`ReservationProvider`,
+   `TaskActionDialog`: reserve / invite others / cancel; app-wide `InviteBanner` with the tally),
+   day evaluation (`EvaluationPanel`: mark completed → live `resolveRollover` preview → `runRollover`
+   → full `undoRollover`), day-lock toggle. Post-phase feedback landed as Steps A–B: A = fixes/polish
+   (reload route, persisted filters, unified padding, admin quick-coins, split day categories,
+   PIN-first claim + one-character-per-device); B = group tasks (min/max players + invite counter).
+   The group model/domain/rules are done + tested, but the live invite negotiation (banner counter,
+   cross-device sync) is flaky in a PWA and is **parked until the native/installed phase**. Catalog
+   editors put name/description/each tag in one `cs|en|de` field (keeps the create form usable on a
+   phone); `Dialog` locks background scroll and scrolls internally. Still to do: same-day manual
+   `pickTaskNow` (needs a player-writes-`activeTask` rule + rule tests).
+7. Rewards — reimagined as a hidden auction (min price = starting bid, higher bids, count-only
+   visible, resolved at evaluation; no same-day buy). 8. PWA + polish. 9. Showcase.

@@ -36,7 +36,7 @@ export const makeActiveTask = (over: Partial<ActiveTask> = {}): ActiveTask => ({
   difficulty: 1,
   coinReward: 150,
   coinPenalty: 75,
-  isPair: false,
+  partnerNames: [],
   ...over,
 });
 
@@ -57,7 +57,8 @@ export const makeTask = (over: Partial<Task> = {}): Task => ({
   description: loc(''),
   categories: [loc('chores')],
   difficulty: 1,
-  isPair: false,
+  minPlayers: 1,
+  maxPlayers: 1,
   coinReward: 150,
   coinPenalty: 75,
   usedByPlayerIds: [],
@@ -84,8 +85,10 @@ export const makeReservation = (over: Partial<Reservation> = {}): Reservation =>
   day: Day(2),
   taskId: TaskId('t1'),
   taskName: loc('Sweep the yard'),
-  isPair: false,
-  confirmed: true,
+  minPlayers: 1,
+  maxPlayers: 1,
+  invitees: [],
+  responses: {},
   createdAt: 1000,
   ...over,
 });

@@ -24,15 +24,15 @@ export const subscribeAllReservations = (
   onState: (state: Subscription<readonly Reservation[]>) => void,
 ): (() => void) => subscribeQuery(reservationsCol(db, t), parseReservation, onState);
 
-/** Pair invites awaiting my response — only pending ones still carry `invitePartnerId`. */
-export const subscribePendingInvites = (
+/** Group reservations that invited me — secure-by-query against the `invitees` id array (spec 7). */
+export const subscribeMyInvites = (
   db: Firestore,
   t: string,
   myPlayerId: string,
   onState: (state: Subscription<readonly Reservation[]>) => void,
 ): (() => void) =>
   subscribeQuery(
-    query(reservationsCol(db, t), where('invitePartnerId', '==', myPlayerId)),
+    query(reservationsCol(db, t), where('invitees', 'array-contains', myPlayerId)),
     parseReservation,
     onState,
   );

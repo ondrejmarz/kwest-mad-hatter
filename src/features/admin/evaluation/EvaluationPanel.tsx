@@ -205,7 +205,7 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
                 <span className="min-w-0 truncate text-content-muted">
                   {localize(assignment.taskName, locale)}
                 </span>
-                {assignment.isPair && <Chip tone="accent">{t('tasks.pair')}</Chip>}
+                {assignment.isGroup && <Chip tone="accent">{t('tasks.group')}</Chip>}
               </li>
             ))}
           </ul>

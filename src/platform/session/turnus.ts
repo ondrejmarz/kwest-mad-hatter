@@ -8,6 +8,7 @@ import { readJson, remove, writeJson } from './storage';
 export interface RememberedTurnus {
   readonly id: string;
   readonly slug: string;
+  readonly name: string;
 }
 
 const KEY = 'turnus';
@@ -15,7 +16,12 @@ const KEY = 'turnus';
 export function readRememberedTurnus(): RememberedTurnus | null {
   const value = readJson<RememberedTurnus>(KEY);
   if (value && typeof value.id === 'string' && typeof value.slug === 'string') {
-    return { id: value.id, slug: value.slug };
+    // `name` was added later; a turnus remembered before that falls back to the slug.
+    return {
+      id: value.id,
+      slug: value.slug,
+      name: typeof value.name === 'string' ? value.name : value.slug,
+    };
   }
   return null;
 }

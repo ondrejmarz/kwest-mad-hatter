@@ -154,13 +154,16 @@ comes before data/rules (phase 2) on purpose.
    "má odměnu" chip); punish-target selection/effects (handled off-app for now).
 8. PWA + polish — **done.** `vite-plugin-pwa` (generateSW/Workbox, `registerType: 'autoUpdate'`,
    `injectRegister: 'auto'`) precaches the app shell + serves an installable manifest (standalone,
-   portrait, `theme_color`/`background_color` #f8fafc). Icons rasterized from `public/favicon.svg`
-   by `scripts/generate-icons.mjs` (uses `sharp`, a build-time devDep) → `public/pwa-192`, `pwa-512`,
-   `pwa-maskable-512`, `apple-touch-icon` (glyph on white; maskable gets a bigger safe zone).
-   `index.html` carries the apple-touch-icon + `apple-mobile-web-app-*` meta. **iOS input-zoom fix:**
-   an unlayered `@media (pointer: coarse)` rule pins form controls to 16px `!important` so focusing a
-   `text-sm` field no longer zooms the page. SW registration only runs on a real browser/HTTPS (the
-   sandboxed in-app preview browser blocks it — build artifacts verified by curl instead).
+   portrait, `theme_color`/`background_color` #f8fafc). Icons are a designed brand mark (blue→magenta
+   "K" in a circle) exported from IconKitchen and committed directly under `public/` — `favicon.ico`
+   - `favicon.png` (tab), `pwa-192x192`/`pwa-512x512` (transparent-corner `any`), `pwa-maskable-512x512`
+     (white-filled safe zone), `apple-touch-icon` (glyph on white). No build-time rasterization step —
+     re-export from IconKitchen and drop the files in to update. `index.html` carries the favicon links,
+     apple-touch-icon + `apple-mobile-web-app-*` meta. (Note: a home-screen PWA icon can't get iOS 26's
+     native Liquid Glass layered treatment — Safari just masks the flat `apple-touch-icon` into a squircle.) **iOS input-zoom fix:**
+     an unlayered `@media (pointer: coarse)` rule pins form controls to 16px `!important` so focusing a
+     `text-sm` field no longer zooms the page. SW registration only runs on a real browser/HTTPS (the
+     sandboxed in-app preview browser blocks it — build artifacts verified by curl instead).
 
 ## Remaining roadmap (steps E–K, confirmed with the user)
 

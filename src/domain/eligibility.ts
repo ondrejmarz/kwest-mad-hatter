@@ -1,4 +1,4 @@
-import { taskTypeKey } from '../lib/group';
+import { taskType, taskTypeKey } from '../lib/group';
 import { err, ok, type Result } from '../lib/result';
 
 import type { DomainError } from './errors';
@@ -47,6 +47,11 @@ export function canPickTaskNow(
   takenBy: ReadonlyMap<TaskId, string>,
 ): Result<void, DomainError> {
   if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
+  // Only a solo task can be grabbed for today; pairs need a partner and groups form at evaluation,
+  // so both are reservation-only (spec 7).
+  if (taskType(task.minPlayers, task.maxPlayers) !== 'solo') {
+    return err({ code: 'SAME_DAY_SOLO_ONLY' });
+  }
   if (!task.active) return err({ code: 'TASK_INACTIVE' });
   if (!isCategoryOpen(task, turnus.currentDayCategories)) {
     return err({ code: 'TASK_CATEGORY_CLOSED' });

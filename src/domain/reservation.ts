@@ -1,3 +1,4 @@
+import { taskType } from '../lib/group';
 import { err, ok, type Result } from '../lib/result';
 
 import type { DomainError } from './errors';
@@ -5,12 +6,11 @@ import type { Day, PlayerId } from './ids';
 import type { Player, Reservation, Task } from './types';
 
 /**
- * Group reservations (spec 7, extended). The initiator reserves a task and invites others up to
- * the task's `[minPlayers, maxPlayers]` (counting the initiator). Invitees answer in `responses`,
- * toggleable until the day is evaluated. Validity is decided then: the members are the initiator
- * plus the accepted invitees, and the group only competes for the task if it reaches `minPlayers`
- * (otherwise the reservation expires, like an unconfirmed pair did). A solo task (1/1) has no
- * invitees and is always valid.
+ * Reservations by task type (spec 7, revised). A solo task (1/1) is reserved alone. A pair (2/2)
+ * invites exactly one partner, who answers in `responses`, toggleable until evaluation — the pair
+ * only competes if the partner accepts. A group (3+, a range) is reserved individually, with no
+ * invitees: the pool of reservers is formed at evaluation, where it needs `minPlayers` to survive
+ * and is trimmed to the poorest `maxPlayers` (see `buildClaims`).
  */
 export interface ReservationInput {
   readonly player: Player;
@@ -23,9 +23,12 @@ export interface ReservationInput {
 
 export function createReservation(input: ReservationInput): Result<Reservation, DomainError> {
   const { player, task, day, inviteeIds, createdAt } = input;
-  if (inviteeIds.includes(player.id)) return err({ code: 'PARTNER_IS_SELF' });
-  // Enough invited for the lower bound to be reachable (the UI also caps at the upper bound).
-  if (1 + inviteeIds.length < task.minPlayers) return err({ code: 'PARTNER_REQUIRED' });
+  const type = taskType(task.minPlayers, task.maxPlayers);
+  // A group is reserved individually — the invitees are ignored; the pool forms at evaluation.
+  const invitees = type === 'group' ? [] : inviteeIds;
+  if (invitees.includes(player.id)) return err({ code: 'PARTNER_IS_SELF' });
+  // Only a pair needs its partner invited up front; a group pools at evaluation instead.
+  if (type === 'pair' && invitees.length === 0) return err({ code: 'PARTNER_REQUIRED' });
   return ok({
     playerId: player.id,
     day,
@@ -33,7 +36,7 @@ export function createReservation(input: ReservationInput): Result<Reservation, 
     taskName: task.name,
     minPlayers: task.minPlayers,
     maxPlayers: task.maxPlayers,
-    invitees: [...inviteeIds],
+    invitees: [...invitees],
     responses: {},
     createdAt,
   });

@@ -40,7 +40,8 @@ service cloud.firestore {
       return /databases/$(database)/documents/turnuses/$(t)/tasks/$(taskId);
     }
     // A same-day pick (spec 7): the player sets only their own `activeTask` (and clears needsPick)
-    // while the day is open. The stored coin values must equal the catalog task's, so a client
+    // while the day is open. Only a solo task (maxPlayers <= 1) may be taken this way — pairs and
+    // groups are reservation-only. The stored coin values must equal the catalog task's, so a client
     // cannot hand itself a fatter reward that day evaluation would then pay out.
     function picksTaskNow(t) {
       let at = request.resource.data.activeTask;
@@ -50,6 +51,7 @@ service cloud.firestore {
         && dayUnlocked(t)
         && exists(taskRef(t, at.taskId))
         && get(taskRef(t, at.taskId)).data.active == true
+        && get(taskRef(t, at.taskId)).data.maxPlayers <= 1
         && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
     }
 

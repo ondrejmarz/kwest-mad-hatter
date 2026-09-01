@@ -10,6 +10,7 @@ export type DomainError =
   | { readonly code: 'TASK_INACTIVE' }
   | { readonly code: 'TASK_CATEGORY_CLOSED' }
   | { readonly code: 'TASK_TAKEN_TODAY'; readonly byPlayerName: string }
+  | { readonly code: 'SAME_DAY_SOLO_ONLY' }
   | { readonly code: 'DAY_LOCKED' }
   | { readonly code: 'REWARD_INACTIVE' }
   | { readonly code: 'BID_BELOW_MINIMUM'; readonly min: number }

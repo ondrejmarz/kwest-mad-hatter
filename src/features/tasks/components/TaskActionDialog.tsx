@@ -13,7 +13,6 @@ import { categoryLabel } from '../../../lib/category';
 import { formatGroupSize, taskType } from '../../../lib/group';
 import { Button } from '../../../ui/Button';
 import { CardLayout } from '../../../ui/CardLayout';
-import { Checkbox } from '../../../ui/Checkbox';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
@@ -52,14 +51,13 @@ export function TaskActionDialog({
 
   const eligible = canReserveTask(myPlayer, task, settings);
   const type = taskType(task.minPlayers, task.maxPlayers);
+  // Only a pair invites a partner; solo and group tasks are reserved individually (a group is pooled
+  // at evaluation, spec 7).
   const isPair = type === 'pair';
-  const needsInvites = task.maxPlayers > 1;
-  const minInvites = Math.max(0, task.minPlayers - 1);
-  const maxInvites = Math.max(0, task.maxPlayers - 1);
-  const countOk = invitees.length >= minInvites && invitees.length <= maxInvites;
+  const countOk = isPair ? invitees.length === 1 : invitees.length === 0;
   const mine = reservation !== null && reservation.taskId === task.id;
-  // Any player may take an open, free task for today first-come — whether they have no task or are
-  // switching from one — as long as it is not already their own task today (spec 7).
+  // Any player may take an open, free SOLO task for today first-come — whether they have no task or
+  // are switching from one — as long as it is not already their own task today (spec 7).
   const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
   const canPickToday = !isMyTaskToday && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
 
@@ -74,15 +72,6 @@ export function TaskActionDialog({
     else setError(t('entry.offline'));
   };
 
-  const toggleInvitee = (id: PlayerId): void =>
-    setInvitees((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : prev.length < maxInvites
-          ? [...prev, id]
-          : prev,
-    );
-
   const run = async (action: Promise<{ ok: boolean }>): Promise<void> => {
     if (busy) return;
     setBusy(true);
@@ -96,7 +85,7 @@ export function TaskActionDialog({
   const reserve = (event: FormEvent): void => {
     event.preventDefault();
     if (!countOk) {
-      setError(t('tasks.inviteCountHint', { min: task.minPlayers, max: task.maxPlayers }));
+      setError(t('tasks.choosePartner'));
       return;
     }
     void run(reserveTask(db, turnusId, myPlayer.id, task.id, invitees));
@@ -161,10 +150,10 @@ export function TaskActionDialog({
                 {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
               </p>
             )}
-            {needsInvites &&
+            {isPair &&
               (candidates.length === 0 ? (
                 <p className="text-sm text-content-muted">{t('tasks.noPartners')}</p>
-              ) : isPair ? (
+              ) : (
                 <label className="flex flex-col gap-1">
                   <span className="text-sm font-medium text-content-muted">
                     {t('tasks.choosePartner')}
@@ -183,24 +172,10 @@ export function TaskActionDialog({
                     ))}
                   </Select>
                 </label>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-content-muted">
-                    {t('tasks.inviteCountHint', { min: task.minPlayers, max: task.maxPlayers })}
-                  </span>
-                  {candidates.map((player) => (
-                    <Checkbox
-                      key={player.id}
-                      label={player.name}
-                      checked={invitees.includes(player.id)}
-                      onChange={() => toggleInvitee(player.id)}
-                    />
-                  ))}
-                </div>
               ))}
             <Button
               type="submit"
-              disabled={busy || !countOk || (needsInvites && candidates.length === 0)}
+              disabled={busy || !countOk || (isPair && candidates.length === 0)}
             >
               {t('tasks.reserve')}
             </Button>

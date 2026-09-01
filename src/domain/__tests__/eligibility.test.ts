@@ -56,6 +56,14 @@ describe('canPickTaskNow', () => {
     });
   });
 
+  it('rejects a non-solo task — pairs and groups are reservation-only', () => {
+    const pair = makeTask({ categories: [loc('chores')], minPlayers: 2, maxPlayers: 2 });
+    expect(canPickTaskNow(makePlayer(), pair, turnus, noneTaken)).toEqual({
+      ok: false,
+      error: { code: 'SAME_DAY_SOLO_ONLY' },
+    });
+  });
+
   it('rejects when the day is locked', () => {
     const locked = makeTurnus({ currentDayCategories: ['chores'], dayLocked: true });
     expect(canPickTaskNow(makePlayer(), makeTask(), locked, noneTaken)).toEqual({

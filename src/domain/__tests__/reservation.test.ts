@@ -39,7 +39,7 @@ describe('createReservation', () => {
     });
   });
 
-  it('creates a group reservation carrying the invited ids', () => {
+  it('reserves a group task individually, ignoring any invitees', () => {
     const task = makeTask({ minPlayers: 2, maxPlayers: 3 });
     const result = createReservation({
       player: makePlayer(),
@@ -49,8 +49,19 @@ describe('createReservation', () => {
       createdAt: 1000,
     });
     expect(result.ok).toBe(true);
-    expect(result.ok && result.value.invitees).toEqual(['p2', 'p3']);
+    expect(result.ok && result.value.invitees).toEqual([]);
     expect(result.ok && result.value.minPlayers).toBe(2);
+  });
+
+  it('creates a pair reservation with the invited partner', () => {
+    const result = createReservation({
+      player: makePlayer(),
+      task: makeTask({ minPlayers: 2, maxPlayers: 2 }),
+      day,
+      inviteeIds: [PlayerId('p2')],
+      createdAt: 500,
+    });
+    expect(result.ok && result.value.invitees).toEqual(['p2']);
   });
 
   it('rejects inviting yourself', () => {
@@ -64,12 +75,12 @@ describe('createReservation', () => {
     expect(result).toEqual({ ok: false, error: { code: 'PARTNER_IS_SELF' } });
   });
 
-  it('rejects too few invited to reach the lower bound', () => {
+  it('rejects a pair reserved without a partner', () => {
     const result = createReservation({
       player: makePlayer(),
-      task: makeTask({ minPlayers: 3, maxPlayers: 4 }),
+      task: makeTask({ minPlayers: 2, maxPlayers: 2 }),
       day,
-      inviteeIds: [PlayerId('p2')],
+      inviteeIds: [],
       createdAt: 0,
     });
     expect(result).toEqual({ ok: false, error: { code: 'PARTNER_REQUIRED' } });

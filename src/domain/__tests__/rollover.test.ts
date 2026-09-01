@@ -279,120 +279,123 @@ describe('resolveRollover — reservations (step 3)', () => {
   });
 });
 
-describe('resolveRollover — groups (step 3)', () => {
+describe('resolveRollover — groups and pairs (step 3)', () => {
   const chores = { currentDay: Day(1), noPickPenalty: 0, nextDayCategories: ['chores'] };
-  const pairTaskId = TaskId('t1');
-  // A 1–2 task: a solo bid and a two-member group can both compete for it.
-  const pairTask = makeTask({
-    id: pairTaskId,
+  const groupTaskId = TaskId('g1');
+  // A 2–3 group task: reserved individually, pooled at evaluation (no invites).
+  const groupTask = makeTask({
+    id: groupTaskId,
     categories: [loc('chores')],
-    minPlayers: 1,
-    maxPlayers: 2,
+    minPlayers: 2,
+    maxPlayers: 3,
+  });
+  const reserveGroup = (playerId: string, createdAt = 100): Reservation =>
+    makeReservation({
+      playerId: PlayerId(playerId),
+      taskId: groupTaskId,
+      day: Day(2),
+      minPlayers: 2,
+      maxPlayers: 3,
+      createdAt,
+    });
+
+  it('gives a pooled group task to every reserver within the bounds', () => {
+    const result = run({
+      turnus: chores,
+      players: [
+        makePlayer({ id: PlayerId('a'), name: 'Anna', coins: 50 }),
+        makePlayer({ id: PlayerId('b'), name: 'Bob', coins: 30 }),
+      ],
+      tasks: [groupTask],
+      reservations: [reserveGroup('a'), reserveGroup('b')],
+    });
+    expect(pu(result, 'a').activeTask?.taskId).toBe('g1');
+    expect(pu(result, 'b').activeTask?.taskId).toBe('g1');
+    expect(pu(result, 'a').activeTask?.partnerNames).toEqual(['Bob']);
   });
 
-  it('lets a group compete with the poorer member and win for all', () => {
+  it('expires a pooled group below its lower bound', () => {
+    const result = run({
+      turnus: chores,
+      players: [makePlayer({ id: PlayerId('a'), coins: 50 })],
+      tasks: [groupTask],
+      reservations: [reserveGroup('a')],
+    });
+    expect(pu(result, 'a').activeTask).toBeNull();
+    expect(pu(result, 'a').needsPick).toBe(true);
+    expect(result.events.filter((e) => e.type === 'reservation_expired')).toHaveLength(1);
+  });
+
+  it('drops the richest over the upper bound so the poorest fill the seats', () => {
     const result = run({
       turnus: chores,
       players: [
         makePlayer({ id: PlayerId('a'), name: 'Anna', coins: 80 }),
         makePlayer({ id: PlayerId('b'), name: 'Bob', coins: 20 }),
         makePlayer({ id: PlayerId('c'), name: 'Cyril', coins: 50 }),
+        makePlayer({ id: PlayerId('d'), name: 'Dana', coins: 10 }),
       ],
-      tasks: [pairTask],
-      reservations: [
-        makeReservation({
-          playerId: PlayerId('a'),
-          taskId: pairTaskId,
-          day: Day(2),
-          maxPlayers: 2,
-          invitees: [PlayerId('b')],
-          responses: { b: 'accepted' },
-          createdAt: 100,
-        }),
-        makeReservation({
-          playerId: PlayerId('c'),
-          taskId: pairTaskId,
-          day: Day(2),
-          createdAt: 50,
-        }),
-      ],
+      tasks: [groupTask],
+      reservations: [reserveGroup('a'), reserveGroup('b'), reserveGroup('c'), reserveGroup('d')],
     });
-    // group balance = min(80, 20) = 20 < Cyril's 50, so the group wins despite his earlier time.
-    expect(pu(result, 'a').activeTask?.taskId).toBe('t1');
-    expect(pu(result, 'b').activeTask?.taskId).toBe('t1');
-    expect(pu(result, 'a').activeTask?.partnerNames).toEqual(['Bob']);
-    expect(pu(result, 'b').activeTask?.partnerNames).toEqual(['Anna']);
-    expect(pu(result, 'c').activeTask).toBeNull();
-    expect(pu(result, 'c').needsPick).toBe(true);
-    const lost = result.events.find((e) => e.type === 'reservation_lost');
-    expect(lost && lost.type === 'reservation_lost' ? lost.winnerName : '').toBe('Anna & Bob');
+    // 4 reservers, max 3 → the richest (Anna, 80) is dropped; the poorest three get it.
+    expect(pu(result, 'a').activeTask).toBeNull();
+    expect(pu(result, 'a').needsPick).toBe(true);
+    expect(pu(result, 'b').activeTask?.taskId).toBe('g1');
+    expect(pu(result, 'c').activeTask?.taskId).toBe('g1');
+    expect(pu(result, 'd').activeTask?.taskId).toBe('g1');
+    const expired = result.events
+      .filter((e) => e.type === 'reservation_expired')
+      .map((e) => (e.type === 'reservation_expired' ? e.playerId : ''));
+    expect(expired).toEqual(['a']);
   });
 
-  it('expires a group that falls short of its lower bound', () => {
+  const pairTask = makeTask({
+    id: TaskId('p1'),
+    categories: [loc('chores')],
+    minPlayers: 2,
+    maxPlayers: 2,
+  });
+  const pairReservation = (responses: Record<string, 'accepted' | 'declined'>): Reservation =>
+    makeReservation({
+      playerId: PlayerId('a'),
+      taskId: TaskId('p1'),
+      day: Day(2),
+      minPlayers: 2,
+      maxPlayers: 2,
+      invitees: [PlayerId('b')],
+      responses,
+      createdAt: 100,
+    });
+
+  it('still lets a pair reserve together via an accepted invite', () => {
     const result = run({
-      turnus: { currentDay: Day(1), noPickPenalty: 0 },
+      turnus: chores,
+      players: [
+        makePlayer({ id: PlayerId('a'), name: 'Anna', coins: 40 }),
+        makePlayer({ id: PlayerId('b'), name: 'Bob', coins: 60 }),
+      ],
+      tasks: [pairTask],
+      reservations: [pairReservation({ b: 'accepted' })],
+    });
+    expect(pu(result, 'a').activeTask?.taskId).toBe('p1');
+    expect(pu(result, 'b').activeTask?.taskId).toBe('p1');
+    expect(pu(result, 'b').activeTask?.partnerNames).toEqual(['Anna']);
+  });
+
+  it('expires a pair whose invitee never accepted', () => {
+    const result = run({
+      turnus: chores,
       players: [
         makePlayer({ id: PlayerId('a'), coins: 50 }),
         makePlayer({ id: PlayerId('b'), coins: 50 }),
       ],
       tasks: [pairTask],
-      reservations: [
-        // Needs 2, but the invitee never accepted — only the initiator is a member.
-        makeReservation({
-          playerId: PlayerId('a'),
-          taskId: pairTaskId,
-          day: Day(2),
-          minPlayers: 2,
-          maxPlayers: 2,
-          invitees: [PlayerId('b')],
-          responses: {},
-          createdAt: 100,
-        }),
-      ],
+      reservations: [pairReservation({})],
     });
-    expect(pu(result, 'a').needsPick).toBe(true);
     expect(pu(result, 'a').activeTask).toBeNull();
-    expect(pu(result, 'b').needsPick).toBe(true);
-    expect(pu(result, 'b').activeTask).toBeNull();
+    expect(pu(result, 'a').needsPick).toBe(true);
     expect(result.events.filter((e) => e.type === 'reservation_expired')).toHaveLength(1);
-  });
-
-  it('leaves both partners without a task when their pair loses', () => {
-    const result = run({
-      turnus: chores,
-      players: [
-        makePlayer({ id: PlayerId('z'), coins: 5 }),
-        makePlayer({ id: PlayerId('a'), coins: 40 }),
-        makePlayer({ id: PlayerId('b'), coins: 60 }),
-      ],
-      tasks: [pairTask],
-      reservations: [
-        makeReservation({
-          playerId: PlayerId('z'),
-          taskId: pairTaskId,
-          day: Day(2),
-          createdAt: 100,
-        }),
-        makeReservation({
-          playerId: PlayerId('b'),
-          taskId: pairTaskId,
-          day: Day(2),
-          maxPlayers: 2,
-          invitees: [PlayerId('a')],
-          responses: { a: 'accepted' },
-          createdAt: 100,
-        }),
-      ],
-    });
-    expect(pu(result, 'z').activeTask?.taskId).toBe('t1');
-    expect(pu(result, 'a').needsPick).toBe(true);
-    expect(pu(result, 'a').activeTask).toBeNull();
-    expect(pu(result, 'b').needsPick).toBe(true);
-    expect(pu(result, 'b').activeTask).toBeNull();
-    const lostPlayers = result.events
-      .filter((e) => e.type === 'reservation_lost')
-      .map((e) => (e.type === 'reservation_lost' ? e.playerId : ''));
-    expect(lostPlayers).toEqual(expect.arrayContaining(['a', 'b']));
   });
 });
 

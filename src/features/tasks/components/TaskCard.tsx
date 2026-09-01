@@ -2,6 +2,7 @@ import { memo } from 'react';
 
 import type { Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
+import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
@@ -18,29 +19,37 @@ export const TaskCard = memo(function TaskCard({
   task,
   unavailableTomorrow,
   unavailableToday,
+  reserved = false,
   isAdmin,
+  onOpen,
   onEdit,
 }: {
   task: Task;
   unavailableTomorrow: boolean;
   unavailableToday: boolean;
+  reserved?: boolean;
   isAdmin: boolean;
+  onOpen?: () => void;
   onEdit: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   return (
     <ListCard
-      title={task.name}
+      {...(onOpen ? { onClick: onOpen } : {})}
+      title={localize(task.name, locale)}
       topRight={<DifficultyDots value={task.difficulty} />}
       chips={
         <>
-          <Chip>{t('tasks.category', { name: categoryLabel(task.category) })}</Chip>
+          {task.categories.map((category) => (
+            <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
+          ))}
           {task.isPair && <Chip tone="accent">{t('tasks.pair')}</Chip>}
+          {reserved && <Chip tone="success">{t('tasks.reservedChip')}</Chip>}
           {unavailableTomorrow && <Chip tone="warning">{t('tasks.unavailableTomorrow')}</Chip>}
-          {unavailableToday && <Chip>{t('tasks.unavailableToday')}</Chip>}
+          {unavailableToday && <Chip tone="danger">{t('tasks.unavailableToday')}</Chip>}
         </>
       }
-      description={task.description}
+      description={localize(task.description, locale)}
       footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
       footerRight={
         <div className="flex items-center gap-2">

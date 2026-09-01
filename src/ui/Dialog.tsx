@@ -10,11 +10,14 @@ export function Dialog({
   open,
   onClose,
   title,
+  ariaLabel,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
+  /** Accessible name when no visible `title` is rendered (the panel draws its own header). */
+  ariaLabel?: string;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -37,7 +40,7 @@ export function Dialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={title ?? ariaLabel}
         className="w-full max-w-sm rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >

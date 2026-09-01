@@ -1,29 +1,36 @@
 import { doc, type Firestore, getDocs, writeBatch } from 'firebase/firestore';
 
 import { derivePenalty, deriveReward } from '../domain/coins';
-import type { RewardForm } from '../domain/types';
+import type { LocalizedText, RewardForm } from '../domain/types';
 
 import { rewardDoc, rewardsCol, taskDoc, tasksCol } from './paths';
 import { parseReward, parseTaskDoc } from './schemas/catalog';
 
 /**
- * TSV catalog import (spec 10). Pasting from a spreadsheet, tab-separated. Matching is by
- * name so a re-import updates existing rows without losing their state — `usedByPlayerIds`,
- * `active` and overridden coins (`manualCoins`) are preserved; auto coins are recomputed.
+ * TSV catalog import (spec 10). Pasting from a spreadsheet, tab-separated. Every localized
+ * value — name, description and each category tag — is one cell written `cs|en|de` (en/de
+ * optional, filled from cs at display). Categories are the trailing cells, any number of them,
+ * to the end of the line. Matching is by the Czech name so a re-import updates existing rows
+ * without losing their state — `usedByPlayerIds`, `active` and overridden coins (`manualCoins`)
+ * are preserved; auto coins are recomputed.
+ *
+ *   task:   name ⇥ description ⇥ difficulty ⇥ pair(Ano/Ne) ⇥ tag ⇥ tag ⇥ …
+ *   reward: name ⇥ description ⇥ price ⇥ form ⇥ tag ⇥ tag ⇥ …
  */
 export interface ParsedTask {
-  readonly name: string;
-  readonly description: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
   readonly difficulty: number;
   readonly isPair: boolean;
-  readonly category: string;
+  readonly categories: readonly LocalizedText[];
 }
 
 export interface ParsedReward {
-  readonly name: string;
-  readonly description: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
   readonly price: number;
   readonly form: RewardForm;
+  readonly categories: readonly LocalizedText[];
 }
 
 function rows(tsv: string): string[] {
@@ -31,6 +38,37 @@ function rows(tsv: string): string[] {
     .split('\n')
     .map((line) => line.replace(/\r$/, ''))
     .filter((line) => line.trim().length > 0);
+}
+
+/**
+ * One `cs|en|de` cell → a trilingual value. `cs` is everything before the first pipe; `de`
+ * is everything after the second, so a stray pipe in the (longer) German text survives.
+ * Missing languages stay empty and fall back to `cs` at display.
+ */
+export function parseLocalized(cell: string): LocalizedText {
+  const parts = cell.split('|');
+  return {
+    cs: (parts[0] ?? '').trim(),
+    en: (parts[1] ?? '').trim(),
+    de: parts.slice(2).join('|').trim(),
+  };
+}
+
+/** Inverse of `parseLocalized` for the admin editors: `cs` alone when there is no translation. */
+export function serializeLocalized(text: LocalizedText): string {
+  return text.en === '' && text.de === '' ? text.cs : `${text.cs}|${text.en}|${text.de}`;
+}
+
+/** Parse a category-tags textarea (one `cs|en|de` per line) — the admin editors' tag input. */
+export function parseLocalizedLines(text: string): LocalizedText[] {
+  return text
+    .split('\n')
+    .map(parseLocalized)
+    .filter((tag) => tag.cs.length > 0);
+}
+
+function parseTags(cells: readonly string[]): LocalizedText[] {
+  return cells.map(parseLocalized).filter((tag) => tag.cs.length > 0);
 }
 
 function clampDifficulty(raw: string): number {
@@ -41,17 +79,16 @@ function clampDifficulty(raw: string): number {
 export function parseTasks(tsv: string): ParsedTask[] {
   return rows(tsv)
     .map((line) => {
-      const [name = '', description = '', difficulty = '', pair = '', category = ''] =
-        line.split('\t');
+      const [name = '', description = '', difficulty = '', pair = '', ...tags] = line.split('\t');
       return {
-        name: name.trim(),
-        description: description.trim(),
+        name: parseLocalized(name),
+        description: parseLocalized(description),
         difficulty: clampDifficulty(difficulty),
         isPair: pair.trim().toLowerCase() === 'ano',
-        category: category.trim() || 'Ostatní',
+        categories: parseTags(tags),
       };
     })
-    .filter((task) => task.name.length > 0);
+    .filter((task) => task.name.cs.length > 0);
 }
 
 const REWARD_FORMS: Record<string, RewardForm> = {
@@ -74,26 +111,30 @@ export function defaultTargets(form: RewardForm): { minTargets: number; maxTarge
 export function parseRewards(tsv: string): ParsedReward[] {
   return rows(tsv)
     .map((line) => {
-      const [name = '', description = '', price = '', form = ''] = line.split('\t');
+      const [name = '', description = '', price = '', form = '', ...tags] = line.split('\t');
       return {
-        name: name.trim(),
-        description: description.trim(),
+        name: parseLocalized(name),
+        description: parseLocalized(description),
         price: Math.max(0, Number.parseInt(price, 10) || 0),
         form: REWARD_FORMS[form.trim()] ?? 'reward',
+        categories: parseTags(tags),
       };
     })
-    .filter((reward) => reward.name.length > 0);
+    .filter((reward) => reward.name.cs.length > 0);
 }
 
-/** Split parsed rows into new vs. existing by name — drives the import preview (spec 10). */
-export function splitByName<P extends { readonly name: string }>(
+/**
+ * Split parsed rows into new vs. existing by their Czech name (the row identity) — drives the
+ * import preview (spec 10). `existingNames` holds the `name.cs` of the current catalog.
+ */
+export function splitByName<P extends { readonly name: LocalizedText }>(
   parsed: readonly P[],
   existingNames: ReadonlySet<string>,
 ): { toCreate: readonly P[]; toUpdate: readonly P[] } {
   const toCreate: P[] = [];
   const toUpdate: P[] = [];
   for (const item of parsed) {
-    (existingNames.has(item.name) ? toUpdate : toCreate).push(item);
+    (existingNames.has(item.name.cs) ? toUpdate : toCreate).push(item);
   }
   return { toCreate, toUpdate };
 }
@@ -110,7 +151,7 @@ export async function applyTaskImport(
   for (const docSnap of snap.docs) {
     const parsedDoc = parseTaskDoc(docSnap.id, docSnap.data());
     if (parsedDoc)
-      existing.set(parsedDoc.name, { id: docSnap.id, manualCoins: parsedDoc.manualCoins });
+      existing.set(parsedDoc.name.cs, { id: docSnap.id, manualCoins: parsedDoc.manualCoins });
   }
 
   const batch = writeBatch(db);
@@ -119,14 +160,14 @@ export async function applyTaskImport(
   for (const task of parsed) {
     const coinReward = deriveReward(task.difficulty, coinsPerDifficulty);
     const coinPenalty = derivePenalty(coinReward, penaltyRatio);
-    const match = existing.get(task.name);
+    const match = existing.get(task.name.cs);
     if (match) {
       const fields: Record<string, unknown> = {
         name: task.name,
         description: task.description,
+        categories: task.categories,
         difficulty: task.difficulty,
         isPair: task.isPair,
-        category: task.category,
       };
       if (!match.manualCoins) {
         fields.coinReward = coinReward;
@@ -159,20 +200,22 @@ export async function applyRewardImport(
   const existing = new Map<string, string>();
   for (const docSnap of snap.docs) {
     const reward = parseReward(docSnap.id, docSnap.data());
-    if (reward) existing.set(reward.name, docSnap.id);
+    if (reward) existing.set(reward.name.cs, docSnap.id);
   }
 
   const batch = writeBatch(db);
   let created = 0;
   let updated = 0;
   for (const reward of parsed) {
-    const id = existing.get(reward.name);
+    const id = existing.get(reward.name.cs);
     if (id !== undefined) {
       batch.update(rewardDoc(db, t, id), {
         name: reward.name,
         description: reward.description,
+        categories: reward.categories,
         price: reward.price,
         form: reward.form,
+        ...defaultTargets(reward.form),
       });
       updated += 1;
     } else {

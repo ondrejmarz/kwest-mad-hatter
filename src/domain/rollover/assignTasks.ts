@@ -86,7 +86,6 @@ function buildActiveTask(
     taskId: task.id,
     name: task.name,
     description: task.description,
-    category: task.category,
     difficulty: task.difficulty,
     coinReward: task.coinReward,
     coinPenalty: task.coinPenalty,

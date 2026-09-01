@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Day, PlayerId } from '../ids';
 import { confirmPairInvite, createReservation, isPendingPairInvite } from '../reservation';
 
-import { makePlayer, makeReservation, makeTask } from './fixtures';
+import { loc, makePlayer, makeReservation, makeTask } from './fixtures';
 
 const day = Day(2);
 
@@ -17,7 +17,7 @@ describe('createReservation', () => {
         playerId: 'p1',
         day: 2,
         taskId: 't1',
-        taskName: 'Sweep the yard',
+        taskName: loc('Sweep the yard'),
         isPair: false,
         confirmed: true,
         createdAt: 1000,
@@ -40,7 +40,7 @@ describe('createReservation', () => {
         playerId: 'p1',
         day: 2,
         taskId: 't1',
-        taskName: 'Sweep the yard',
+        taskName: loc('Sweep the yard'),
         isPair: true,
         partnerId: 'p2',
         partnerName: 'Kuba',

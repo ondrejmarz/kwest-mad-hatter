@@ -2,17 +2,29 @@ import { type FormEvent, useState } from 'react';
 
 import { createReward, type RewardFields, updateReward } from '../../../data/catalogAdmin';
 import { db } from '../../../data/firebase';
-import type { Reward, RewardForm } from '../../../domain/types';
+import { parseLocalizedLines, serializeLocalized } from '../../../data/importCatalog';
+import type { LocalizedText, Reward, RewardForm } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
 import { Dialog } from '../../../ui/Dialog';
+import { LocalizedField } from '../../../ui/LocalizedField';
 import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
 
 const FORMS: readonly RewardForm[] = ['reward', 'punish_someone', 'punish_all'];
+const EMPTY: LocalizedText = { cs: '', en: '', de: '' };
+const AREA =
+  'min-h-20 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-content outline-none focus:border-accent';
 
-/** Add or edit one reward (spec 9.4). Target counts are derived from the form in the data layer. */
+const trimLoc = (value: LocalizedText): LocalizedText => ({
+  cs: value.cs.trim(),
+  en: value.en.trim(),
+  de: value.de.trim(),
+});
+
+/** Add or edit one reward (spec 9.4). Trilingual name/description + category tags (one per line);
+ * target counts are derived from the form in the data layer. */
 export function RewardEditDialog({
   reward,
   onClose,
@@ -23,8 +35,11 @@ export function RewardEditDialog({
   turnusId: string;
 }) {
   const { t } = useTranslation();
-  const [name, setName] = useState(reward?.name ?? '');
-  const [description, setDescription] = useState(reward?.description ?? '');
+  const [name, setName] = useState<LocalizedText>(reward?.name ?? EMPTY);
+  const [description, setDescription] = useState<LocalizedText>(reward?.description ?? EMPTY);
+  const [tags, setTags] = useState(() =>
+    (reward?.categories ?? []).map(serializeLocalized).join('\n'),
+  );
   const [price, setPrice] = useState(String(reward?.price ?? ''));
   const [form, setForm] = useState<RewardForm>(reward?.form ?? 'reward');
   const [exclusive, setExclusive] = useState(reward?.exclusivePerDay ?? false);
@@ -33,7 +48,7 @@ export function RewardEditDialog({
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
-    if (name.trim().length === 0) {
+    if (name.cs.trim().length === 0) {
       setError(t('rewards.invalidName'));
       return;
     }
@@ -43,8 +58,9 @@ export function RewardEditDialog({
       return;
     }
     const fields: RewardFields = {
-      name: name.trim(),
-      description: description.trim(),
+      name: trimLoc(name),
+      description: trimLoc(description),
+      categories: parseLocalizedLines(tags),
       price: priceValue,
       form,
       exclusivePerDay: exclusive,
@@ -62,17 +78,21 @@ export function RewardEditDialog({
       title={t(reward === null ? 'rewards.createTitle' : 'rewards.editTitle')}
     >
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <TextInput
-          label={t('rewards.nameLabel')}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-        />
-        <TextInput
+        <LocalizedField label={t('rewards.nameLabel')} value={name} onChange={setName} autoFocus />
+        <LocalizedField
           label={t('rewards.descriptionLabel')}
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={setDescription}
         />
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-content-muted">{t('rewards.tagsLabel')}</span>
+          <textarea
+            value={tags}
+            onChange={(event) => setTags(event.target.value)}
+            className={AREA}
+            placeholder={t('rewards.tagsHint')}
+          />
+        </label>
         <TextInput
           label={t('rewards.priceLabel')}
           value={price}

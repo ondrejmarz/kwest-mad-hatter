@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 
 import { AdminUnlockGesture } from '../features/admin/unlock/AdminUnlockGesture';
 import { useSession } from '../features/session';
+import { PairInviteBanner } from '../features/tasks/components/PairInviteBanner';
 import { useTranslation } from '../i18n/LocaleProvider';
 import { useOnlineStatus } from '../platform/connectivity/useOnlineStatus';
 import { ConnectionBanner } from '../ui/ConnectionBanner';
@@ -50,6 +51,7 @@ export function AppLayout() {
         </header>
         <ConnectionBanner online={online} message={t('connection.offline')} />
         <NavBar showAdmin={role === 'admin'} />
+        <PairInviteBanner />
       </div>
       <main className="safe-bottom flex-1 px-4 py-4">
         <Outlet />

@@ -4,9 +4,11 @@ import { TaskId } from '../ids';
 import { compareClaims, sortClaims } from '../rollover/sortClaims';
 import type { Claim } from '../rollover/types';
 
+import { loc } from './fixtures';
+
 const claim = (over: Partial<Claim>): Claim => ({
   taskId: TaskId('t'),
-  taskName: 'T',
+  taskName: loc('T'),
   isPair: false,
   playerIds: [],
   balance: 0,

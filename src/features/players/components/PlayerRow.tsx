@@ -2,6 +2,7 @@ import { memo } from 'react';
 
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
+import { localize } from '../../../i18n/localize';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { EditButton } from '../../../ui/EditButton';
@@ -21,7 +22,7 @@ export const PlayerRow = memo(function PlayerRow({
   onOpen: () => void;
   onEdit: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const partner =
     player.activeTask?.isPair && player.activeTask.partnerName
       ? ` · ${player.activeTask.partnerName}`
@@ -40,7 +41,9 @@ export const PlayerRow = memo(function PlayerRow({
           </>
         ) : undefined
       }
-      description={player.activeTask ? `${player.activeTask.name}${partner}` : undefined}
+      description={
+        player.activeTask ? `${localize(player.activeTask.name, locale)}${partner}` : undefined
+      }
       footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
       footerRight={<CoinAmount amount={player.coins} />}
     />

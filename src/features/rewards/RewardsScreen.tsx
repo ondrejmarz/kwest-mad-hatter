@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 
 import type { Reward, RewardForm } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
+import { localize } from '../../i18n/localize';
+import type { Locale } from '../../i18n/translate';
 import { csCollator } from '../../lib/collator';
 import { byNumber, byText } from '../../lib/sort';
 import { Button } from '../../ui/Button';
@@ -17,12 +19,12 @@ const REWARD_SORTS = ['nameAsc', 'nameDesc', 'coinsAsc', 'coinsDesc'] as const;
 type RewardSort = (typeof REWARD_SORTS)[number];
 const FORMS: readonly RewardForm[] = ['reward', 'punish_someone', 'punish_all'];
 
-function rewardComparator(sort: RewardSort): (a: Reward, b: Reward) => number {
+function rewardComparator(sort: RewardSort, locale: Locale): (a: Reward, b: Reward) => number {
   switch (sort) {
     case 'nameAsc':
-      return byText((reward) => reward.name, 'asc');
+      return byText((reward) => localize(reward.name, locale), 'asc');
     case 'nameDesc':
-      return byText((reward) => reward.name, 'desc');
+      return byText((reward) => localize(reward.name, locale), 'desc');
     case 'coinsAsc':
       return byNumber((reward) => reward.price, 'asc');
     case 'coinsDesc':
@@ -32,7 +34,7 @@ function rewardComparator(sort: RewardSort): (a: Reward, b: Reward) => number {
 
 /** Reward catalog (spec 9.3): sort, filter by form, admin add/edit. Buying lands in phase 7. */
 export function RewardsScreen() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { role } = useSession();
   const rewardsState = useCatalogRewards();
   const turnusState = useTurnus();
@@ -45,12 +47,15 @@ export function RewardsScreen() {
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const rewards = useMemo(() => {
     if (rewardsState.status !== 'ready') return [];
-    const compare = rewardComparator(sort);
+    const compare = rewardComparator(sort, locale);
     return rewardsState.data
       .filter((reward) => reward.active)
       .filter((reward) => formFilter === '' || reward.form === formFilter)
-      .sort((a, b) => compare(a, b) || csCollator.compare(a.name, b.name));
-  }, [rewardsState, sort, formFilter]);
+      .sort(
+        (a, b) =>
+          compare(a, b) || csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
+      );
+  }, [rewardsState, sort, formFilter, locale]);
 
   if (rewardsState.status === 'loading') {
     return (
@@ -65,7 +70,7 @@ export function RewardsScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <Select value={sort} onChange={(event) => setSort(event.target.value as RewardSort)}>
             {REWARD_SORTS.map((value) => (
@@ -87,8 +92,14 @@ export function RewardsScreen() {
           </Select>
         </div>
         {isAdmin && (
-          <Button variant="secondary" className="shrink-0" onClick={() => setEditing(null)}>
-            {t('rewards.add')}
+          <Button
+            variant="secondary"
+            size="icon"
+            className="shrink-0"
+            aria-label={t('rewards.add')}
+            onClick={() => setEditing(null)}
+          >
+            +
           </Button>
         )}
       </div>

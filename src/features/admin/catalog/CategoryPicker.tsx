@@ -1,7 +1,10 @@
 import { db } from '../../../data/firebase';
 import { setCategories } from '../../../data/transactions/setCategories';
 import { type EventMeta } from '../../../data/transactions/shared';
+import type { LocalizedText } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
+import { localize } from '../../../i18n/localize';
+import { categoryLabel } from '../../../lib/category';
 import { Checkbox } from '../../../ui/Checkbox';
 
 /**
@@ -20,16 +23,17 @@ export function CategoryPicker({
   turnusId: string;
   day: number;
   meta: EventMeta;
-  categories: readonly string[];
+  categories: readonly LocalizedText[];
   selected: readonly string[];
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const selectedSet = new Set(selected);
 
-  const toggle = (category: string, checked: boolean): void => {
+  // The open set stores the tag's canonical `cs`, not its localized label.
+  const toggle = (cs: string, checked: boolean): void => {
     const next = new Set(selectedSet);
-    if (checked) next.add(category);
-    else next.delete(category);
+    if (checked) next.add(cs);
+    else next.delete(cs);
     const list = [...next];
     void setCategories(db, turnusId, { nextDay: list, currentDay: list }, day, meta);
   };
@@ -45,10 +49,10 @@ export function CategoryPicker({
           <div className="flex flex-col gap-2">
             {categories.map((category) => (
               <Checkbox
-                key={category}
-                label={category}
-                checked={selectedSet.has(category)}
-                onChange={(checked) => toggle(category, checked)}
+                key={category.cs}
+                label={categoryLabel(localize(category, locale))}
+                checked={selectedSet.has(category.cs)}
+                onChange={(checked) => toggle(category.cs, checked)}
               />
             ))}
           </div>

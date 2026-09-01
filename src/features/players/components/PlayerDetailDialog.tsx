@@ -4,7 +4,9 @@ import { db } from '../../../data/firebase';
 import { claimPlayer } from '../../../data/transactions/claimPlayer';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
+import { localize } from '../../../i18n/localize';
 import { Button } from '../../../ui/Button';
+import { CardLayout } from '../../../ui/CardLayout';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
@@ -26,7 +28,7 @@ export function PlayerDetailDialog({
   turnusId: string;
   day: number;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { uid } = useSession();
   const mine = uid !== null && player.ownerUids.includes(uid);
   const claimable = player.ownerUids.length === 0;
@@ -57,50 +59,56 @@ export function PlayerDetailDialog({
     if (/^\d{4}$/.test(pin)) void claim(pin);
   };
 
+  const chips = mine ? (
+    <Chip tone="accent">{t('players.you')}</Chip>
+  ) : player.needsPick ? (
+    <Chip tone="warning">{t('players.needsPick')}</Chip>
+  ) : undefined;
+
   return (
-    <Dialog open onClose={onClose} title={player.name}>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <CoinAmount amount={player.coins} />
-          {player.activeTask && (
-            <span className="truncate text-sm text-content-muted">{player.activeTask.name}</span>
+    <Dialog open onClose={onClose} ariaLabel={player.name}>
+      <CardLayout
+        title={player.name}
+        {...(chips !== undefined ? { chips } : {})}
+        {...(player.activeTask ? { description: localize(player.activeTask.name, locale) } : {})}
+        footerRight={<CoinAmount amount={player.coins} />}
+        clampDescription={false}
+      />
+
+      {!mine && (
+        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+          {claimable ? (
+            <>
+              <p className="text-sm text-content-muted">
+                {t('players.claimHint', { name: player.name })}
+              </p>
+              <Button onClick={() => void claim()} disabled={busy}>
+                {t('players.claimConfirm')}
+              </Button>
+            </>
+          ) : recovering ? (
+            <form onSubmit={recoverSubmit} className="flex flex-col gap-3">
+              <p className="text-sm text-content-muted">{t('players.recoverHint')}</p>
+              <TextInput
+                value={pin}
+                onChange={(event) => setPin(event.target.value)}
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="off"
+                autoFocus
+              />
+              <Button type="submit" disabled={busy || !/^\d{4}$/.test(pin)}>
+                {t('players.recoverSubmit')}
+              </Button>
+            </form>
+          ) : (
+            <Button variant="ghost" onClick={() => setRecovering(true)}>
+              {t('players.recover')}
+            </Button>
           )}
+          {error !== null && <p className="text-sm text-danger">{error}</p>}
         </div>
-
-        {mine ? (
-          <Chip tone="accent">{t('players.you')}</Chip>
-        ) : claimable ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-content-muted">
-              {t('players.claimHint', { name: player.name })}
-            </p>
-            <Button onClick={() => void claim()} disabled={busy}>
-              {t('players.claimConfirm')}
-            </Button>
-          </div>
-        ) : recovering ? (
-          <form onSubmit={recoverSubmit} className="flex flex-col gap-3">
-            <p className="text-sm text-content-muted">{t('players.recoverHint')}</p>
-            <TextInput
-              value={pin}
-              onChange={(event) => setPin(event.target.value)}
-              inputMode="numeric"
-              maxLength={4}
-              autoComplete="off"
-              autoFocus
-            />
-            <Button type="submit" disabled={busy || !/^\d{4}$/.test(pin)}>
-              {t('players.recoverSubmit')}
-            </Button>
-          </form>
-        ) : (
-          <Button variant="ghost" onClick={() => setRecovering(true)}>
-            {t('players.recover')}
-          </Button>
-        )}
-
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
-      </div>
+      )}
     </Dialog>
   );
 }

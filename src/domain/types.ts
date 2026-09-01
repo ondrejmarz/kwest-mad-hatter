@@ -11,12 +11,23 @@ export type RewardForm = 'reward' | 'punish_someone' | 'punish_all';
 
 export type PlayerStatus = 'pending' | 'approved';
 
+/**
+ * A piece of user-authored text in all three UI languages (spec 1). The domain carries it
+ * opaquely — it never localizes (no locale here); the i18n layer's `localize` picks a language
+ * at display, falling back to `cs` when a translation is blank. Its `cs` is also the stable
+ * identity of a category tag: the open-category set stores `cs` strings, not display labels.
+ */
+export interface LocalizedText {
+  readonly cs: string;
+  readonly en: string;
+  readonly de: string;
+}
+
 /** Denormalized snapshot of a task at the moment it was assigned to a player. */
 export interface ActiveTask {
   readonly taskId: TaskId;
-  readonly name: string;
-  readonly description: string;
-  readonly category: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
   readonly difficulty: number;
   readonly coinReward: number;
   readonly coinPenalty: number;
@@ -38,9 +49,9 @@ export interface Player {
 
 export interface Task {
   readonly id: TaskId;
-  readonly name: string;
-  readonly description: string;
-  readonly category: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
+  readonly categories: readonly LocalizedText[];
   readonly difficulty: number;
   readonly isPair: boolean;
   readonly coinReward: number;
@@ -51,8 +62,9 @@ export interface Task {
 
 export interface Reward {
   readonly id: RewardId;
-  readonly name: string;
-  readonly description: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
+  readonly categories: readonly LocalizedText[];
   readonly price: number;
   readonly form: RewardForm;
   readonly minTargets: number;
@@ -66,7 +78,7 @@ export interface Reservation {
   readonly playerId: PlayerId;
   readonly day: Day;
   readonly taskId: TaskId;
-  readonly taskName: string;
+  readonly taskName: LocalizedText;
   readonly isPair: boolean;
   readonly partnerId?: PlayerId;
   readonly partnerName?: string;
@@ -81,8 +93,8 @@ export interface Purchase {
   readonly buyerId: PlayerId;
   readonly buyerName: string;
   readonly rewardId: RewardId;
-  readonly rewardName: string;
-  readonly description: string;
+  readonly rewardName: LocalizedText;
+  readonly description: LocalizedText;
   readonly price: number;
   readonly form: RewardForm;
   readonly targetIds: readonly PlayerId[];

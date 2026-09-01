@@ -1,6 +1,13 @@
 import type { GameEvent } from '../events';
 import type { Day, PlayerId, TaskId } from '../ids';
-import type { ActiveTask, Player, Reservation, Task, TurnusSettings } from '../types';
+import type {
+  ActiveTask,
+  LocalizedText,
+  Player,
+  Reservation,
+  Task,
+  TurnusSettings,
+} from '../types';
 
 /** Everything `resolveRollover` needs. Reservations are the day D+1 set (spec 6). */
 export interface RolloverInput {
@@ -27,7 +34,7 @@ export interface Settlement {
 /** One atomic bid for a task on day D+1; a pair is one claim for two players (spec 6). */
 export interface Claim {
   readonly taskId: TaskId;
-  readonly taskName: string;
+  readonly taskName: LocalizedText;
   readonly isPair: boolean;
   readonly playerIds: readonly PlayerId[];
   readonly balance: number;
@@ -75,14 +82,14 @@ export interface PreviewAssignment {
   readonly playerId: PlayerId;
   readonly playerName: string;
   readonly taskId: TaskId;
-  readonly taskName: string;
+  readonly taskName: LocalizedText;
   readonly isPair: boolean;
 }
 
 export interface PreviewLoss {
   readonly playerId: PlayerId;
   readonly playerName: string;
-  readonly taskName: string;
+  readonly taskName: LocalizedText;
   readonly winnerName: string;
 }
 

@@ -2,6 +2,8 @@ import { memo } from 'react';
 
 import type { Reward } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
+import { localize } from '../../../i18n/localize';
+import { categoryLabel } from '../../../lib/category';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { EditButton } from '../../../ui/EditButton';
@@ -17,16 +19,21 @@ export const RewardCard = memo(function RewardCard({
   isAdmin: boolean;
   onEdit: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   return (
     <ListCard
-      title={reward.name}
+      title={localize(reward.name, locale)}
       chips={
-        <Chip tone={reward.form === 'reward' ? 'success' : 'warning'}>
-          {t(`rewards.forms.${reward.form}`)}
-        </Chip>
+        <>
+          <Chip tone={reward.form === 'reward' ? 'success' : 'warning'}>
+            {t(`rewards.forms.${reward.form}`)}
+          </Chip>
+          {reward.categories.map((category) => (
+            <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
+          ))}
+        </>
       }
-      description={reward.description}
+      description={localize(reward.description, locale)}
       footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
       footerRight={<CoinAmount amount={reward.price} />}
     />

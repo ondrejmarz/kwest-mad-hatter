@@ -8,7 +8,7 @@ export type DomainError =
   | { readonly code: 'INSUFFICIENT_COINS'; readonly needed: number; readonly available: number }
   | { readonly code: 'TASK_ALREADY_USED_BY_PLAYER' }
   | { readonly code: 'TASK_INACTIVE' }
-  | { readonly code: 'TASK_CATEGORY_CLOSED'; readonly category: string }
+  | { readonly code: 'TASK_CATEGORY_CLOSED' }
   | { readonly code: 'TASK_TAKEN_TODAY'; readonly byPlayerName: string }
   | { readonly code: 'DAY_LOCKED' }
   | { readonly code: 'REWARD_INACTIVE' }

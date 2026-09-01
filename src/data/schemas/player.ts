@@ -3,14 +3,13 @@ import { z } from 'zod';
 
 import type { Player } from '../../domain/types';
 
-import { parseDoc, zPlayerId, zTaskId } from './shared';
+import { parseDoc, zLocalizedText, zPlayerId, zTaskId } from './shared';
 
 /** Denormalized task snapshot stored on the player (spec 4). */
 export const activeTaskSchema = z.object({
   taskId: zTaskId,
-  name: z.string(),
-  description: z.string(),
-  category: z.string(),
+  name: zLocalizedText,
+  description: zLocalizedText,
   difficulty: z.number(),
   coinReward: z.number(),
   coinPenalty: z.number(),

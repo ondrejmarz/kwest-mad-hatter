@@ -2,12 +2,13 @@ import { type ReactNode } from 'react';
 
 import { cx } from '../lib/cx';
 
+import { CardLayout } from './CardLayout';
+
 /**
- * The one row layout shared by the players, tasks and rewards lists (spec 9), so the
- * three read identically. Four bands top to bottom: the title with an optional
- * top-right slot (task difficulty), a chip row, a description line, and a footer whose
- * right edge carries coins and whose left edge holds the admin edit affordance. A row
- * with `onClick` behaves as a button (players open a detail); without it, it is static.
+ * A list row for players, tasks and rewards (spec 9): the shared `CardLayout` in a card frame.
+ * A row with `onClick` behaves as a button (players open a detail, a claimed player reserves a
+ * task); without it, it is static. The detail dialogs reuse the same `CardLayout`, so a row and
+ * its opened detail line up exactly.
  */
 export function ListCard({
   title,
@@ -35,20 +36,14 @@ export function ListCard({
   );
 
   const body = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 truncate font-medium text-content">{title}</div>
-        {topRight !== undefined && <div className="shrink-0">{topRight}</div>}
-      </div>
-      {chips !== undefined && <div className="mt-1 flex flex-wrap items-center gap-1">{chips}</div>}
-      {description !== undefined && (
-        <p className="mt-1 line-clamp-2 text-sm text-content-muted">{description}</p>
-      )}
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">{footerLeft}</div>
-        <div className="shrink-0">{footerRight}</div>
-      </div>
-    </>
+    <CardLayout
+      title={title}
+      {...(topRight !== undefined ? { topRight } : {})}
+      {...(chips !== undefined ? { chips } : {})}
+      {...(description !== undefined ? { description } : {})}
+      {...(footerLeft !== undefined ? { footerLeft } : {})}
+      {...(footerRight !== undefined ? { footerRight } : {})}
+    />
   );
 
   if (onClick !== undefined) {

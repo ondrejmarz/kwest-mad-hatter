@@ -115,4 +115,9 @@ comes before data/rules (phase 2) on purpose.
    usedByPlayerIds/active/manualCoins). Players/Tasks/Rewards share one `ui/ListCard` layout with
    a sort control + filters; admins edit any row in place via a pencil dialog and add tasks/rewards
    directly. Admin screen is just import + a task-category picker (`setCategories`).
-6. Game loop — **next.** 7. Rewards. 8. PWA + polish. 9. Showcase.
+6. Game loop — **core done.** Task-click reservations + pair invites (`ReservationProvider`,
+   `TaskActionDialog`: reserve / invite a partner / cancel; app-wide `PairInviteBanner`), day
+   evaluation (`EvaluationPanel`: mark completed → live `resolveRollover` preview → `runRollover`
+   → full `undoRollover`), day-lock toggle. Verified end-to-end. Still to do: same-day manual
+   `pickTaskNow` (needs a player-writes-`activeTask` rule + adversarial rule tests).
+7. Rewards. 8. PWA + polish. 9. Showcase.

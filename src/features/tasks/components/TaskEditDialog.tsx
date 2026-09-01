@@ -2,23 +2,34 @@ import { type FormEvent, useState } from 'react';
 
 import { createTask, type TaskFields, updateTask } from '../../../data/catalogAdmin';
 import { db } from '../../../data/firebase';
+import { parseLocalizedLines, serializeLocalized } from '../../../data/importCatalog';
 import { derivePenalty, deriveReward } from '../../../domain/coins';
-import type { Task } from '../../../domain/types';
+import type { LocalizedText, Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { LocalizedField } from '../../../ui/LocalizedField';
 import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
 
 const DIFFICULTIES = [1, 2, 3, 4, 5, 6];
+const EMPTY: LocalizedText = { cs: '', en: '', de: '' };
+const AREA =
+  'min-h-20 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-content outline-none focus:border-accent';
+
+const trimLoc = (value: LocalizedText): LocalizedText => ({
+  cs: value.cs.trim(),
+  en: value.en.trim(),
+  de: value.de.trim(),
+});
 
 /**
- * Add or edit one task (spec 9.4). Coins follow the difficulty formula unless "manual
- * coins" is ticked, which pins an override the TSV importer will then leave alone (spec 5).
- * `Task` carries no `manualCoins`, so on open we infer it: coins that differ from what the
- * formula would produce were overridden.
+ * Add or edit one task (spec 9.4). Name and description are trilingual; category tags are edited
+ * one per line. Coins follow the difficulty formula unless "manual coins" is ticked, which pins an
+ * override the TSV importer will then leave alone (spec 5). `Task` carries no `manualCoins`, so on
+ * open we infer it: coins that differ from the formula were overridden.
  */
 export function TaskEditDialog({
   task,
@@ -34,9 +45,11 @@ export function TaskEditDialog({
   penaltyRatio: number;
 }) {
   const { t } = useTranslation();
-  const [name, setName] = useState(task?.name ?? '');
-  const [description, setDescription] = useState(task?.description ?? '');
-  const [category, setCategory] = useState(task?.category ?? '');
+  const [name, setName] = useState<LocalizedText>(task?.name ?? EMPTY);
+  const [description, setDescription] = useState<LocalizedText>(task?.description ?? EMPTY);
+  const [tags, setTags] = useState(() =>
+    (task?.categories ?? []).map(serializeLocalized).join('\n'),
+  );
   const [difficulty, setDifficulty] = useState(task?.difficulty ?? 3);
   const [isPair, setIsPair] = useState(task?.isPair ?? false);
   const [active, setActive] = useState(task?.active ?? true);
@@ -52,7 +65,7 @@ export function TaskEditDialog({
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
-    if (name.trim().length === 0) {
+    if (name.cs.trim().length === 0) {
       setError(t('tasks.invalidName'));
       return;
     }
@@ -63,9 +76,9 @@ export function TaskEditDialog({
       return;
     }
     const fields: TaskFields = {
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim() || 'Ostatní',
+      name: trimLoc(name),
+      description: trimLoc(description),
+      categories: parseLocalizedLines(tags),
       difficulty,
       isPair,
       coinReward,
@@ -85,22 +98,21 @@ export function TaskEditDialog({
       title={t(task === null ? 'tasks.createTitle' : 'tasks.editTitle')}
     >
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <TextInput
-          label={t('tasks.nameLabel')}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-        />
-        <TextInput
+        <LocalizedField label={t('tasks.nameLabel')} value={name} onChange={setName} autoFocus />
+        <LocalizedField
           label={t('tasks.descriptionLabel')}
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={setDescription}
         />
-        <TextInput
-          label={t('tasks.categoryField')}
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        />
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-content-muted">{t('tasks.tagsLabel')}</span>
+          <textarea
+            value={tags}
+            onChange={(event) => setTags(event.target.value)}
+            className={AREA}
+            placeholder={t('tasks.tagsHint')}
+          />
+        </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-content-muted">
             {t('tasks.difficultyLabel')}

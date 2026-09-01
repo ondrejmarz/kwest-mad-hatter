@@ -1,7 +1,18 @@
 import { Day, PlayerId, RewardId, TaskId } from '../ids';
-import type { ActiveTask, Player, Reservation, Reward, Task, TurnusSettings } from '../types';
+import type {
+  ActiveTask,
+  LocalizedText,
+  Player,
+  Reservation,
+  Reward,
+  Task,
+  TurnusSettings,
+} from '../types';
 
 /** Test data builders (spec 15.10) — never hand-write domain objects in tests. */
+
+/** A trilingual text; unspecified languages mirror `cs` (the fallback the UI applies). */
+export const loc = (cs: string, en = cs, de = cs): LocalizedText => ({ cs, en, de });
 
 export const makeTurnus = (over: Partial<TurnusSettings> = {}): TurnusSettings => ({
   currentDay: Day(1),
@@ -20,9 +31,8 @@ export const makeTurnus = (over: Partial<TurnusSettings> = {}): TurnusSettings =
 
 export const makeActiveTask = (over: Partial<ActiveTask> = {}): ActiveTask => ({
   taskId: TaskId('t1'),
-  name: 'Sweep the yard',
-  description: '',
-  category: 'chores',
+  name: loc('Sweep the yard'),
+  description: loc(''),
   difficulty: 1,
   coinReward: 150,
   coinPenalty: 75,
@@ -43,9 +53,9 @@ export const makePlayer = (over: Partial<Player> = {}): Player => ({
 
 export const makeTask = (over: Partial<Task> = {}): Task => ({
   id: TaskId('t1'),
-  name: 'Sweep the yard',
-  description: '',
-  category: 'chores',
+  name: loc('Sweep the yard'),
+  description: loc(''),
+  categories: [loc('chores')],
   difficulty: 1,
   isPair: false,
   coinReward: 150,
@@ -57,8 +67,9 @@ export const makeTask = (over: Partial<Task> = {}): Task => ({
 
 export const makeReward = (over: Partial<Reward> = {}): Reward => ({
   id: RewardId('r1'),
-  name: 'Reseat someone',
-  description: '',
+  name: loc('Reseat someone'),
+  description: loc(''),
+  categories: [],
   price: 50,
   form: 'reward',
   minTargets: 0,
@@ -72,7 +83,7 @@ export const makeReservation = (over: Partial<Reservation> = {}): Reservation =>
   playerId: PlayerId('p1'),
   day: Day(2),
   taskId: TaskId('t1'),
-  taskName: 'Sweep the yard',
+  taskName: loc('Sweep the yard'),
   isPair: false,
   confirmed: true,
   createdAt: 1000,

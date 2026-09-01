@@ -74,7 +74,7 @@ export function PlayersScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <Select value={sort} onChange={(event) => setSort(event.target.value as PlayerSort)}>
             {PLAYER_SORTS.map((value) => (
@@ -84,8 +84,14 @@ export function PlayersScreen() {
             ))}
           </Select>
         </div>
-        <Button variant="secondary" className="shrink-0" onClick={() => setCreateOpen(true)}>
-          {t('players.addPlayer')}
+        <Button
+          variant="secondary"
+          size="icon"
+          className="shrink-0"
+          aria-label={t('players.addPlayer')}
+          onClick={() => setCreateOpen(true)}
+        >
+          +
         </Button>
       </div>
 

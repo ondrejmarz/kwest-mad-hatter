@@ -15,13 +15,21 @@ export function canReserveTask(
   turnus: TurnusSettings,
 ): Result<void, DomainError> {
   if (!task.active) return err({ code: 'TASK_INACTIVE' });
-  if (!turnus.nextDayCategories.includes(task.category)) {
-    return err({ code: 'TASK_CATEGORY_CLOSED', category: task.category });
+  if (!isCategoryOpen(task, turnus.nextDayCategories)) {
+    return err({ code: 'TASK_CATEGORY_CLOSED' });
   }
   if (task.usedByPlayerIds.includes(player.id)) {
     return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });
   }
   return ok(undefined);
+}
+
+/**
+ * A task is open when any one of its category tags is in the open set. Tags are matched by
+ * their canonical `cs` identity, which is what the open-category set stores (spec 7).
+ */
+function isCategoryOpen(task: Task, openCategories: readonly string[]): boolean {
+  return task.categories.some((category) => openCategories.includes(category.cs));
 }
 
 /**
@@ -37,8 +45,8 @@ export function canPickTaskNow(
 ): Result<void, DomainError> {
   if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
   if (!task.active) return err({ code: 'TASK_INACTIVE' });
-  if (!turnus.currentDayCategories.includes(task.category)) {
-    return err({ code: 'TASK_CATEGORY_CLOSED', category: task.category });
+  if (!isCategoryOpen(task, turnus.currentDayCategories)) {
+    return err({ code: 'TASK_CATEGORY_CLOSED' });
   }
   if (task.usedByPlayerIds.includes(player.id)) {
     return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });

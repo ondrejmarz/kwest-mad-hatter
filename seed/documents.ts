@@ -18,19 +18,29 @@ export interface SeedDocument {
   readonly data: Record<string, unknown>;
 }
 
+interface Loc {
+  cs: string;
+  en: string;
+  de: string;
+}
+
+/** The seed catalog is authored in Czech; en/de stay empty and fall back to cs at display. */
+const loc = (cs: string): Loc => ({ cs, en: '', de: '' });
+
 interface SeedTask {
-  name: string;
-  description: string;
+  name: Loc;
+  description: Loc;
   difficulty: number;
   isPair: boolean;
-  category: string;
+  categories: Loc[];
 }
 
 interface SeedReward {
-  name: string;
-  description: string;
+  name: Loc;
+  description: Loc;
   price: number;
   form: 'reward' | 'punish_someone' | 'punish_all';
+  categories: Loc[];
 }
 
 const SAMPLE_PLAYERS = ['Jana', 'Kuba', 'Míša', 'Tom', 'Eliška'];
@@ -47,11 +57,11 @@ function parseTasks(tsv: string): SeedTask[] {
     const [name = '', description = '', difficultyRaw = '', pairRaw = '', category = ''] =
       line.split('\t');
     return {
-      name: name.trim(),
-      description: description.trim(),
+      name: loc(name.trim()),
+      description: loc(description.trim()),
       difficulty: Number.parseInt(difficultyRaw, 10) || 1,
       isPair: pairRaw.trim().toLowerCase() === 'ano',
-      category: category.trim() || 'Ostatní',
+      categories: [loc(category.trim() || 'Ostatní')],
     };
   });
 }
@@ -65,10 +75,11 @@ function parseRewards(tsv: string): SeedReward[] {
   return nonEmptyLines(tsv).map((line) => {
     const [name = '', description = '', priceRaw = '', formRaw = ''] = line.split('\t');
     return {
-      name: name.trim(),
-      description: description.trim(),
+      name: loc(name.trim()),
+      description: loc(description.trim()),
       price: Number.parseInt(priceRaw, 10) || 0,
       form: forms[formRaw.trim()] ?? 'reward',
+      categories: [],
     };
   });
 }

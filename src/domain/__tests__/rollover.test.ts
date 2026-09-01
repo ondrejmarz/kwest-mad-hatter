@@ -5,7 +5,7 @@ import { resolveRollover } from '../rollover';
 import type { PlayerUpdate, RolloverResult } from '../rollover';
 import type { Player, Reservation, Task, TurnusSettings } from '../types';
 
-import { makeActiveTask, makePlayer, makeReservation, makeTask, makeTurnus } from './fixtures';
+import { loc, makeActiveTask, makePlayer, makeReservation, makeTask, makeTurnus } from './fixtures';
 
 interface RunInput {
   readonly turnus?: Partial<TurnusSettings>;
@@ -132,7 +132,7 @@ describe('resolveRollover — settlement (step 1)', () => {
 
 describe('resolveRollover — reservations (step 3)', () => {
   const chores = { currentDay: Day(1), noPickPenalty: 0, nextDayCategories: ['chores'] };
-  const t1 = makeTask({ id: TaskId('t1'), category: 'chores' });
+  const t1 = makeTask({ id: TaskId('t1'), categories: [loc('chores')] });
   const reserve = (
     playerId: string,
     createdAt: number,
@@ -264,7 +264,7 @@ describe('resolveRollover — reservations (step 3)', () => {
 describe('resolveRollover — pairs (step 3)', () => {
   const chores = { currentDay: Day(1), noPickPenalty: 0, nextDayCategories: ['chores'] };
   const pairTaskId = TaskId('t1');
-  const pairTask = makeTask({ id: pairTaskId, category: 'chores', isPair: true });
+  const pairTask = makeTask({ id: pairTaskId, categories: [loc('chores')], isPair: true });
 
   it('lets a pair compete with the poorer partner and win for both', () => {
     const result = run({
@@ -411,7 +411,7 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
       players: [p1],
       tasks: [
         makeTask({ id: TaskId('t1'), usedByPlayerIds: [] }),
-        makeTask({ id: TaskId('t2'), category: 'b' }),
+        makeTask({ id: TaskId('t2'), categories: [loc('b')] }),
       ],
       reservations: [reservation],
       completed: [PlayerId('p1')],

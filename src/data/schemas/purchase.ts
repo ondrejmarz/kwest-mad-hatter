@@ -1,7 +1,7 @@
 import type { DocumentData } from 'firebase/firestore';
 import { z } from 'zod';
 
-import { parseDoc, zDay, zPlayerId, zRewardId, zTimestampMillis } from './shared';
+import { parseDoc, zDay, zLocalizedText, zPlayerId, zRewardId, zTimestampMillis } from './shared';
 
 /**
  * A purchase (spec 4). Superset of the pure `Purchase` type by `createdAt`, which the
@@ -14,8 +14,8 @@ export const purchaseSchema = z.object({
   buyerId: zPlayerId,
   buyerName: z.string(),
   rewardId: zRewardId,
-  rewardName: z.string(),
-  description: z.string(),
+  rewardName: zLocalizedText,
+  description: zLocalizedText,
   price: z.number(),
   form: z.enum(['reward', 'punish_someone', 'punish_all']),
   targetIds: z.array(zPlayerId).readonly(),

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { canPickTaskNow, canReserveTask } from '../eligibility';
 import type { TaskId } from '../ids';
 
-import { makePlayer, makeTask, makeTurnus } from './fixtures';
+import { loc, makePlayer, makeTask, makeTurnus } from './fixtures';
 
 describe('canReserveTask', () => {
   const turnus = makeTurnus({ nextDayCategories: ['chores'] });
@@ -23,9 +23,9 @@ describe('canReserveTask', () => {
   });
 
   it('rejects a category closed for tomorrow', () => {
-    expect(canReserveTask(makePlayer(), makeTask({ category: 'games' }), turnus)).toEqual({
+    expect(canReserveTask(makePlayer(), makeTask({ categories: [loc('games')] }), turnus)).toEqual({
       ok: false,
-      error: { code: 'TASK_CATEGORY_CLOSED', category: 'games' },
+      error: { code: 'TASK_CATEGORY_CLOSED' },
     });
   });
 
@@ -66,10 +66,10 @@ describe('canPickTaskNow', () => {
 
   it('rejects a category closed today', () => {
     expect(
-      canPickTaskNow(makePlayer(), makeTask({ category: 'games' }), turnus, noneTaken),
+      canPickTaskNow(makePlayer(), makeTask({ categories: [loc('games')] }), turnus, noneTaken),
     ).toEqual({
       ok: false,
-      error: { code: 'TASK_CATEGORY_CLOSED', category: 'games' },
+      error: { code: 'TASK_CATEGORY_CLOSED' },
     });
   });
 

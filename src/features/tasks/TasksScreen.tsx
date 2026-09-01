@@ -3,8 +3,11 @@ import { useMemo, useState } from 'react';
 import { toTurnusSettings } from '../../data/schemas/turnus';
 import { canPickTaskNow, canReserveTask } from '../../domain/eligibility';
 import type { TaskId } from '../../domain/ids';
-import type { Task } from '../../domain/types';
+import type { LocalizedText, Task } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
+import { localize } from '../../i18n/localize';
+import type { Locale } from '../../i18n/translate';
+import { categoryLabel } from '../../lib/category';
 import { csCollator } from '../../lib/collator';
 import { byNumber, byText } from '../../lib/sort';
 import { Button } from '../../ui/Button';
@@ -12,8 +15,16 @@ import { Checkbox } from '../../ui/Checkbox';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { useCatalogTasks, useMyPlayer, useSession, useTurnus } from '../session';
+import {
+  useCatalogTasks,
+  useMyPlayer,
+  useMyReservation,
+  usePlayers,
+  useSession,
+  useTurnus,
+} from '../session';
 
+import { TaskActionDialog } from './components/TaskActionDialog';
 import { TaskCard } from './components/TaskCard';
 import { TaskEditDialog } from './components/TaskEditDialog';
 
@@ -29,12 +40,12 @@ type TaskSort = (typeof TASK_SORTS)[number];
 
 const NO_TAKEN: ReadonlyMap<TaskId, string> = new Map();
 
-function taskComparator(sort: TaskSort): (a: Task, b: Task) => number {
+function taskComparator(sort: TaskSort, locale: Locale): (a: Task, b: Task) => number {
   switch (sort) {
     case 'nameAsc':
-      return byText((task) => task.name, 'asc');
+      return byText((task) => localize(task.name, locale), 'asc');
     case 'nameDesc':
-      return byText((task) => task.name, 'desc');
+      return byText((task) => localize(task.name, locale), 'desc');
     case 'difficultyAsc':
       return byNumber((task) => task.difficulty, 'asc');
     case 'difficultyDesc':
@@ -48,34 +59,51 @@ function taskComparator(sort: TaskSort): (a: Task, b: Task) => number {
 
 /** Task catalog (spec 9.2): category filter, sort, available-only toggle, admin add/edit. */
 export function TasksScreen() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { role } = useSession();
   const tasksState = useCatalogTasks();
   const turnusState = useTurnus();
+  const playersState = usePlayers();
   const myPlayer = useMyPlayer();
+  const reservationState = useMyReservation();
   const isAdmin = role === 'admin';
 
   const [sort, setSort] = useState<TaskSort>('nameAsc');
   const [category, setCategory] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
+  const [acting, setActing] = useState<Task | null>(null);
 
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const settings = turnus !== null ? toTurnusSettings(turnus) : null;
+  const myReservation = reservationState.status === 'ready' ? reservationState.data : null;
+  const candidates =
+    myPlayer !== null && playersState.status === 'ready'
+      ? playersState.data.filter(
+          (player) => player.status === 'approved' && player.id !== myPlayer.id,
+        )
+      : [];
   const allTasks = useMemo(
     () => (tasksState.status === 'ready' ? tasksState.data.filter((task) => task.active) : []),
     [tasksState],
   );
-  const categories = useMemo(
-    () =>
-      [...new Set(allTasks.map((task) => task.category))].sort((a, b) => csCollator.compare(a, b)),
-    [allTasks],
-  );
+  // Distinct category tags across the catalog, keyed by their canonical `cs` identity.
+  const categories = useMemo(() => {
+    const byCs = new Map<string, LocalizedText>();
+    for (const task of allTasks) {
+      for (const category of task.categories) {
+        if (!byCs.has(category.cs)) byCs.set(category.cs, category);
+      }
+    }
+    return [...byCs.values()].sort((a, b) =>
+      csCollator.compare(localize(a, locale), localize(b, locale)),
+    );
+  }, [allTasks, locale]);
 
   const filtered = useMemo(() => {
-    const compare = taskComparator(sort);
+    const compare = taskComparator(sort, locale);
     return allTasks
-      .filter((task) => category === '' || task.category === category)
+      .filter((task) => category === '' || task.categories.some((tag) => tag.cs === category))
       .filter(
         (task) =>
           !onlyAvailable ||
@@ -83,8 +111,11 @@ export function TasksScreen() {
           myPlayer === null ||
           canReserveTask(myPlayer, task, settings).ok,
       )
-      .sort((a, b) => compare(a, b) || csCollator.compare(a.name, b.name));
-  }, [allTasks, category, onlyAvailable, sort, settings, myPlayer]);
+      .sort(
+        (a, b) =>
+          compare(a, b) || csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
+      );
+  }, [allTasks, category, onlyAvailable, sort, settings, myPlayer, locale]);
 
   if (tasksState.status === 'loading') {
     return (
@@ -107,7 +138,7 @@ export function TasksScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <Select value={sort} onChange={(event) => setSort(event.target.value as TaskSort)}>
             {TASK_SORTS.map((value) => (
@@ -118,9 +149,9 @@ export function TasksScreen() {
           </Select>
           <Select value={category} onChange={(event) => setCategory(event.target.value)}>
             <option value="">{t('tasks.allCategories')}</option>
-            {categories.map((name) => (
-              <option key={name} value={name}>
-                {name}
+            {categories.map((category) => (
+              <option key={category.cs} value={category.cs}>
+                {categoryLabel(localize(category, locale))}
               </option>
             ))}
           </Select>
@@ -133,8 +164,14 @@ export function TasksScreen() {
           )}
         </div>
         {isAdmin && (
-          <Button variant="secondary" className="shrink-0" onClick={() => setEditing(null)}>
-            {t('tasks.add')}
+          <Button
+            variant="secondary"
+            size="icon"
+            className="shrink-0"
+            aria-label={t('tasks.add')}
+            onClick={() => setEditing(null)}
+          >
+            +
           </Button>
         )}
       </div>
@@ -151,7 +188,11 @@ export function TasksScreen() {
                 task={task}
                 unavailableTomorrow={tomorrow}
                 unavailableToday={today}
+                reserved={myReservation?.taskId === task.id}
                 isAdmin={isAdmin}
+                {...(myPlayer !== null && settings !== null
+                  ? { onOpen: () => setActing(task) }
+                  : {})}
                 onEdit={() => setEditing(task)}
               />
             );
@@ -166,6 +207,18 @@ export function TasksScreen() {
           turnusId={turnus.id}
           coinsPerDifficulty={turnus.coinsPerDifficulty}
           penaltyRatio={turnus.penaltyRatio}
+        />
+      )}
+
+      {acting !== null && turnus !== null && settings !== null && myPlayer !== null && (
+        <TaskActionDialog
+          task={acting}
+          myPlayer={myPlayer}
+          settings={settings}
+          candidates={candidates}
+          reservation={myReservation}
+          turnusId={turnus.id}
+          onClose={() => setActing(null)}
         />
       )}
     </section>

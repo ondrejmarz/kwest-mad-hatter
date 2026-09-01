@@ -1,6 +1,11 @@
 import { Outlet } from 'react-router-dom';
 
-import { CatalogProvider, PlayersProvider, TurnusProvider } from '../../features/session';
+import {
+  CatalogProvider,
+  PlayersProvider,
+  ReservationProvider,
+  TurnusProvider,
+} from '../../features/session';
 
 /** Turnus-scoped live-data listeners, mounted once for the whole game shell (spec 15.7). */
 export function GameProviders() {
@@ -8,7 +13,9 @@ export function GameProviders() {
     <TurnusProvider>
       <PlayersProvider>
         <CatalogProvider>
-          <Outlet />
+          <ReservationProvider>
+            <Outlet />
+          </ReservationProvider>
         </CatalogProvider>
       </PlayersProvider>
     </TurnusProvider>

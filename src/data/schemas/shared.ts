@@ -17,6 +17,17 @@ export const zTurnusId = z.string().min(1).transform(TurnusId);
 export const zDay = z.number().int().transform(Day);
 
 /**
+ * Trilingual user text (spec 1). `cs` is required — it is the fallback and the category
+ * identity; `en`/`de` default to empty so a document written in one language still parses,
+ * and the UI falls back to `cs` at display.
+ */
+export const zLocalizedText = z.object({
+  cs: z.string(),
+  en: z.string().default(''),
+  de: z.string().default(''),
+});
+
+/**
  * Firestore `serverTimestamp()` reads back as a `Timestamp`; the domain works in
  * plain millis (spec 15.5). Repositories read with `serverTimestamps: 'estimate'`
  * so a just-written pending value is a local estimate, never null.

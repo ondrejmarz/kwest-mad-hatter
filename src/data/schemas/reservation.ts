@@ -3,7 +3,15 @@ import { z } from 'zod';
 
 import type { Reservation } from '../../domain/types';
 
-import { parseDoc, reportSchemaError, zDay, zPlayerId, zTaskId, zTimestampMillis } from './shared';
+import {
+  parseDoc,
+  reportSchemaError,
+  zDay,
+  zLocalizedText,
+  zPlayerId,
+  zTaskId,
+  zTimestampMillis,
+} from './shared';
 
 /**
  * A reservation is keyed by its initiator's playerId (the doc id), so the parser maps
@@ -14,7 +22,7 @@ export const reservationSchema = z.object({
   playerId: zPlayerId,
   day: zDay,
   taskId: zTaskId,
-  taskName: z.string(),
+  taskName: zLocalizedText,
   isPair: z.boolean(),
   partnerId: zPlayerId.optional(),
   partnerName: z.string().optional(),

@@ -8,6 +8,7 @@ import {
   parseTasks,
   splitByName,
 } from '../../../data/importCatalog';
+import type { LocalizedText } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { cx } from '../../../lib/cx';
 import { Button } from '../../../ui/Button';
@@ -36,7 +37,9 @@ export function CatalogImport({
   const [done, setDone] = useState<{ created: number; updated: number } | null>(null);
 
   const isTasks = tab === 'tasks';
-  const parsed: readonly { name: string }[] = isTasks ? parseTasks(text) : parseRewards(text);
+  const parsed: readonly { name: LocalizedText }[] = isTasks
+    ? parseTasks(text)
+    : parseRewards(text);
   const { toCreate, toUpdate } = splitByName(parsed, isTasks ? taskNames : rewardNames);
 
   const switchTab = (next: 'tasks' | 'rewards'): void => {

@@ -1,6 +1,6 @@
 import { doc, type Firestore, setDoc, updateDoc } from 'firebase/firestore';
 
-import type { RewardForm } from '../domain/types';
+import type { LocalizedText, RewardForm } from '../domain/types';
 
 import { defaultTargets } from './importCatalog';
 import { rewardDoc, rewardsCol, taskDoc, tasksCol } from './paths';
@@ -13,9 +13,9 @@ import { rewardDoc, rewardsCol, taskDoc, tasksCol } from './paths';
  * are always derived from the form, matching the importer.
  */
 export interface TaskFields {
-  readonly name: string;
-  readonly description: string;
-  readonly category: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
+  readonly categories: readonly LocalizedText[];
   readonly difficulty: number;
   readonly isPair: boolean;
   readonly coinReward: number;
@@ -35,8 +35,9 @@ export const updateTask = (
 ): Promise<void> => updateDoc(taskDoc(db, t, taskId), { ...fields });
 
 export interface RewardFields {
-  readonly name: string;
-  readonly description: string;
+  readonly name: LocalizedText;
+  readonly description: LocalizedText;
+  readonly categories: readonly LocalizedText[];
   readonly price: number;
   readonly form: RewardForm;
   readonly exclusivePerDay: boolean;

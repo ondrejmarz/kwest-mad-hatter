@@ -17,6 +17,13 @@ export const subscribeMyReservation = (
   onState: (state: Subscription<Reservation | null>) => void,
 ): (() => void) => subscribeDoc(reservationDoc(db, t, playerId), parseReservation, onState);
 
+/** Every reservation for tomorrow — admin only (rules deny a plain member this whole set). */
+export const subscribeAllReservations = (
+  db: Firestore,
+  t: string,
+  onState: (state: Subscription<readonly Reservation[]>) => void,
+): (() => void) => subscribeQuery(reservationsCol(db, t), parseReservation, onState);
+
 /** Pair invites awaiting my response — only pending ones still carry `invitePartnerId`. */
 export const subscribePendingInvites = (
   db: Firestore,

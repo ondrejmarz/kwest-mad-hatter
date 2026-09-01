@@ -1,47 +1,80 @@
 import { describe, expect, it } from 'vitest';
 
-import { defaultTargets, parseRewards, parseTasks, splitByName } from './importCatalog';
+import {
+  defaultTargets,
+  parseLocalized,
+  parseRewards,
+  parseTasks,
+  serializeLocalized,
+  splitByName,
+} from './importCatalog';
+
+/** Trilingual literal with the import's default: missing translations stay empty (not mirrored). */
+const L = (cs: string, en = '', de = ''): { cs: string; en: string; de: string } => ({
+  cs,
+  en,
+  de,
+});
 
 describe('parseTasks', () => {
-  it('parses tab-separated rows; pair from "Ano", CRLF stripped', () => {
+  it('parses trilingual name/description, difficulty, pair, and trailing tags', () => {
     const tsv =
-      'Nosič vody\tNosíš kbelík\t1\tNe\t💪 Výdrž\r\nScénka\tU ohně\t3\tAno\t🎭 Scénka\r\n';
+      'Nosič vody|Water carrier|Wasserträger\tNosíš kbelík|Carry a bucket\t2\tNe\t💪 Výdrž|Endurance|Ausdauer\tParta\r\n';
     expect(parseTasks(tsv)).toEqual([
       {
-        name: 'Nosič vody',
-        description: 'Nosíš kbelík',
-        difficulty: 1,
+        name: L('Nosič vody', 'Water carrier', 'Wasserträger'),
+        description: L('Nosíš kbelík', 'Carry a bucket'),
+        difficulty: 2,
         isPair: false,
-        category: '💪 Výdrž',
+        categories: [L('💪 Výdrž', 'Endurance', 'Ausdauer'), L('Parta')],
       },
-      { name: 'Scénka', description: 'U ohně', difficulty: 3, isPair: true, category: '🎭 Scénka' },
     ]);
   });
 
-  it('clamps difficulty to 1..6, defaults empty category, drops nameless/blank rows', () => {
-    const tsv = 'A\td\t9\t\t\n\n   \nB\td\t0\tNe\tKat\n\td\t2\tNe\tKat';
+  it('pair from "Ano", clamps difficulty, drops nameless/blank rows', () => {
+    const tsv = 'Scénka\tU ohně\t9\tAno\tScénka\n\t\t2\tNe\tX\n   \n';
     expect(parseTasks(tsv)).toEqual([
-      { name: 'A', description: 'd', difficulty: 6, isPair: false, category: 'Ostatní' },
-      { name: 'B', description: 'd', difficulty: 1, isPair: false, category: 'Kat' },
+      {
+        name: L('Scénka'),
+        description: L('U ohně'),
+        difficulty: 6,
+        isPair: true,
+        categories: [L('Scénka')],
+      },
     ]);
   });
 });
 
 describe('parseRewards', () => {
-  it('maps the Czech forms and parses price', () => {
-    const tsv =
-      'Dezert\tNavíc\t150\tOdměna\nRozesazení\tPřesadíš\t300\tTrest pro někoho\nBudíček\tVšem\t80\tTrest pro všechny';
+  it('maps the Czech forms, parses price, keeps trilingual name + tags', () => {
+    const tsv = 'Dezert|Dessert|Dessert\tNavíc\t150\tOdměna\tJídlo|Food|Essen';
     expect(parseRewards(tsv)).toEqual([
-      { name: 'Dezert', description: 'Navíc', price: 150, form: 'reward' },
-      { name: 'Rozesazení', description: 'Přesadíš', price: 300, form: 'punish_someone' },
-      { name: 'Budíček', description: 'Všem', price: 80, form: 'punish_all' },
+      {
+        name: L('Dezert', 'Dessert', 'Dessert'),
+        description: L('Navíc'),
+        price: 150,
+        form: 'reward',
+        categories: [L('Jídlo', 'Food', 'Essen')],
+      },
     ]);
   });
 
   it('falls back to reward for an unknown form and 0 for a bad price', () => {
     expect(parseRewards('X\td\tabc\tNěco')).toEqual([
-      { name: 'X', description: 'd', price: 0, form: 'reward' },
+      { name: L('X'), description: L('d'), price: 0, form: 'reward', categories: [] },
     ]);
+  });
+});
+
+describe('parseLocalized / serializeLocalized', () => {
+  it('splits cs|en|de and keeps a stray pipe in the German part', () => {
+    expect(parseLocalized('A|B|C|D')).toEqual({ cs: 'A', en: 'B', de: 'C|D' });
+    expect(parseLocalized('Solo')).toEqual({ cs: 'Solo', en: '', de: '' });
+  });
+
+  it('serializes back, dropping empty translations', () => {
+    expect(serializeLocalized(L('Solo'))).toBe('Solo');
+    expect(serializeLocalized(L('A', 'B', 'C'))).toBe('A|B|C');
   });
 });
 
@@ -54,12 +87,12 @@ describe('defaultTargets', () => {
 });
 
 describe('splitByName', () => {
-  it('separates create vs update by name (spec 10 re-import)', () => {
+  it('separates create vs update by the Czech name (spec 10 re-import)', () => {
     const { toCreate, toUpdate } = splitByName(
-      [{ name: 'A' }, { name: 'B' }, { name: 'C' }],
+      [{ name: L('A') }, { name: L('B') }, { name: L('C') }],
       new Set(['B']),
     );
-    expect(toCreate.map((x) => x.name)).toEqual(['A', 'C']);
-    expect(toUpdate.map((x) => x.name)).toEqual(['B']);
+    expect(toCreate.map((x) => x.name.cs)).toEqual(['A', 'C']);
+    expect(toUpdate.map((x) => x.name.cs)).toEqual(['B']);
   });
 });

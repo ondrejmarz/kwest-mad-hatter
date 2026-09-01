@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import type { Reward, Task } from '../../domain/types';
 
-import { parseDoc, zPlayerId, zRewardId, zTaskId } from './shared';
+import { parseDoc, zLocalizedText, zPlayerId, zRewardId, zTaskId } from './shared';
 
 /**
  * Turnus-scoped catalog copies (spec 4). `manualCoins` marks a task whose coins were
@@ -12,9 +12,9 @@ import { parseDoc, zPlayerId, zRewardId, zTaskId } from './shared';
  */
 export const taskSchema = z.object({
   id: zTaskId,
-  name: z.string(),
-  description: z.string(),
-  category: z.string(),
+  name: zLocalizedText,
+  description: zLocalizedText,
+  categories: z.array(zLocalizedText).readonly(),
   difficulty: z.number(),
   isPair: z.boolean(),
   coinReward: z.number(),
@@ -35,8 +35,9 @@ export const parseTaskDoc = (id: string, data: DocumentData): TaskDoc | null =>
 
 export const rewardSchema = z.object({
   id: zRewardId,
-  name: z.string(),
-  description: z.string(),
+  name: zLocalizedText,
+  description: zLocalizedText,
+  categories: z.array(zLocalizedText).readonly(),
   price: z.number(),
   form: z.enum(['reward', 'punish_someone', 'punish_all']),
   minTargets: z.number(),

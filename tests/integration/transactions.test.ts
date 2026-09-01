@@ -26,11 +26,13 @@ let env: RulesTestEnvironment;
 const asDb = (uid: string): Firestore =>
   env.authenticatedContext(uid).firestore() as unknown as Firestore;
 
+/** A single-language trilingual literal for the fixtures. */
+const L = (cs: string): { cs: string; en: string; de: string } => ({ cs, en: '', de: '' });
+
 const activeTaskFor = (taskId: string, name: string): ActiveTask => ({
   taskId: TaskId(taskId),
-  name,
-  description: '',
-  category: 'c',
+  name: L(name),
+  description: L(''),
   difficulty: 1,
   coinReward: 150,
   coinPenalty: 75,
@@ -99,9 +101,9 @@ beforeEach(async () => {
     await put('ownerIndex/alice', { playerId: 'p1' });
 
     const task = (over: Record<string, unknown>): Record<string, unknown> => ({
-      name: 'T',
-      description: '',
-      category: 'c',
+      name: L('T'),
+      description: L(''),
+      categories: [L('c')],
       difficulty: 1,
       isPair: false,
       coinReward: 150,
@@ -111,9 +113,9 @@ beforeEach(async () => {
       manualCoins: false,
       ...over,
     });
-    await put('tasks/t1', task({ name: 'Task 1' }));
-    await put('tasks/t2', task({ name: 'Task 2' }));
-    await put('tasks/t3', task({ name: 'Task 3' }));
+    await put('tasks/t1', task({ name: L('Task 1') }));
+    await put('tasks/t2', task({ name: L('Task 2') }));
+    await put('tasks/t3', task({ name: L('Task 3') }));
   });
 });
 
@@ -203,9 +205,9 @@ describe('runRollover and undoRollover', () => {
   });
   const task = (id: string): Task => ({
     id: TaskId(id),
-    name: id,
-    description: '',
-    category: 'c',
+    name: L(id),
+    description: L(''),
+    categories: [L('c')],
     difficulty: 1,
     isPair: false,
     coinReward: 150,

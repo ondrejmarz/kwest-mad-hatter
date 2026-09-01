@@ -1,0 +1,7 @@
+dist
+dev-dist
+coverage
+node_modules
+.firebase
+package-lock.json
+*.tsv

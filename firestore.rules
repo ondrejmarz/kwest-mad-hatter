@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Phase 0 skeleton: deny every client read and write.
+// The real, adversarially-tested ruleset arrives in Phase 2 (data + rules).
+// Seed scripts and rules tests bypass this via the emulator's
+// withSecurityRulesDisabled context, so a deny-all default is safe here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

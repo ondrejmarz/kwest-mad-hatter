@@ -244,6 +244,13 @@ service cloud.firestore {
         allow write: if isMember(t);
       }
 
+      // A bidder's own punishment history — the targets they have already spent this turnus (spec 8).
+      // Private to that bidder: only they read it (to grey out used targets) and write it (alongside
+      // their bid). Writing only ever restricts the writer, so no cross-player check is needed.
+      match /punishHistory/{pid} {
+        allow read, write: if hasPlayer(t) && pid == myPlayerId(t);
+      }
+
       // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the
       // first writer wins the task for the day. A solo claim binds the task to its player; a pair
       // claim also names an `invitee` and stays `accepted: false` until they confirm. The paired

@@ -17,6 +17,7 @@ export type DomainError =
   | { readonly code: 'REWARD_EXCLUSIVE_TAKEN'; readonly byPlayerName: string }
   | { readonly code: 'TOO_MANY_ACTIVE_REWARDS'; readonly max: number }
   | { readonly code: 'CANNOT_TARGET_SELF' }
+  | { readonly code: 'TARGET_ALREADY_USED' }
   | { readonly code: 'TARGET_COUNT_OUT_OF_RANGE'; readonly min: number; readonly max: number }
   | { readonly code: 'TARGET_AT_PUNISH_LIMIT'; readonly playerName: string; readonly max: number }
   | { readonly code: 'PARTNER_REQUIRED' }

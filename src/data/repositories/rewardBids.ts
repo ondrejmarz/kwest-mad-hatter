@@ -1,7 +1,8 @@
 import { type Firestore } from 'firebase/firestore';
 
 import type { RewardBid } from '../../domain/types';
-import { rewardBidCountsDoc, rewardBidDoc, rewardBidsCol } from '../paths';
+import { punishHistoryDoc, rewardBidCountsDoc, rewardBidDoc, rewardBidsCol } from '../paths';
+import { parsePunishHistory, type PunishHistory } from '../schemas/punishHistory';
 import { parseRewardBid, parseRewardBidCounts, type RewardBidCounts } from '../schemas/rewardBid';
 import { subscribeDoc, subscribeQuery, type Subscription } from '../subscriptions';
 
@@ -12,6 +13,14 @@ export const subscribeMyBid = (
   playerId: string,
   onState: (state: Subscription<RewardBid | null>) => void,
 ): (() => void) => subscribeDoc(rewardBidDoc(db, t, playerId), parseRewardBid, onState);
+
+/** My own punishment history — targets I have already spent this turnus (spec 8). */
+export const subscribeMyPunishHistory = (
+  db: Firestore,
+  t: string,
+  playerId: string,
+  onState: (state: Subscription<PunishHistory | null>) => void,
+): (() => void) => subscribeDoc(punishHistoryDoc(db, t, playerId), parsePunishHistory, onState);
 
 /** Every bid — admin only (rules deny a plain member this whole set), read for evaluation. */
 export const subscribeAllBids = (

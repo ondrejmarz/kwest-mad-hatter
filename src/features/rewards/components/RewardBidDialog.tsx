@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 
 import { db } from '../../../data/firebase';
+import { usedTargetsOf } from '../../../data/schemas/punishHistory';
 import { bidReward } from '../../../data/transactions/bidReward';
 import { cancelBid } from '../../../data/transactions/cancelBid';
 import type { PlayerId } from '../../../domain/ids';
@@ -15,6 +16,7 @@ import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
+import { useMyPunishHistory } from '../../session';
 
 /**
  * Tap a reward, bid on it in the day's hidden auction (spec 8). A bid must be at least the reward's
@@ -51,7 +53,15 @@ export function RewardBidDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const toggleTarget = (id: PlayerId): void =>
+  // Targets this bidder already spent this turnus, minus the ones on their current bid (which they
+  // may keep) — those stay locked forever, so the checklist greys them out (spec 8).
+  const historyState = useMyPunishHistory();
+  const history = historyState.status === 'ready' ? historyState.data : null;
+  const kept = mine && bid !== null ? bid.targetIds : [];
+  const spent = new Set(usedTargetsOf(history).filter((id) => !kept.includes(id as PlayerId)));
+
+  const toggleTarget = (id: PlayerId): void => {
+    if (spent.has(id)) return;
     setTargets((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
@@ -59,6 +69,7 @@ export function RewardBidDialog({
           ? [...prev, id]
           : prev,
     );
+  };
 
   const run = async (action: Promise<{ ok: boolean }>): Promise<void> => {
     if (busy) return;
@@ -135,8 +146,13 @@ export function RewardBidDialog({
                   {candidates.map((player) => (
                     <Checkbox
                       key={player.id}
-                      label={player.name}
+                      label={
+                        spent.has(player.id)
+                          ? `${player.name} — ${t('rewards.targetUsed')}`
+                          : player.name
+                      }
                       checked={targets.includes(player.id)}
+                      disabled={spent.has(player.id)}
                       onChange={() => toggleTarget(player.id)}
                     />
                   ))}

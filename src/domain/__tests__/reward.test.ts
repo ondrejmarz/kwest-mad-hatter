@@ -10,6 +10,7 @@ describe('createBid', () => {
     player: makePlayer({ id: PlayerId('p1') }),
     reward: makeReward({ id: RewardId('r1'), price: 50 }),
     targetIds: [],
+    usedTargets: [],
     turnus: makeTurnus({ currentDay: Day(3) }),
     createdAt: 1234,
   };
@@ -64,6 +65,18 @@ describe('createBid', () => {
       ok: false,
       error: { code: 'TARGET_COUNT_OUT_OF_RANGE', min: 1, max: 2 },
     });
+  });
+
+  it('rejects a target this bidder already punished this turnus', () => {
+    expect(
+      createBid({
+        ...base,
+        reward: punish,
+        amount: 80,
+        targetIds: [PlayerId('p2')],
+        usedTargets: [PlayerId('p2')],
+      }),
+    ).toEqual({ ok: false, error: { code: 'TARGET_ALREADY_USED' } });
   });
 
   it('rejects a bid while the day is locked', () => {

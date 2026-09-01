@@ -206,6 +206,7 @@ export const cs = {
     cancelBid: 'Zrušit přihoz',
     targetCountHint: 'Vyber terče ({min}–{max})',
     noTargets: 'Není koho zvolit.',
+    targetUsed: 'už zvoleno dřív',
     minTargetsLabel: 'Min. terčů',
     maxTargetsLabel: 'Max. terčů',
   },

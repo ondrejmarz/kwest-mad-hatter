@@ -7,6 +7,7 @@ export {
   ReservationProvider,
   useMyBid,
   useMyInvites,
+  useMyPunishHistory,
   useMyReservation,
   useReservationCounts,
   useTaskClaims,

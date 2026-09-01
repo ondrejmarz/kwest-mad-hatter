@@ -60,6 +60,10 @@ export const rewardBidDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'rewardBids', playerId);
 export const rewardBidCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'rewardBidCounts', String(day));
+// One doc per bidder holding every player they have aimed a punishment at this turnus, so a
+// (bidder, target) pair is only ever usable once (spec 8). Persists across days, unlike the bids.
+export const punishHistoryDoc = (db: Firestore, t: string, playerId: string) =>
+  doc(db, 'turnuses', t, 'punishHistory', playerId);
 // First-come marker for a same-day task pick, one doc per (day, task). Create-only for players, so
 // the first writer wins the task for the day; the id encodes both so it is unique per day. A pair
 // pick carries an `invitee` who must accept before either member gets the task.

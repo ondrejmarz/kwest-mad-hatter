@@ -1,0 +1,80 @@
+import { Day, PlayerId, RewardId, TaskId } from '../ids';
+import type { ActiveTask, Player, Reservation, Reward, Task, TurnusSettings } from '../types';
+
+/** Test data builders (spec 15.10) — never hand-write domain objects in tests. */
+
+export const makeTurnus = (over: Partial<TurnusSettings> = {}): TurnusSettings => ({
+  currentDay: Day(1),
+  startingCoins: 0,
+  coinsPerDifficulty: 50,
+  penaltyRatio: 0.5,
+  allowNegativeBalance: true,
+  maxActiveRewardsPerPlayer: 1,
+  maxActivePunishesPerPlayer: 1,
+  noPickPenalty: 100,
+  nextDayCategories: [],
+  currentDayCategories: [],
+  dayLocked: false,
+  ...over,
+});
+
+export const makeActiveTask = (over: Partial<ActiveTask> = {}): ActiveTask => ({
+  taskId: TaskId('t1'),
+  name: 'Sweep the yard',
+  description: '',
+  category: 'chores',
+  difficulty: 1,
+  coinReward: 150,
+  coinPenalty: 75,
+  isPair: false,
+  ...over,
+});
+
+export const makePlayer = (over: Partial<Player> = {}): Player => ({
+  id: PlayerId('p1'),
+  name: 'Jana',
+  coins: 100,
+  status: 'approved',
+  ownerUids: [],
+  needsPick: false,
+  activeTask: null,
+  ...over,
+});
+
+export const makeTask = (over: Partial<Task> = {}): Task => ({
+  id: TaskId('t1'),
+  name: 'Sweep the yard',
+  description: '',
+  category: 'chores',
+  difficulty: 1,
+  isPair: false,
+  coinReward: 150,
+  coinPenalty: 75,
+  usedByPlayerIds: [],
+  active: true,
+  ...over,
+});
+
+export const makeReward = (over: Partial<Reward> = {}): Reward => ({
+  id: RewardId('r1'),
+  name: 'Reseat someone',
+  description: '',
+  price: 50,
+  form: 'reward',
+  minTargets: 0,
+  maxTargets: 0,
+  exclusivePerDay: false,
+  active: true,
+  ...over,
+});
+
+export const makeReservation = (over: Partial<Reservation> = {}): Reservation => ({
+  playerId: PlayerId('p1'),
+  day: Day(2),
+  taskId: TaskId('t1'),
+  taskName: 'Sweep the yard',
+  isPair: false,
+  confirmed: true,
+  createdAt: 1000,
+  ...over,
+});

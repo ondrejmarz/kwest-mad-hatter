@@ -79,6 +79,7 @@ export default tseslint.config(
   // domain/ must not reach for React or Firebase (spec 15.5).
   {
     files: ['src/domain/**/*.{ts,tsx}'],
+    ignores: ['src/domain/**/__tests__/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -97,6 +98,24 @@ export default tseslint.config(
               message: 'domain/ must stay pure — no React, no Firebase (spec 15.5).',
             },
           ],
+        },
+      ],
+      // Time and randomness are inputs to the domain, never ambient effects (spec 15.5).
+      'no-restricted-properties': [
+        'error',
+        { object: 'Date', property: 'now', message: 'domain/ is pure — pass time in as an input.' },
+        { object: 'Math', property: 'random', message: 'domain/ is pure — pass randomness in.' },
+        {
+          object: 'crypto',
+          property: 'randomUUID',
+          message: 'domain/ is pure — pass ids in as inputs.',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message: 'domain/ is pure — pass time in as an input, not new Date().',
         },
       ],
     },

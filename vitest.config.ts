@@ -14,7 +14,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/domain/**'],
+      exclude: ['src/domain/**/__tests__/**'],
       reporter: ['text', 'html'],
+      // The domain layer is the heart of the app — hold it to full branch coverage (spec 15.10).
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
   },
 });

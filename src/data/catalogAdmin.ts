@@ -2,7 +2,6 @@ import { doc, type Firestore, setDoc, updateDoc } from 'firebase/firestore';
 
 import type { LocalizedText, RewardForm } from '../domain/types';
 
-import { defaultTargets } from './importCatalog';
 import { rewardDoc, rewardsCol, taskDoc, tasksCol } from './paths';
 
 /**
@@ -20,7 +19,6 @@ export interface TaskFields {
   readonly minPlayers: number;
   readonly maxPlayers: number;
   readonly coinReward: number;
-  readonly coinPenalty: number;
   readonly manualCoins: boolean;
   readonly active: boolean;
 }
@@ -41,17 +39,19 @@ export interface RewardFields {
   readonly categories: readonly LocalizedText[];
   readonly price: number;
   readonly form: RewardForm;
+  /** Target range for `punish_someone` (0/0 for other forms) — how many players it hits (spec 8). */
+  readonly minTargets: number;
+  readonly maxTargets: number;
   readonly exclusivePerDay: boolean;
   readonly active: boolean;
 }
 
 export const createReward = (db: Firestore, t: string, fields: RewardFields): Promise<void> =>
-  setDoc(doc(rewardsCol(db, t)), { ...fields, ...defaultTargets(fields.form) });
+  setDoc(doc(rewardsCol(db, t)), { ...fields });
 
 export const updateReward = (
   db: Firestore,
   t: string,
   rewardId: string,
   fields: RewardFields,
-): Promise<void> =>
-  updateDoc(rewardDoc(db, t, rewardId), { ...fields, ...defaultTargets(fields.form) });
+): Promise<void> => updateDoc(rewardDoc(db, t, rewardId), { ...fields });

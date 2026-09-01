@@ -1,6 +1,7 @@
 import { type Firestore, increment, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
+import type { PlayerId } from '../../domain/ids';
 import { createBid } from '../../domain/reward';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
@@ -22,6 +23,7 @@ export async function bidReward(
   playerId: string,
   rewardId: string,
   amount: number,
+  targetIds: readonly PlayerId[] = [],
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
@@ -31,7 +33,7 @@ export async function bidReward(
     const reward = parseReward(rewardSnap.id, rewardSnap.data() ?? {});
     if (reward === null) return err({ code: 'REWARD_INACTIVE' });
 
-    const built = createBid({ player, reward, amount, turnus, createdAt: 0 });
+    const built = createBid({ player, reward, amount, targetIds, turnus, createdAt: 0 });
     if (!built.ok) return built;
 
     const previous = await tx.get(rewardBidDoc(db, t, playerId));

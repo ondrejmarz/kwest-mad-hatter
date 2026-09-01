@@ -8,6 +8,7 @@ import { isOnline } from '../../platform/connectivity/isOnline';
 import {
   eventsCol,
   playerDoc,
+  purchaseDoc,
   reservationDoc,
   rewardBidDoc,
   rollbackDoc,
@@ -62,6 +63,10 @@ export async function undoRollover(
         ...rest,
         createdAt: Timestamp.fromMillis(createdAt),
       });
+    }
+    // Owned rewards created by the evaluation are removed again (spec 8, decision A4).
+    for (const id of snapshot.purchaseIds) {
+      tx.delete(purchaseDoc(db, t, id));
     }
     tx.delete(rollbackDoc(db, t));
     tx.set(doc(eventsCol(db, t)), actionEvent('rollover_undone', snapshot.currentDay, {}, meta));

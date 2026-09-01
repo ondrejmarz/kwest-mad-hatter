@@ -22,6 +22,7 @@ export const rewardBidSchema = z.object({
   day: zDay,
   rewardId: zRewardId,
   amount: z.number(),
+  targetIds: z.array(zPlayerId).readonly().default([]),
   createdAt: zTimestampMillis,
 });
 

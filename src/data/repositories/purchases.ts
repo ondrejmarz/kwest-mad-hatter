@@ -12,3 +12,10 @@ export const subscribePurchasesForDay = (
   onState: (state: Subscription<readonly PurchaseDoc[]>) => void,
 ): (() => void) =>
   subscribeQuery(query(purchasesCol(db, t), where('day', '==', day)), parsePurchase, onState);
+
+/** Every owned reward in the turnus — backs the "has a reward" chip on every player (spec 8). */
+export const subscribeAllPurchases = (
+  db: Firestore,
+  t: string,
+  onState: (state: Subscription<readonly PurchaseDoc[]>) => void,
+): (() => void) => subscribeQuery(purchasesCol(db, t), parsePurchase, onState);

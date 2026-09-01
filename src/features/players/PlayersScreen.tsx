@@ -11,12 +11,13 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { usePlayers, useMyPlayer, useSession, useTurnus } from '../session';
+import { usePlayers, useMyPlayer, usePurchases, useSession, useTurnus } from '../session';
 
 import { CreatePlayerDialog } from './components/CreatePlayerDialog';
 import { PendingPlayersSection } from './components/PendingPlayersSection';
 import { PlayerDetailDialog } from './components/PlayerDetailDialog';
 import { PlayerEditDialog } from './components/PlayerEditDialog';
+import { selectPlayerFacts } from './components/PlayerFacts';
 import { PlayerRow } from './components/PlayerRow';
 
 const PLAYER_SORTS = ['nameAsc', 'nameDesc', 'coinsDesc', 'coinsAsc'] as const;
@@ -41,6 +42,7 @@ export function PlayersScreen() {
   const { uid, turnus, role } = useSession();
   const playersState = usePlayers();
   const turnusState = useTurnus();
+  const purchasesState = usePurchases();
   const myPlayer = useMyPlayer();
   const isAdmin = role === 'admin';
 
@@ -70,6 +72,10 @@ export function PlayersScreen() {
   }
 
   const players = playersState.data;
+  // Each card shows the rewards a player won and the punishments aimed at them, split out of the
+  // public purchases (spec 9.1). `selectPlayerFacts` reads a player's slice; the row also derives
+  // its "má odměnu" / "je terčem" chips from whether those slices are non-empty.
+  const purchases = purchasesState.status === 'ready' ? purchasesState.data : [];
   const approved = players.filter((player) => player.status === 'approved');
   const pending = players
     .filter((player) => player.status === 'pending')
@@ -107,6 +113,7 @@ export function PlayersScreen() {
           player={myPlayer}
           mine
           isAdmin={isAdmin}
+          {...selectPlayerFacts(purchases, myPlayer.id)}
           onOpen={() => setSelected(myPlayer)}
           onEdit={() => setEditing(myPlayer)}
           onAdjustCoins={adjustCoinsFor(myPlayer.id)}
@@ -123,6 +130,7 @@ export function PlayersScreen() {
               player={player}
               mine={false}
               isAdmin={isAdmin}
+              {...selectPlayerFacts(purchases, player.id)}
               onOpen={() => setSelected(player)}
               onEdit={() => setEditing(player)}
               onAdjustCoins={adjustCoinsFor(player.id)}

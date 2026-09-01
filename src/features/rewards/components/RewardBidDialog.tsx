@@ -3,12 +3,14 @@ import { type FormEvent, useState } from 'react';
 import { db } from '../../../data/firebase';
 import { bidReward } from '../../../data/transactions/bidReward';
 import { cancelBid } from '../../../data/transactions/cancelBid';
+import type { PlayerId } from '../../../domain/ids';
 import type { Player, Reward, RewardBid, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
 import { Button } from '../../../ui/Button';
 import { CardLayout } from '../../../ui/CardLayout';
+import { Checkbox } from '../../../ui/Checkbox';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
@@ -26,6 +28,7 @@ export function RewardBidDialog({
   settings,
   bid,
   count,
+  candidates,
   turnusId,
   onClose,
 }: {
@@ -34,14 +37,28 @@ export function RewardBidDialog({
   settings: TurnusSettings;
   bid: RewardBid | null;
   count: number;
+  candidates: readonly Player[];
   turnusId: string;
   onClose: () => void;
 }) {
   const { t, locale } = useTranslation();
   const mine = bid !== null && bid.rewardId === reward.id;
+  const isPunish = reward.form === 'punish_someone';
   const [amount, setAmount] = useState(String(mine && bid !== null ? bid.amount : reward.price));
+  const [targets, setTargets] = useState<readonly PlayerId[]>(
+    mine && bid !== null ? bid.targetIds : [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const toggleTarget = (id: PlayerId): void =>
+    setTargets((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length < reward.maxTargets
+          ? [...prev, id]
+          : prev,
+    );
 
   const run = async (action: Promise<{ ok: boolean }>): Promise<void> => {
     if (busy) return;
@@ -60,7 +77,11 @@ export function RewardBidDialog({
       setError(t('rewards.bidTooLow', { min: reward.price }));
       return;
     }
-    void run(bidReward(db, turnusId, myPlayer.id, reward.id, value));
+    if (isPunish && (targets.length < reward.minTargets || targets.length > reward.maxTargets)) {
+      setError(t('rewards.targetCountHint', { min: reward.minTargets, max: reward.maxTargets }));
+      return;
+    }
+    void run(bidReward(db, turnusId, myPlayer.id, reward.id, value, isPunish ? targets : []));
   };
 
   return (
@@ -100,7 +121,28 @@ export function RewardBidDialog({
               inputMode="numeric"
               autoFocus
             />
-            <Button type="submit" disabled={busy}>
+            {isPunish &&
+              (candidates.length === 0 ? (
+                <p className="text-sm text-content-muted">{t('rewards.noTargets')}</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-content-muted">
+                    {t('rewards.targetCountHint', {
+                      min: reward.minTargets,
+                      max: reward.maxTargets,
+                    })}
+                  </span>
+                  {candidates.map((player) => (
+                    <Checkbox
+                      key={player.id}
+                      label={player.name}
+                      checked={targets.includes(player.id)}
+                      onChange={() => toggleTarget(player.id)}
+                    />
+                  ))}
+                </div>
+              ))}
+            <Button type="submit" disabled={busy || (isPunish && candidates.length === 0)}>
               {mine ? t('rewards.changeBid') : t('rewards.placeBid')}
             </Button>
           </form>

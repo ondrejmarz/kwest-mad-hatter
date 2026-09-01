@@ -1,6 +1,7 @@
 import { err, ok, type Result } from '../lib/result';
 
 import type { DomainError } from './errors';
+import type { PlayerId } from './ids';
 import type { Player, Reward, RewardBid, TurnusSettings } from './types';
 
 /**
@@ -16,20 +17,35 @@ export function createBid(params: {
   readonly player: Player;
   readonly reward: Reward;
   readonly amount: number;
+  readonly targetIds: readonly PlayerId[];
   readonly turnus: TurnusSettings;
   readonly createdAt: number;
 }): Result<RewardBid, DomainError> {
-  const { player, reward, amount, turnus, createdAt } = params;
+  const { player, reward, amount, targetIds, turnus, createdAt } = params;
   if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
   if (!reward.active) return err({ code: 'REWARD_INACTIVE' });
   if (!Number.isInteger(amount) || amount < reward.price) {
     return err({ code: 'BID_BELOW_MINIMUM', min: reward.price });
+  }
+  // Only `punish_someone` carries targets — whom the buyer would punish if this bid wins. Their
+  // actual (capped/filled) targets are decided at evaluation; here we just validate the intent.
+  const targets = reward.form === 'punish_someone' ? [...new Set(targetIds)] : [];
+  if (reward.form === 'punish_someone') {
+    if (targets.includes(player.id)) return err({ code: 'CANNOT_TARGET_SELF' });
+    if (targets.length < reward.minTargets || targets.length > reward.maxTargets) {
+      return err({
+        code: 'TARGET_COUNT_OUT_OF_RANGE',
+        min: reward.minTargets,
+        max: reward.maxTargets,
+      });
+    }
   }
   return ok({
     playerId: player.id,
     day: turnus.currentDay,
     rewardId: reward.id,
     amount,
+    targetIds: targets,
     createdAt,
   });
 }

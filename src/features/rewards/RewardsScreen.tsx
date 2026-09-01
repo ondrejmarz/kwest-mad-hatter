@@ -16,7 +16,14 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { useCatalogRewards, useMyBid, useMyPlayer, useSession, useTurnus } from '../session';
+import {
+  useCatalogRewards,
+  useMyBid,
+  useMyPlayer,
+  usePlayers,
+  useSession,
+  useTurnus,
+} from '../session';
 
 import { RewardBidDialog } from './components/RewardBidDialog';
 import { RewardCard } from './components/RewardCard';
@@ -47,7 +54,16 @@ export function RewardsScreen() {
   const turnusState = useTurnus();
   const myPlayer = useMyPlayer();
   const bidState = useMyBid();
+  const playersState = usePlayers();
   const isAdmin = role === 'admin';
+
+  // Possible punishment targets: approved players other than me.
+  const candidates =
+    myPlayer !== null && playersState.status === 'ready'
+      ? playersState.data.filter(
+          (player) => player.status === 'approved' && player.id !== myPlayer.id,
+        )
+      : [];
 
   const [sort, setSort] = usePersistentState<RewardSort>('kwest.rewards.sort', 'nameAsc');
   const [formFilter, setFormFilter] = usePersistentState<'' | RewardForm>('kwest.rewards.form', '');
@@ -161,6 +177,7 @@ export function RewardsScreen() {
           settings={settings}
           bid={myBid}
           count={countMap[acting.id] ?? 0}
+          candidates={candidates}
           turnusId={turnus.id}
           onClose={() => setActing(null)}
         />

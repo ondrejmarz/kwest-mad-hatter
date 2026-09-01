@@ -11,7 +11,15 @@ import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
-import { useCatalogRewards, useMyBid, useMyReservation, useSession } from '../../session';
+import {
+  useCatalogRewards,
+  useMyBid,
+  useMyReservation,
+  usePurchases,
+  useSession,
+} from '../../session';
+
+import { PlayerFacts, selectPlayerFacts } from './PlayerFacts';
 
 /**
  * Player detail (spec 9.1). For every player it surfaces the useful public facts — coins and the
@@ -42,6 +50,13 @@ export function PlayerDetailDialog({
   const reservationState = useMyReservation();
   const bidState = useMyBid();
   const rewardsState = useCatalogRewards();
+  const purchasesState = usePurchases();
+  // Won rewards and incoming punishments are public — shown for every player, split the same way as
+  // the roster row so a row and its detail agree (`selectPlayerFacts`).
+  const { won, targetedBy } =
+    purchasesState.status === 'ready'
+      ? selectPlayerFacts(purchasesState.data, player.id)
+      : { won: [], targetedBy: [] };
   const myReservation = mine && reservationState.status === 'ready' ? reservationState.data : null;
   const myBid = mine && bidState.status === 'ready' ? bidState.data : null;
   const bidReward =
@@ -61,12 +76,17 @@ export function PlayerDetailDialog({
     else setError(t('players.wrongPin'));
   };
 
-  const active = player.activeTask;
-  const chips = mine ? (
-    <Chip tone="accent">{t('players.you')}</Chip>
-  ) : player.needsPick ? (
-    <Chip tone="warning">{t('players.needsPick')}</Chip>
-  ) : undefined;
+  const hasTask = player.activeTask !== null;
+  const chips = (
+    <>
+      {mine && <Chip tone="accent">{t('players.you')}</Chip>}
+      <Chip tone={hasTask ? 'muted' : 'warning'}>
+        {hasTask ? t('players.hasTask') : t('players.needsPick')}
+      </Chip>
+      {won.length > 0 && <Chip tone="success">{t('players.hasReward')}</Chip>}
+      {targetedBy.length > 0 && <Chip tone="danger">{t('players.isTargeted')}</Chip>}
+    </>
+  );
 
   const label = (text: string) => (
     <p className="text-xs font-semibold uppercase text-content-muted">{text}</p>
@@ -76,24 +96,11 @@ export function PlayerDetailDialog({
     <Dialog open onClose={onClose} ariaLabel={player.name}>
       <CardLayout
         title={player.name}
-        {...(chips !== undefined ? { chips } : {})}
+        chips={chips}
         footerRight={<CoinAmount amount={player.coins} />}
       />
 
-      {active !== null && (
-        <div className="mt-4 border-t border-border pt-4">
-          {label(t('players.activeTaskLabel'))}
-          <p className="mt-1 text-content">{localize(active.name, locale)}</p>
-          {localize(active.description, locale) !== '' && (
-            <p className="mt-0.5 text-sm text-content-muted">
-              {localize(active.description, locale)}
-            </p>
-          )}
-          {active.partnerNames.length > 0 && (
-            <p className="mt-0.5 text-sm text-content-muted">{active.partnerNames.join(', ')}</p>
-          )}
-        </div>
-      )}
+      <PlayerFacts player={player} won={won} targetedBy={targetedBy} />
 
       {mine && (
         <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">

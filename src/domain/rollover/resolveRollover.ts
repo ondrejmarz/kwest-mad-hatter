@@ -2,7 +2,9 @@ import { unique } from '../../lib/arrays';
 import { invariant } from '../../lib/invariant';
 import type { GameEvent } from '../events';
 import { Day, type PlayerId, type TaskId } from '../ids';
+import type { Purchase } from '../types';
 
+import { assignPunishTargets, type PunishWin } from './assignPunishTargets';
 import { assignTasks } from './assignTasks';
 import { buildClaims } from './buildClaims';
 import { resolveAuctions } from './resolveAuctions';
@@ -49,9 +51,55 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
   const { claims, expiredEvents } = buildClaims(reservations, settledCoins, nextDay);
   const assignment = assignTasks(sortClaims(claims), tasksById, nameById, nextDay);
 
-  // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance.
+  // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance and get a
+  // Purchase doc (their owned reward, spec 8). Targets stay empty here — punishment targeting fills
+  // them in a later step; the id is deterministic so undo can delete exactly these docs.
   const auction = resolveAuctions(rewards, rewardBids, settledCoins, currentDay);
   const coinsById = auction.coinsAfter;
+  const bidsByPlayer = new Map(rewardBids.map((bid) => [bid.playerId, bid] as const));
+  const winInfo = auction.wins.map((win) => {
+    const reward = rewardsById.get(win.rewardId);
+    invariant(reward !== undefined, 'a won reward exists in the catalog');
+    return { win, reward };
+  });
+  const punishWins: readonly PunishWin[] = winInfo
+    .filter(({ reward }) => reward.form === 'punish_someone')
+    .map(({ win, reward }) => {
+      const bid = bidsByPlayer.get(win.playerId);
+      invariant(bid !== undefined, 'a winner has a bid');
+      return {
+        rewardId: win.rewardId,
+        buyerId: win.playerId,
+        amount: win.amount,
+        createdAt: bid.createdAt,
+        minTargets: reward.minTargets,
+        maxTargets: reward.maxTargets,
+        picks: bid.targetIds,
+      };
+    });
+  const punishTargets = assignPunishTargets(
+    punishWins,
+    turnus.maxActivePunishesPerPlayer,
+    approved.map((player) => player.id),
+    currentDay,
+  );
+  const purchases: readonly Purchase[] = winInfo.map(({ win, reward }) => {
+    const targetIds = punishTargets.get(win.rewardId) ?? [];
+    return {
+      id: `${currentDay}_${win.rewardId}`,
+      day: currentDay,
+      buyerId: win.playerId,
+      buyerName: nameOf(win.playerId),
+      rewardId: win.rewardId,
+      rewardName: reward.name,
+      description: reward.description,
+      price: win.amount,
+      form: reward.form,
+      targetIds,
+      targetNames: targetIds.map((id) => nameOf(id)),
+      refunded: false,
+    };
+  });
 
   const playerUpdates: readonly PlayerUpdate[] = approved.map((player) => {
     const coins = coinsById.get(player.id);
@@ -93,22 +141,19 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
       .map((task) => ({ taskId: task.id, usedByPlayerIds: task.usedByPlayerIds })),
     reservations,
     rewardBids,
+    purchaseIds: purchases.map((purchase) => purchase.id),
   };
 
   const withoutTask: readonly PreviewWithoutTask[] = playerUpdates
     .filter((update) => update.activeTask === null)
     .map((update) => ({ playerId: update.playerId, playerName: nameOf(update.playerId) }));
 
-  const auctions: readonly PreviewAuction[] = auction.wins.map((win) => {
-    const reward = rewardsById.get(win.rewardId);
-    invariant(reward !== undefined, 'a won reward exists in the catalog');
-    return {
-      rewardId: win.rewardId,
-      rewardName: reward.name,
-      winnerName: nameOf(win.playerId),
-      amount: win.amount,
-    };
-  });
+  const auctions: readonly PreviewAuction[] = purchases.map((purchase) => ({
+    rewardId: purchase.rewardId,
+    rewardName: purchase.rewardName,
+    winnerName: purchase.buyerName,
+    amount: purchase.price,
+  }));
 
   const events: readonly GameEvent[] = [
     ...settlements.map((settlement) => settlement.event),
@@ -129,6 +174,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     },
     playerUpdates,
     taskUpdates,
+    purchases,
     events,
     rollbackSnapshot,
     preview: {

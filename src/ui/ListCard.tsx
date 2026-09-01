@@ -19,6 +19,7 @@ export function ListCard({
   footerRight,
   onClick,
   highlighted = false,
+  children,
 }: {
   title: ReactNode;
   topRight?: ReactNode;
@@ -28,6 +29,7 @@ export function ListCard({
   footerRight?: ReactNode;
   onClick?: () => void;
   highlighted?: boolean;
+  children?: ReactNode;
 }) {
   const className = cx(
     'w-full rounded-xl border px-4 py-3 text-left',
@@ -36,14 +38,17 @@ export function ListCard({
   );
 
   const body = (
-    <CardLayout
-      title={title}
-      {...(topRight !== undefined ? { topRight } : {})}
-      {...(chips !== undefined ? { chips } : {})}
-      {...(description !== undefined ? { description } : {})}
-      {...(footerLeft !== undefined ? { footerLeft } : {})}
-      {...(footerRight !== undefined ? { footerRight } : {})}
-    />
+    <>
+      <CardLayout
+        title={title}
+        {...(topRight !== undefined ? { topRight } : {})}
+        {...(chips !== undefined ? { chips } : {})}
+        {...(description !== undefined ? { description } : {})}
+        {...(footerLeft !== undefined ? { footerLeft } : {})}
+        {...(footerRight !== undefined ? { footerRight } : {})}
+      />
+      {children}
+    </>
   );
 
   if (onClick !== undefined) {

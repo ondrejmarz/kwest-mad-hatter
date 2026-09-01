@@ -20,7 +20,8 @@ const AREA =
   'min-h-20 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-content outline-none focus:border-accent';
 
 /** Add or edit one reward (spec 9.4). Name, description and each tag are one `cs|en|de` field (like
- * the import), keeping the form short on mobile; target counts are derived from the form. */
+ * the import), keeping the form short on mobile. `punish_someone` also picks how many players it
+ * targets (a min–max range, like a group task); other forms carry no targets. */
 export function RewardEditDialog({
   reward,
   onClose,
@@ -40,6 +41,8 @@ export function RewardEditDialog({
   );
   const [price, setPrice] = useState(String(reward?.price ?? ''));
   const [form, setForm] = useState<RewardForm>(reward?.form ?? 'reward');
+  const [minTargets, setMinTargets] = useState(String(reward?.minTargets || 1));
+  const [maxTargets, setMaxTargets] = useState(String(reward?.maxTargets || 1));
   const [exclusive, setExclusive] = useState(reward?.exclusivePerDay ?? false);
   const [active, setActive] = useState(reward?.active ?? true);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +59,16 @@ export function RewardEditDialog({
       setError(t('rewards.invalidPrice'));
       return;
     }
+    const min = form === 'punish_someone' ? Math.max(1, Number(minTargets) || 1) : 0;
+    const max = form === 'punish_someone' ? Math.max(min, Number(maxTargets) || min) : 0;
     const fields: RewardFields = {
       name: parsedName,
       description: parseLocalized(description),
       categories: parseLocalizedLines(tags),
       price: priceValue,
       form,
+      minTargets: min,
+      maxTargets: max,
       exclusivePerDay: exclusive,
       active,
     };
@@ -121,6 +128,22 @@ export function RewardEditDialog({
             ))}
           </Select>
         </label>
+        {form === 'punish_someone' && (
+          <div className="flex gap-2">
+            <TextInput
+              label={t('rewards.minTargetsLabel')}
+              value={minTargets}
+              onChange={(event) => setMinTargets(event.target.value)}
+              inputMode="numeric"
+            />
+            <TextInput
+              label={t('rewards.maxTargetsLabel')}
+              value={maxTargets}
+              onChange={(event) => setMaxTargets(event.target.value)}
+              inputMode="numeric"
+            />
+          </div>
+        )}
         <Checkbox label={t('rewards.exclusiveLabel')} checked={exclusive} onChange={setExclusive} />
         <Checkbox label={t('rewards.activeLabel')} checked={active} onChange={setActive} />
         {error !== null && <p className="text-sm text-danger">{error}</p>}

@@ -4,6 +4,7 @@ import type {
   ActiveTask,
   LocalizedText,
   Player,
+  Purchase,
   Reservation,
   Reward,
   RewardBid,
@@ -74,6 +75,8 @@ export interface RollbackSnapshot {
   readonly tasks: readonly TaskUpdate[];
   readonly reservations: readonly Reservation[];
   readonly rewardBids: readonly RewardBid[];
+  /** Ids of the purchase docs evaluation created (auction wins), so undo can delete them. */
+  readonly purchaseIds: readonly string[];
 }
 
 export interface PreviewSettlement {
@@ -131,6 +134,8 @@ export interface RolloverResult {
   readonly turnus: TurnusUpdate;
   readonly playerUpdates: readonly PlayerUpdate[];
   readonly taskUpdates: readonly TaskUpdate[];
+  /** Purchase docs to create for the auction winners (owned rewards, spec 8). */
+  readonly purchases: readonly Purchase[];
   readonly events: readonly GameEvent[];
   readonly rollbackSnapshot: RollbackSnapshot;
   readonly preview: RolloverPreview;

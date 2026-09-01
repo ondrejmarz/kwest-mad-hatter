@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import {
   CatalogProvider,
   PlayersProvider,
+  PurchasesProvider,
   ReservationProvider,
   TurnusProvider,
 } from '../../features/session';
@@ -14,7 +15,9 @@ export function GameProviders() {
       <PlayersProvider>
         <CatalogProvider>
           <ReservationProvider>
-            <Outlet />
+            <PurchasesProvider>
+              <Outlet />
+            </PurchasesProvider>
           </ReservationProvider>
         </CatalogProvider>
       </PlayersProvider>

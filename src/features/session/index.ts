@@ -8,5 +8,6 @@ export {
   useMyBid,
   useMyInvites,
   useMyReservation,
+  useReservationCounts,
 } from './ReservationProvider';
 export { useMyPlayer } from './useMyPlayer';

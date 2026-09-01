@@ -14,6 +14,7 @@ import { TextInput } from '../../../ui/TextInput';
 import {
   useCatalogRewards,
   useMyBid,
+  useMyInvites,
   useMyReservation,
   usePurchases,
   useSession,
@@ -48,6 +49,7 @@ export function PlayerDetailDialog({
   // The reservation and bid are secret — these listeners hold *this device's* own, so they are only
   // meaningful (and only shown) on the player's own card.
   const reservationState = useMyReservation();
+  const invitesState = useMyInvites();
   const bidState = useMyBid();
   const rewardsState = useCatalogRewards();
   const purchasesState = usePurchases();
@@ -57,7 +59,14 @@ export function PlayerDetailDialog({
     purchasesState.status === 'ready'
       ? selectPlayerFacts(purchasesState.data, player.id)
       : { won: [], targetedBy: [] };
-  const myReservation = mine && reservationState.status === 'ready' ? reservationState.data : null;
+  const ownReservation = mine && reservationState.status === 'ready' ? reservationState.data : null;
+  // On the invitee's own card a pair/group they accepted counts as their reservation too, so both
+  // members see it (spec 7).
+  const acceptedInvite =
+    mine && invitesState.status === 'ready'
+      ? (invitesState.data.find((invite) => invite.responses[player.id] === 'accepted') ?? null)
+      : null;
+  const myReservation = ownReservation ?? acceptedInvite;
   const myBid = mine && bidState.status === 'ready' ? bidState.data : null;
   const bidReward =
     myBid !== null && rewardsState.status === 'ready'

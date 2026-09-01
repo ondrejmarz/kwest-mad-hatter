@@ -114,3 +114,27 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23cbd5e1' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   }
 }
+
+/*
+ * A group invite's outcome (spec 7): the check or cross pops in with a slight overshoot so both the
+ * inviter and the invited player notice the result the moment an answer lands. Re-keyed on the
+ * answer in React, so flipping it replays the pop. Honours reduced-motion.
+ */
+@keyframes result-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.result-pop {
+  animation: result-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-pop {
+    animation: none;
+  }
+}

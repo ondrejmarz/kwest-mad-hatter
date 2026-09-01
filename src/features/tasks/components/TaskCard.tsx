@@ -12,23 +12,30 @@ import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
 /**
- * A task card (spec 9.2): name + difficulty dots on the first line, chips (category
- * without its emoji, pair, availability), the description, then coins and the admin
- * pencil. The availability flags come from the pure eligibility rules in the screen.
+ * A task card (spec 9.2): name + difficulty dots on the first line, chips (category without its
+ * emoji, pair/group, and live status), the description, then coins and the admin pencil. The status
+ * chips are the concrete facts the screen computes: who holds it today (mine vs. someone else) and
+ * whether it carries a reservation for tomorrow (mine vs. another player's interest).
  */
 export const TaskCard = memo(function TaskCard({
   task,
-  unavailableTomorrow,
-  unavailableToday,
+  mine = false,
+  taken = false,
   reserved = false,
+  hasInterest = false,
   isAdmin,
   onOpen,
   onEdit,
 }: {
   task: Task;
-  unavailableTomorrow: boolean;
-  unavailableToday: boolean;
+  /** This is the viewer's own active task today. */
+  mine?: boolean;
+  /** Another player holds this task today (first-come "taken"). */
+  taken?: boolean;
+  /** The viewer reserved this task for tomorrow. */
   reserved?: boolean;
+  /** Another player reserved this task for tomorrow (existence only, no name). */
+  hasInterest?: boolean;
   isAdmin: boolean;
   onOpen?: () => void;
   onEdit: () => void;
@@ -52,9 +59,10 @@ export const TaskCard = memo(function TaskCard({
               {t('tasks.groupSize', { size: formatGroupSize(task.minPlayers, task.maxPlayers) })}
             </Chip>
           )}
+          {mine && <Chip tone="success">{t('tasks.selectedChip')}</Chip>}
+          {taken && <Chip tone="danger">{t('tasks.takenChip')}</Chip>}
           {reserved && <Chip tone="success">{t('tasks.reservedChip')}</Chip>}
-          {unavailableTomorrow && <Chip tone="warning">{t('tasks.unavailableTomorrow')}</Chip>}
-          {unavailableToday && <Chip tone="danger">{t('tasks.unavailableToday')}</Chip>}
+          {hasInterest && <Chip tone="warning">{t('tasks.hasInterest')}</Chip>}
         </>
       }
       description={localize(task.description, locale)}

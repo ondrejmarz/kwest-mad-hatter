@@ -39,9 +39,15 @@ export const parseReservation = (id: string, data: DocumentData): Reservation | 
   return parsed.data as Reservation;
 };
 
-/** Public aggregate interest per task — counts only, never names (spec 4, 7). */
+/**
+ * Public reservation aggregates for a day (spec 4, 7). `counts` is the interest per task (a number,
+ * a group counts once); `players` marks which players hold a reservation for the day — both are
+ * existence signals only, never the who↔which link (reservations stay secret). Both default to an
+ * empty map so a document written before `players` existed still parses.
+ */
 export const reservationCountsSchema = z.object({
-  counts: z.record(z.string(), z.number()),
+  counts: z.record(z.string(), z.number()).default({}),
+  players: z.record(z.string(), z.boolean()).default({}),
 });
 export type ReservationCounts = z.infer<typeof reservationCountsSchema>;
 

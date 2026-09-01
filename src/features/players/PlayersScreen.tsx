@@ -11,7 +11,14 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { usePlayers, useMyPlayer, usePurchases, useSession, useTurnus } from '../session';
+import {
+  usePlayers,
+  useMyPlayer,
+  usePurchases,
+  useReservationCounts,
+  useSession,
+  useTurnus,
+} from '../session';
 
 import { CreatePlayerDialog } from './components/CreatePlayerDialog';
 import { PendingPlayersSection } from './components/PendingPlayersSection';
@@ -43,6 +50,7 @@ export function PlayersScreen() {
   const playersState = usePlayers();
   const turnusState = useTurnus();
   const purchasesState = usePurchases();
+  const countsState = useReservationCounts();
   const myPlayer = useMyPlayer();
   const isAdmin = role === 'admin';
 
@@ -76,6 +84,9 @@ export function PlayersScreen() {
   // public purchases (spec 9.1). `selectPlayerFacts` reads a player's slice; the row also derives
   // its "má odměnu" / "je terčem" chips from whether those slices are non-empty.
   const purchases = purchasesState.status === 'ready' ? purchasesState.data : [];
+  // Who holds a reservation for tomorrow — a public existence flag, no task revealed (spec 7).
+  const reservedPlayers =
+    countsState.status === 'ready' && countsState.data ? countsState.data.players : {};
   const approved = players.filter((player) => player.status === 'approved');
   const pending = players
     .filter((player) => player.status === 'pending')
@@ -113,6 +124,7 @@ export function PlayersScreen() {
           player={myPlayer}
           mine
           isAdmin={isAdmin}
+          hasReservation={reservedPlayers[myPlayer.id] === true}
           {...selectPlayerFacts(purchases, myPlayer.id)}
           onOpen={() => setSelected(myPlayer)}
           onEdit={() => setEditing(myPlayer)}
@@ -130,6 +142,7 @@ export function PlayersScreen() {
               player={player}
               mine={false}
               isAdmin={isAdmin}
+              hasReservation={reservedPlayers[player.id] === true}
               {...selectPlayerFacts(purchases, player.id)}
               onOpen={() => setSelected(player)}
               onEdit={() => setEditing(player)}

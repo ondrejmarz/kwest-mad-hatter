@@ -230,7 +230,11 @@ service cloud.firestore {
         allow create: if hasPlayer(t)
           && request.resource.data.playerId == myPlayerId(t)
           && dayUnlocked(t);
-        allow update, delete: if isAdmin(t);
+        // A player releases their own claim when they switch tasks (deleted in the same pick that
+        // claims the new one), freeing the old task; admins may clear any.
+        allow delete: if isAdmin(t)
+          || (hasPlayer(t) && resource.data.playerId == myPlayerId(t) && dayUnlocked(t));
+        allow update: if isAdmin(t);
       }
 
       // Owned rewards: created by day evaluation and removed by undo — both run as admin. Members

@@ -11,11 +11,12 @@ import { parseTask } from '../schemas/catalog';
 import { readPlayer, readTurnus } from './shared';
 
 /**
- * Take a task for TODAY, first-come (spec 7) — for a player whose reservation did not come through.
- * Exclusivity is a create-only claim marker keyed by `(day, task)`: the transaction reads it, and if
- * it is already claimed the pure domain rejects the pick; otherwise it creates the marker and writes
- * the player's `activeTask` in the same commit. Two players racing the same task contend on that one
- * marker doc, so exactly one wins and the other is told it is taken.
+ * Take a task for TODAY, first-come (spec 7) — whether the player had no task or is switching from
+ * one (a free task can be changed any time the day is open). Exclusivity is a create-only claim
+ * marker keyed by `(day, task)`: the transaction reads it, and if it is already claimed the pure
+ * domain rejects the pick; otherwise it creates the marker and writes the player's `activeTask` in
+ * the same commit. Two players racing the same task contend on that one marker doc, so exactly one
+ * wins. Switching releases the player's previous claim in the same commit, freeing that task again.
  */
 export async function pickTaskNow(
   db: Firestore,
@@ -38,9 +39,19 @@ export async function pickTaskNow(
       takenBy.set(TaskId(taskId), (claimSnap.data().playerId as string) ?? '');
     }
 
+    // Switching away from a task this player picked earlier today: read its claim so we can release
+    // it, keeping one claim per player and freeing the old task for others.
+    const previous = player.activeTask;
+    const oldClaimRef =
+      previous !== null && previous.taskId !== taskId
+        ? taskClaimDoc(db, t, turnus.currentDay, previous.taskId)
+        : null;
+    const oldClaimSnap = oldClaimRef ? await tx.get(oldClaimRef) : null;
+
     const picked = decidePick(player, task, turnus, takenBy);
     if (!picked.ok) return err(picked.error);
 
+    if (oldClaimRef && oldClaimSnap?.exists()) tx.delete(oldClaimRef);
     tx.set(claimRef, {
       day: turnus.currentDay,
       taskId,

@@ -6,12 +6,11 @@ import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
 import { canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
 import type { PlayerId, TaskId } from '../../../domain/ids';
-import { reservationTally } from '../../../domain/reservation';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
-import { formatGroupSize } from '../../../lib/group';
+import { formatGroupSize, taskType } from '../../../lib/group';
 import { Button } from '../../../ui/Button';
 import { CardLayout } from '../../../ui/CardLayout';
 import { Checkbox } from '../../../ui/Checkbox';
@@ -19,6 +18,7 @@ import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { DifficultyDots } from '../../../ui/DifficultyDots';
+import { Select } from '../../../ui/Select';
 
 /**
  * Tap a task, reserve it (spec 7). Solo tasks reserve straight away; group tasks pick who to
@@ -51,13 +51,17 @@ export function TaskActionDialog({
   const [busy, setBusy] = useState(false);
 
   const eligible = canReserveTask(myPlayer, task, settings);
-  const isGroup = task.maxPlayers > 1;
+  const type = taskType(task.minPlayers, task.maxPlayers);
+  const isPair = type === 'pair';
+  const needsInvites = task.maxPlayers > 1;
   const minInvites = Math.max(0, task.minPlayers - 1);
   const maxInvites = Math.max(0, task.maxPlayers - 1);
   const countOk = invitees.length >= minInvites && invitees.length <= maxInvites;
   const mine = reservation !== null && reservation.taskId === task.id;
-  // A player with no task for today may grab this one first-come, if it is open today (spec 7).
-  const canPickToday = myPlayer.needsPick && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
+  // Any player may take an open, free task for today first-come — whether they have no task or are
+  // switching from one — as long as it is not already their own task today (spec 7).
+  const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
+  const canPickToday = !isMyTaskToday && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
 
   const takeNow = async (): Promise<void> => {
     if (busy) return;
@@ -115,7 +119,8 @@ export function TaskActionDialog({
             {task.categories.map((category) => (
               <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
             ))}
-            {isGroup && (
+            {isPair && <Chip tone="accent">{t('tasks.pairChip')}</Chip>}
+            {type === 'group' && (
               <Chip tone="accent">
                 {t('tasks.groupSize', { size: formatGroupSize(task.minPlayers, task.maxPlayers) })}
               </Chip>
@@ -130,23 +135,17 @@ export function TaskActionDialog({
       <div className="mt-4 border-t border-border pt-4">
         {canPickToday && (
           <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
-            <p className="text-sm text-content-muted">{t('tasks.takeNowHint')}</p>
+            <p className="text-sm text-content-muted">
+              {myPlayer.activeTask !== null ? t('tasks.switchNowHint') : t('tasks.takeNowHint')}
+            </p>
             <Button disabled={busy} onClick={() => void takeNow()}>
-              {t('tasks.takeNow')}
+              {myPlayer.activeTask !== null ? t('tasks.switchNow') : t('tasks.takeNow')}
             </Button>
           </div>
         )}
         {mine && reservation !== null ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-content">
-              {reservation.invitees.length === 0
-                ? t('tasks.reserved')
-                : t('tasks.groupTally', {
-                    accepted: reservationTally(reservation).accepted + 1,
-                    total: reservation.invitees.length + 1,
-                    declined: reservationTally(reservation).declined,
-                  })}
-            </p>
+            <p className="text-sm text-content">{t('tasks.reserved')}</p>
             <Button
               variant="danger"
               disabled={busy}
@@ -162,9 +161,28 @@ export function TaskActionDialog({
                 {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
               </p>
             )}
-            {isGroup &&
+            {needsInvites &&
               (candidates.length === 0 ? (
                 <p className="text-sm text-content-muted">{t('tasks.noPartners')}</p>
+              ) : isPair ? (
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-content-muted">
+                    {t('tasks.choosePartner')}
+                  </span>
+                  <Select
+                    value={invitees[0] ?? ''}
+                    onChange={(event) =>
+                      setInvitees(event.target.value ? [event.target.value as PlayerId] : [])
+                    }
+                  >
+                    <option value="">{t('tasks.choosePartner')}</option>
+                    {candidates.map((player) => (
+                      <option key={player.id} value={player.id}>
+                        {player.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
               ) : (
                 <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-content-muted">
@@ -182,7 +200,7 @@ export function TaskActionDialog({
               ))}
             <Button
               type="submit"
-              disabled={busy || !countOk || (isGroup && candidates.length === 0)}
+              disabled={busy || !countOk || (needsInvites && candidates.length === 0)}
             >
               {t('tasks.reserve')}
             </Button>

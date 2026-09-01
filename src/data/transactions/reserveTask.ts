@@ -58,6 +58,8 @@ export async function reserveTask(
         { merge: true },
       );
     }
+    // The initiator now holds a reservation for the day (public existence flag, no task revealed).
+    tx.set(countsRef, { players: { [playerId]: true } }, { merge: true });
     return ok(undefined);
   });
 }

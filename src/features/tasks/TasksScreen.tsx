@@ -19,9 +19,11 @@ import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
 import {
   useCatalogTasks,
+  useMyInvites,
   useMyPlayer,
   useMyReservation,
   usePlayers,
+  useReservationCounts,
   useSession,
   useTurnus,
 } from '../session';
@@ -66,6 +68,8 @@ export function TasksScreen() {
   const playersState = usePlayers();
   const myPlayer = useMyPlayer();
   const reservationState = useMyReservation();
+  const invitesState = useMyInvites();
+  const countsState = useReservationCounts();
   const isAdmin = role === 'admin';
 
   const [sort, setSort] = usePersistentState<TaskSort>('kwest.tasks.sort', 'nameAsc');
@@ -82,6 +86,14 @@ export function TasksScreen() {
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const settings = turnus !== null ? toTurnusSettings(turnus) : null;
   const myReservation = reservationState.status === 'ready' ? reservationState.data : null;
+  // A pair/group task counts as reserved for an accepted invitee too, so both members see it as
+  // theirs — not as someone else's "interest" (spec 7).
+  const myInvites = invitesState.status === 'ready' ? invitesState.data : [];
+  const acceptedInvite =
+    myPlayer !== null
+      ? (myInvites.find((invite) => invite.responses[myPlayer.id] === 'accepted') ?? null)
+      : null;
+  const myReservedTaskId = myReservation?.taskId ?? acceptedInvite?.taskId ?? null;
   const candidates =
     myPlayer !== null && playersState.status === 'ready'
       ? playersState.data.filter(
@@ -150,11 +162,20 @@ export function TasksScreen() {
     return <EmptyState title={t('common.somethingWrong')} description={t('common.retry')} />;
   }
 
-  const chipsFor = (task: Task): { tomorrow: boolean; today: boolean } => {
-    if (settings === null || myPlayer === null) return { tomorrow: false, today: false };
+  // Live status of a task, all from public data: who holds it today and whether it carries a
+  // reservation for tomorrow (mine vs. another player's interest, the latter an existence-only
+  // count with my own reservation subtracted).
+  const reservationCounts =
+    countsState.status === 'ready' && countsState.data ? countsState.data.counts : {};
+  const statusFor = (
+    task: Task,
+  ): { mine: boolean; taken: boolean; reserved: boolean; hasInterest: boolean } => {
+    const reserved = myReservedTaskId === task.id;
     return {
-      tomorrow: !canReserveTask(myPlayer, task, settings).ok,
-      today: !canPickTaskNow(myPlayer, task, settings, takenBy).ok,
+      mine: myPlayer?.activeTask?.taskId === task.id,
+      taken: takenBy.has(task.id),
+      reserved,
+      hasInterest: (reservationCounts[task.id] ?? 0) - (reserved ? 1 : 0) > 0,
     };
   };
 
@@ -214,23 +235,16 @@ export function TasksScreen() {
         <EmptyState title={t('nav.tasks')} description={t('tasks.empty')} />
       ) : (
         <div className="flex flex-col gap-2">
-          {filtered.map((task) => {
-            const { tomorrow, today } = chipsFor(task);
-            return (
-              <TaskCard
-                key={task.id}
-                task={task}
-                unavailableTomorrow={tomorrow}
-                unavailableToday={today}
-                reserved={myReservation?.taskId === task.id}
-                isAdmin={isAdmin}
-                {...(myPlayer !== null && settings !== null
-                  ? { onOpen: () => setActing(task) }
-                  : {})}
-                onEdit={() => setEditing(task)}
-              />
-            );
-          })}
+          {filtered.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              {...statusFor(task)}
+              isAdmin={isAdmin}
+              {...(myPlayer !== null && settings !== null ? { onOpen: () => setActing(task) } : {})}
+              onEdit={() => setEditing(task)}
+            />
+          ))}
         </div>
       )}
 

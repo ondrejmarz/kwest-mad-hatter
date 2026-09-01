@@ -47,6 +47,13 @@ export async function respondToInvite(
         );
       }
     }
+    // Accepting commits this player to the group for the day; declining releases them. Public
+    // existence flag only — which task the group holds stays secret.
+    tx.set(
+      reservationCountsDoc(db, t, invitation.day),
+      { players: { [myPlayerId]: accept } },
+      { merge: true },
+    );
     return ok(undefined);
   });
 }

@@ -26,7 +26,7 @@ export async function cancelReservation(
     if (reservation !== null) {
       tx.set(
         reservationCountsDoc(db, t, reservation.day),
-        { counts: { [reservation.taskId]: increment(-1) } },
+        { counts: { [reservation.taskId]: increment(-1) }, players: { [playerId]: false } },
         { merge: true },
       );
     }

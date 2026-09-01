@@ -1,12 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { db } from '../../data/firebase';
-import { subscribeMyInvites, subscribeMyReservation } from '../../data/repositories/reservations';
+import {
+  subscribeMyInvites,
+  subscribeMyReservation,
+  subscribeReservationCounts,
+} from '../../data/repositories/reservations';
 import { subscribeMyBid } from '../../data/repositories/rewardBids';
+import type { ReservationCounts } from '../../data/schemas/reservation';
 import type { Subscription } from '../../data/subscriptions';
 import type { Reservation, RewardBid } from '../../domain/types';
 
 import { useSession } from './SessionProvider';
+import { useTurnus } from './TurnusProvider';
 import { useMyPlayer } from './useMyPlayer';
 
 /**
@@ -19,6 +25,8 @@ interface ReservationValue {
   readonly mine: Subscription<Reservation | null>;
   readonly invites: Subscription<readonly Reservation[]>;
   readonly bid: Subscription<RewardBid | null>;
+  /** Public aggregates for tomorrow's reservations — per-task interest and who holds one. */
+  readonly counts: Subscription<ReservationCounts | null>;
 }
 
 const empty = <T,>(data: T): Subscription<T> => ({ status: 'ready', data, fromCache: false });
@@ -27,14 +35,21 @@ const ReservationContext = createContext<ReservationValue | null>(null);
 
 export function ReservationProvider({ children }: { children: ReactNode }) {
   const { turnus } = useSession();
+  const turnusState = useTurnus();
   const myPlayer = useMyPlayer();
   const playerId = myPlayer?.id ?? null;
+  // Tomorrow, whose reservations we are counting. The counts document is keyed by that day.
+  const nextDay =
+    turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay + 1 : null;
 
   const [mine, setMine] = useState<Subscription<Reservation | null>>({ status: 'loading' });
   const [invites, setInvites] = useState<Subscription<readonly Reservation[]>>({
     status: 'loading',
   });
   const [bid, setBid] = useState<Subscription<RewardBid | null>>({ status: 'loading' });
+  const [counts, setCounts] = useState<Subscription<ReservationCounts | null>>({
+    status: 'loading',
+  });
 
   useEffect(() => {
     if (turnus === null || playerId === null) {
@@ -63,7 +78,19 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
     return subscribeMyBid(db, turnus.id, playerId, setBid);
   }, [turnus, playerId]);
 
-  const value = useMemo<ReservationValue>(() => ({ mine, invites, bid }), [mine, invites, bid]);
+  useEffect(() => {
+    if (turnus === null || nextDay === null) {
+      setCounts(empty(null));
+      return;
+    }
+    setCounts({ status: 'loading' });
+    return subscribeReservationCounts(db, turnus.id, nextDay, setCounts);
+  }, [turnus, nextDay]);
+
+  const value = useMemo<ReservationValue>(
+    () => ({ mine, invites, bid, counts }),
+    [mine, invites, bid, counts],
+  );
   return <ReservationContext.Provider value={value}>{children}</ReservationContext.Provider>;
 }
 
@@ -78,3 +105,5 @@ function useReservation(): ReservationValue {
 export const useMyReservation = (): Subscription<Reservation | null> => useReservation().mine;
 export const useMyInvites = (): Subscription<readonly Reservation[]> => useReservation().invites;
 export const useMyBid = (): Subscription<RewardBid | null> => useReservation().bid;
+export const useReservationCounts = (): Subscription<ReservationCounts | null> =>
+  useReservation().counts;

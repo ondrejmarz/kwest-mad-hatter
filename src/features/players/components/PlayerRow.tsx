@@ -22,6 +22,7 @@ export const PlayerRow = memo(function PlayerRow({
   isAdmin,
   won,
   targetedBy,
+  hasReservation,
   onOpen,
   onEdit,
   onAdjustCoins,
@@ -31,6 +32,7 @@ export const PlayerRow = memo(function PlayerRow({
   isAdmin: boolean;
   won: readonly PurchaseDoc[];
   targetedBy: readonly PurchaseDoc[];
+  hasReservation: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onAdjustCoins: (delta: number) => void;
@@ -45,8 +47,11 @@ export const PlayerRow = memo(function PlayerRow({
       chips={
         <>
           {mine && <Chip tone="accent">{t('players.you')}</Chip>}
-          <Chip tone={hasTask ? 'muted' : 'warning'}>
+          <Chip tone={hasTask ? 'success' : 'danger'}>
             {hasTask ? t('players.hasTask') : t('players.needsPick')}
+          </Chip>
+          <Chip tone={hasReservation ? 'success' : 'warning'}>
+            {hasReservation ? t('players.hasReservation') : t('players.noReservationChip')}
           </Chip>
           {won.length > 0 && <Chip tone="success">{t('players.hasReward')}</Chip>}
           {targetedBy.length > 0 && <Chip tone="danger">{t('players.isTargeted')}</Chip>}

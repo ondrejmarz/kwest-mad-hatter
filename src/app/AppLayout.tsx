@@ -21,7 +21,7 @@ export function AppLayout() {
     <div className="mx-auto flex h-full max-w-lg flex-col bg-surface">
       {/* Header, offline banner and nav sit above the scroll area, so they never move. */}
       <div className="safe-top z-20 shrink-0 bg-surface-raised">
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border px-4 py-3">
+        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-y border-border px-4 py-3">
           {/* Leaving drops back to the turnus picker (spec 3). */}
           <button
             type="button"

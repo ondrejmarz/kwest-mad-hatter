@@ -105,7 +105,14 @@ beforeEach(async () => {
     await put('ownerIndex/bob', { playerId: 'p2' });
     await put('ownerIndex/carol', { playerId: 'p4' });
 
-    await put('tasks/t1', { name: 'T', category: 'c', difficulty: 1, active: true });
+    await put('tasks/t1', {
+      name: 'T',
+      category: 'c',
+      difficulty: 1,
+      active: true,
+      coinReward: 150,
+      coinPenalty: 75,
+    });
     await put('rewards/r1', { name: 'R', price: 10, form: 'reward', active: true });
 
     await put('reservations/p1', {
@@ -241,6 +248,77 @@ describe('reward bids are secret', () => {
     });
     await assertFails(updateDoc(doc(authed('alice'), path('rewardBids/p1')), { amount: 50 }));
     await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1'))));
+  });
+});
+
+describe('same-day task pick', () => {
+  const activeT1 = {
+    taskId: 't1',
+    name: 'T',
+    description: '',
+    difficulty: 1,
+    coinReward: 150,
+    coinPenalty: 75,
+    partnerNames: [],
+  };
+
+  it('lets a player take an open task for today when the coins match the catalog', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: activeT1,
+        needsPick: false,
+      }),
+    );
+  });
+
+  it('rejects a pick that inflates the reward', async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: { ...activeT1, coinReward: 9999 },
+        needsPick: false,
+      }),
+    );
+  });
+
+  it('lets the owner claim the task marker but not on behalf of someone else', async () => {
+    await assertSucceeds(
+      setDoc(doc(authed('alice'), path('taskClaims/1_t1')), {
+        day: 1,
+        taskId: 't1',
+        playerId: 'p1',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(authed('alice'), path('taskClaims/1_t2')), {
+        day: 1,
+        taskId: 't2',
+        playerId: 'p2',
+      }),
+    );
+  });
+
+  it('freezes the pick and the claim while the day is locked', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `turnuses/${T}`), {
+        name: 'Demo',
+        slug: 'demo',
+        currentDay: 1,
+        dayLocked: true,
+      });
+    });
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: activeT1,
+        needsPick: false,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(authed('alice'), path('taskClaims/1_t1')), {
+        day: 1,
+        taskId: 't1',
+        playerId: 'p1',
+      }),
+    );
   });
 });
 

@@ -28,11 +28,13 @@
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-surface: 15 23 42;
-    --color-surface-raised: 30 41 59;
-    --color-border: 51 65 85;
-    --color-text: 226 232 240;
-    --color-text-muted: 148 163 184;
+    /* Cool grey rather than slate: R/G/B kept close so the surfaces read as neutral dark grey with
+       only a whisper of coolness, not navy. */
+    --color-surface: 24 26 30;
+    --color-surface-raised: 36 39 44;
+    --color-border: 55 59 66;
+    --color-text: 229 231 235;
+    --color-text-muted: 152 156 163;
     --color-accent: 96 165 250;
     --color-danger: 248 113 113;
     --color-warning: 251 191 36;
@@ -81,5 +83,26 @@
   input,
   textarea {
     font-size: 16px !important;
+  }
+}
+
+/*
+ * Native <select> caret: on iOS the built-in arrow does not follow the page colour, so in dark mode
+ * it stays black and disappears. We hide it (`appearance: none`) and paint our own chevron whose
+ * colour we set per theme, so it stays visible on light and dark alike, on every platform.
+ */
+.select-caret {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem 1rem;
+  padding-right: 1.9rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .select-caret {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23cbd5e1' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   }
 }

@@ -2,9 +2,10 @@ import { type FormEvent, useState } from 'react';
 
 import { db } from '../../../data/firebase';
 import { cancelReservation } from '../../../data/transactions/cancelReservation';
+import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
-import { canReserveTask } from '../../../domain/eligibility';
-import type { PlayerId } from '../../../domain/ids';
+import { canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
+import type { PlayerId, TaskId } from '../../../domain/ids';
 import { reservationTally } from '../../../domain/reservation';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
@@ -31,6 +32,7 @@ export function TaskActionDialog({
   settings,
   candidates,
   reservation,
+  takenBy,
   turnusId,
   onClose,
 }: {
@@ -39,6 +41,7 @@ export function TaskActionDialog({
   settings: TurnusSettings;
   candidates: readonly Player[];
   reservation: Reservation | null;
+  takenBy: ReadonlyMap<TaskId, string>;
   turnusId: string;
   onClose: () => void;
 }) {
@@ -53,6 +56,19 @@ export function TaskActionDialog({
   const maxInvites = Math.max(0, task.maxPlayers - 1);
   const countOk = invitees.length >= minInvites && invitees.length <= maxInvites;
   const mine = reservation !== null && reservation.taskId === task.id;
+  // A player with no task for today may grab this one first-come, if it is open today (spec 7).
+  const canPickToday = myPlayer.needsPick && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
+
+  const takeNow = async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await pickTaskNow(db, turnusId, myPlayer.id, task.id);
+    setBusy(false);
+    if (result.ok) onClose();
+    else if (result.error.code === 'TASK_TAKEN_TODAY') setError(t('tasks.takenToday'));
+    else setError(t('entry.offline'));
+  };
 
   const toggleInvitee = (id: PlayerId): void =>
     setInvitees((prev) =>
@@ -117,6 +133,14 @@ export function TaskActionDialog({
       />
 
       <div className="mt-4 border-t border-border pt-4">
+        {canPickToday && (
+          <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
+            <p className="text-sm text-content-muted">{t('tasks.takeNowHint')}</p>
+            <Button disabled={busy} onClick={() => void takeNow()}>
+              {t('tasks.takeNow')}
+            </Button>
+          </div>
+        )}
         {mine && reservation !== null ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-content">

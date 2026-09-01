@@ -110,6 +110,10 @@ export const en: Dictionary = {
     save: 'Save',
     reserve: 'Reserve for tomorrow',
     reserved: 'Reserved for tomorrow',
+    takeNow: 'Take for today',
+    takeNowHint:
+      'No reservation came through? Grab this task for today — first come, first served.',
+    takenToday: 'Someone already took this task today.',
     reservedChip: 'Reserved',
     cancelReservation: 'Cancel reservation',
     inviteCountHint: 'Invite partners (group {min}–{max})',

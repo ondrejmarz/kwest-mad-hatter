@@ -60,6 +60,10 @@ export const rewardBidDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'rewardBids', playerId);
 export const rewardBidCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'rewardBidCounts', String(day));
+// First-come marker for a same-day task pick, one doc per (day, task). Create-only for players, so
+// the first writer wins the task for the day; the id encodes both so it is unique per day.
+export const taskClaimDoc = (db: Firestore, t: string, day: number, taskId: string) =>
+  doc(db, 'turnuses', t, 'taskClaims', `${day}_${taskId}`);
 export const purchasesCol = (db: Firestore, t: string) =>
   collection(db, 'turnuses', t, 'purchases');
 export const purchaseDoc = (db: Firestore, t: string, id: string) =>

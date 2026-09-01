@@ -111,6 +111,10 @@ export const de: Dictionary = {
     save: 'Speichern',
     reserve: 'Für morgen reservieren',
     reserved: 'Für morgen reserviert',
+    takeNow: 'Für heute nehmen',
+    takeNowHint:
+      'Keine Reservierung bekommen? Schnapp dir diese Aufgabe für heute — wer zuerst kommt.',
+    takenToday: 'Diese Aufgabe hat sich heute schon jemand genommen.',
     reservedChip: 'Reserviert',
     cancelReservation: 'Reservierung stornieren',
     inviteCountHint: 'Lade Partner ein (Gruppe {min}–{max})',

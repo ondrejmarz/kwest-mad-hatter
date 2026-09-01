@@ -39,8 +39,6 @@ const TASK_SORTS = [
 ] as const;
 type TaskSort = (typeof TASK_SORTS)[number];
 
-const NO_TAKEN: ReadonlyMap<TaskId, string> = new Map();
-
 function taskComparator(sort: TaskSort, locale: Locale): (a: Task, b: Task) => number {
   switch (sort) {
     case 'nameAsc':
@@ -84,6 +82,19 @@ export function TasksScreen() {
           (player) => player.status === 'approved' && player.id !== myPlayer.id,
         )
       : [];
+  // Which tasks are already held today (by someone other than me) — powers the "taken today" chip
+  // and gates the same-day "Vzít teď" pick. Derived from live players, not a separate listener.
+  const takenBy = useMemo(() => {
+    const map = new Map<TaskId, string>();
+    if (playersState.status === 'ready') {
+      for (const player of playersState.data) {
+        if (player.activeTask !== null && player.id !== myPlayer?.id) {
+          map.set(player.activeTask.taskId, player.name);
+        }
+      }
+    }
+    return map;
+  }, [playersState, myPlayer]);
   const allTasks = useMemo(
     () => (tasksState.status === 'ready' ? tasksState.data.filter((task) => task.active) : []),
     [tasksState],
@@ -133,7 +144,7 @@ export function TasksScreen() {
     if (settings === null || myPlayer === null) return { tomorrow: false, today: false };
     return {
       tomorrow: !canReserveTask(myPlayer, task, settings).ok,
-      today: !canPickTaskNow(myPlayer, task, settings, NO_TAKEN).ok,
+      today: !canPickTaskNow(myPlayer, task, settings, takenBy).ok,
     };
   };
 
@@ -220,6 +231,7 @@ export function TasksScreen() {
           settings={settings}
           candidates={candidates}
           reservation={myReservation}
+          takenBy={takenBy}
           turnusId={turnus.id}
           onClose={() => setActing(null)}
         />

@@ -171,15 +171,20 @@ E. **Stability & quick UI fixes** — no rules.
 - Redesign `PlayerDetailDialog` to actually show useful info (coins, active task, needsPick; for
   self also my reservation/bid). Player card + detail get a slot for the WON reward — layout now,
   data in step I.
-  F. **Dark mode** — no rules. Dark palette under `@media (prefers-color-scheme: dark)` in `index.css`
-
-* a dark `theme-color`; the tokens were built for this. (Safari only looked dark via browser
-  chrome; the app has no dark theme yet.)
-  G. **Same-day task pick `pickTaskNow` (#6a)** — RULES. First-come exclusive claim via a
-  compare-and-set marker doc `taskClaims/{day}/{taskId}` (rule allows the write only if unclaimed —
-  the user's status/selectedBy idea). Solo only (groups go via reservations). `canPickTaskNow`
-  exists in the domain; add the transaction + rule + a "Vzít teď" button (shown when the day is
-  current + unlocked and the player `needsPick`).
+  F. **Dark mode — done.** Dark palette swaps the CSS token values under
+  `@media (prefers-color-scheme: dark)` in `index.css` (everything reads tokens, so it just works);
+  per-scheme `theme-color` metas in `index.html`. Palette is a cool grey (not slate) per feedback.
+  A themed `.select-caret` (custom chevron, coloured per theme) replaces the native `<select>` arrow,
+  which stayed black/invisible on iOS in dark mode.
+  G. **Same-day task pick `pickTaskNow` — done (RULES, deploy `firestore:rules`).** First-come via a
+  create-only marker `taskClaims/{day}_{taskId}` (id encodes both; contention on that one doc picks
+  the winner). Domain `pickTaskNow` (builds the solo `ActiveTask`, reuses `canPickTaskNow`); the
+  transaction reads the marker → domain check → creates the marker + sets the player's activeTask +
+  needsPick=false. Rule `picksTaskNow` lets a player write ONLY their own activeTask+needsPick and
+  validates the stored coins against the catalog task (no self-inflation); `taskClaims` is
+  create-only for players. UI: "Vzít teď" in `TaskActionDialog` when the player `needsPick` and the
+  task is open today; `TasksScreen` derives `takenBy` from live players (no extra listener). Rules
+  NOT emulator-verified this session (no-emulator agreement) — rules tests written for later.
   H. **Group tasks, reliable (#6b)** — RULES/model; needs real-device testing (my blind spot). Keep the
   responses-map-on-the-reservation model, fix the live flow:
 

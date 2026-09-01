@@ -12,7 +12,7 @@ export function LanguageSwitcher() {
         onChange={(event) => {
           setLocale(event.target.value as Locale);
         }}
-        className="rounded-lg border border-border bg-surface-raised px-2 py-1 text-content"
+        className="select-caret rounded-lg border border-border bg-surface-raised px-2 py-1 text-content"
       >
         {LOCALES.map((code) => (
           <option key={code} value={code}>

@@ -36,6 +36,24 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/turnuses/$(t)).data.get('dayLocked', false) == false;
     }
 
+    function taskRef(t, taskId) {
+      return /databases/$(database)/documents/turnuses/$(t)/tasks/$(taskId);
+    }
+    // A same-day pick (spec 7): the player sets only their own `activeTask` (and clears needsPick)
+    // while the day is open. The stored coin values must equal the catalog task's, so a client
+    // cannot hand itself a fatter reward that day evaluation would then pay out.
+    function picksTaskNow(t) {
+      let at = request.resource.data.activeTask;
+      return onlyChanged(['activeTask', 'needsPick'])
+        && request.resource.data.needsPick == false
+        && at.taskId is string
+        && dayUnlocked(t)
+        && exists(taskRef(t, at.taskId))
+        && get(taskRef(t, at.taskId)).data.active == true
+        && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward
+        && at.coinPenalty == get(taskRef(t, at.taskId)).data.coinPenalty;
+    }
+
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
     // on an empty character — needs a claimAttempt whose PIN matches, so nobody grabs the wrong
     // character (spec 3b, 11).
@@ -144,10 +162,11 @@ service cloud.firestore {
           && request.resource.data.ownerUids.size() == 0
           && request.resource.data.createdByUid == uid()
           && request.resource.data.name is string;
-        // A player never changes their own coins/status/activeTask — only claims a character or
-        // releases one they hold. Pick and purchase writes are added with their transactions.
+        // A player never changes their own coins/status — only claims/releases a character, or
+        // takes a task for today (activeTask + needsPick, coins validated against the catalog).
         allow update: if isAdmin(t)
-          || (isMember(t) && (claimsOwnership(t, pid) || releasesOwnership(t, pid)));
+          || (isMember(t) && (claimsOwnership(t, pid) || releasesOwnership(t, pid)))
+          || (hasPlayer(t) && pid == myPlayerId(t) && picksTaskNow(t));
         // Reject a pending character (spec 9.4); approved players are never hard-deleted.
         allow delete: if isAdmin(t) && resource.data.status == 'pending';
 
@@ -192,6 +211,17 @@ service cloud.firestore {
       match /rewardBidCounts/{day} {
         allow read: if isMember(t);
         allow write: if isMember(t);
+      }
+
+      // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the
+      // first writer wins the task for the day. The paired activeTask write is checked by
+      // `picksTaskNow`; here we only bind the claim to its player. Admin may clear them.
+      match /taskClaims/{id} {
+        allow read: if isMember(t);
+        allow create: if hasPlayer(t)
+          && request.resource.data.playerId == myPlayerId(t)
+          && dayUnlocked(t);
+        allow update, delete: if isAdmin(t);
       }
 
       // Purchases: coin-linked create + admin refund arrive in phase 7.

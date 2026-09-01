@@ -4,7 +4,7 @@ import type { Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
-import { formatGroupSize } from '../../../lib/group';
+import { formatGroupSize, taskType } from '../../../lib/group';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { DifficultyDots } from '../../../ui/DifficultyDots';
@@ -44,7 +44,10 @@ export const TaskCard = memo(function TaskCard({
           {task.categories.map((category) => (
             <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
           ))}
-          {task.maxPlayers > 1 && (
+          {taskType(task.minPlayers, task.maxPlayers) === 'pair' && (
+            <Chip tone="accent">{t('tasks.pairChip')}</Chip>
+          )}
+          {taskType(task.minPlayers, task.maxPlayers) === 'group' && (
             <Chip tone="accent">
               {t('tasks.groupSize', { size: formatGroupSize(task.minPlayers, task.maxPlayers) })}
             </Chip>
@@ -56,12 +59,7 @@ export const TaskCard = memo(function TaskCard({
       }
       description={localize(task.description, locale)}
       footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
-      footerRight={
-        <div className="flex items-center gap-2">
-          <CoinAmount amount={task.coinReward} signed />
-          <CoinAmount amount={-task.coinPenalty} signed />
-        </div>
-      }
+      footerRight={<CoinAmount amount={task.coinReward} signed />}
     />
   );
 });

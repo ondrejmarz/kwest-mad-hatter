@@ -7,7 +7,7 @@ import {
   parseLocalizedLines,
   serializeLocalized,
 } from '../../../data/importCatalog';
-import { derivePenalty, deriveReward } from '../../../domain/coins';
+import { deriveReward } from '../../../domain/coins';
 import type { Task } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
@@ -32,14 +32,10 @@ export function TaskEditDialog({
   task,
   onClose,
   turnusId,
-  coinsPerDifficulty,
-  penaltyRatio,
 }: {
   task: Task | null;
   onClose: () => void;
   turnusId: string;
-  coinsPerDifficulty: number;
-  penaltyRatio: number;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(task ? serializeLocalized(task.name) : '');
@@ -52,14 +48,12 @@ export function TaskEditDialog({
   const [maxPlayers, setMaxPlayers] = useState(String(task?.maxPlayers ?? 1));
   const [active, setActive] = useState(task?.active ?? true);
   const [manual, setManual] = useState(
-    task !== null && task.coinReward !== deriveReward(task.difficulty, coinsPerDifficulty),
+    task !== null && task.coinReward !== deriveReward(task.difficulty),
   );
   const [reward, setReward] = useState(String(task?.coinReward ?? ''));
-  const [penalty, setPenalty] = useState(String(task?.coinPenalty ?? ''));
   const [error, setError] = useState<string | null>(null);
 
-  const autoReward = deriveReward(difficulty, coinsPerDifficulty);
-  const autoPenalty = derivePenalty(autoReward, penaltyRatio);
+  const autoReward = deriveReward(difficulty);
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -69,8 +63,7 @@ export function TaskEditDialog({
       return;
     }
     const coinReward = manual ? Number(reward) : autoReward;
-    const coinPenalty = manual ? Number(penalty) : autoPenalty;
-    if (manual && (!Number.isFinite(coinReward) || !Number.isFinite(coinPenalty))) {
+    if (manual && !Number.isFinite(coinReward)) {
       setError(t('tasks.invalidCoins'));
       return;
     }
@@ -84,7 +77,6 @@ export function TaskEditDialog({
       minPlayers: min,
       maxPlayers: max,
       coinReward,
-      coinPenalty,
       manualCoins: manual,
       active,
     };
@@ -155,25 +147,16 @@ export function TaskEditDialog({
         <Checkbox label={t('tasks.activeLabel')} checked={active} onChange={setActive} />
         <Checkbox label={t('tasks.manualCoinsLabel')} checked={manual} onChange={setManual} />
         {manual ? (
-          <div className="flex gap-2">
-            <TextInput
-              label={t('tasks.coinRewardLabel')}
-              value={reward}
-              onChange={(event) => setReward(event.target.value)}
-              inputMode="numeric"
-            />
-            <TextInput
-              label={t('tasks.coinPenaltyLabel')}
-              value={penalty}
-              onChange={(event) => setPenalty(event.target.value)}
-              inputMode="numeric"
-            />
-          </div>
+          <TextInput
+            label={t('tasks.coinRewardLabel')}
+            value={reward}
+            onChange={(event) => setReward(event.target.value)}
+            inputMode="numeric"
+          />
         ) : (
           <p className="flex items-center gap-2 text-sm text-content-muted">
             {t('tasks.autoCoins')}
             <CoinAmount amount={autoReward} signed />
-            <CoinAmount amount={-autoPenalty} signed />
           </p>
         )}
         {error !== null && <p className="text-sm text-danger">{error}</p>}

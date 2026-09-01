@@ -8,9 +8,10 @@ describe('projectBalance', () => {
   it('projects best and worst case from an active task', () => {
     const player = makePlayer({
       coins: 100,
-      activeTask: makeActiveTask({ coinReward: 150, coinPenalty: 75 }),
+      activeTask: makeActiveTask({ coinReward: 150 }),
     });
 
+    // The failed-task penalty is the turnus-wide flat `failPenalty` (75 in the fixture).
     expect(projectBalance(player, makeTurnus())).toEqual({
       current: 100,
       taskReward: 150,

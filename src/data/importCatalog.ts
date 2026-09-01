@@ -1,6 +1,6 @@
 import { doc, type Firestore, getDocs, writeBatch } from 'firebase/firestore';
 
-import { derivePenalty, deriveReward } from '../domain/coins';
+import { deriveReward } from '../domain/coins';
 import type { LocalizedText, RewardForm } from '../domain/types';
 
 import { rewardDoc, rewardsCol, taskDoc, tasksCol } from './paths';
@@ -161,8 +161,6 @@ export async function applyTaskImport(
   db: Firestore,
   t: string,
   parsed: readonly ParsedTask[],
-  coinsPerDifficulty: number,
-  penaltyRatio: number,
 ): Promise<{ created: number; updated: number }> {
   const snap = await getDocs(tasksCol(db, t));
   const existing = new Map<string, { id: string; manualCoins: boolean }>();
@@ -176,8 +174,7 @@ export async function applyTaskImport(
   let created = 0;
   let updated = 0;
   for (const task of parsed) {
-    const coinReward = deriveReward(task.difficulty, coinsPerDifficulty);
-    const coinPenalty = derivePenalty(coinReward, penaltyRatio);
+    const coinReward = deriveReward(task.difficulty);
     const match = existing.get(task.name.cs);
     if (match) {
       const fields: Record<string, unknown> = {
@@ -190,7 +187,6 @@ export async function applyTaskImport(
       };
       if (!match.manualCoins) {
         fields.coinReward = coinReward;
-        fields.coinPenalty = coinPenalty;
       }
       batch.update(taskDoc(db, t, match.id), fields);
       updated += 1;
@@ -198,7 +194,6 @@ export async function applyTaskImport(
       batch.set(doc(tasksCol(db, t)), {
         ...task,
         coinReward,
-        coinPenalty,
         usedByPlayerIds: [],
         active: true,
         manualCoins: false,

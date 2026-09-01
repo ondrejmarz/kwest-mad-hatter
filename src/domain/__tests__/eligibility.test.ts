@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { TYPE_KEYS } from '../../lib/group';
 import { canPickTaskNow, canReserveTask } from '../eligibility';
 import type { TaskId } from '../ids';
 
@@ -13,6 +14,12 @@ describe('canReserveTask', () => {
       ok: true,
       value: undefined,
     });
+  });
+
+  it('opens a task by its type even when its tag is closed', () => {
+    const pairsOpen = makeTurnus({ nextDayCategories: [TYPE_KEYS.pair] });
+    const pair = makeTask({ categories: [loc('games')], minPlayers: 2, maxPlayers: 2 });
+    expect(canReserveTask(makePlayer(), pair, pairsOpen)).toEqual({ ok: true, value: undefined });
   });
 
   it('rejects an inactive task', () => {

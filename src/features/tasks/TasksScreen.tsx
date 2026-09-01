@@ -9,6 +9,7 @@ import { localize } from '../../i18n/localize';
 import type { Locale } from '../../i18n/translate';
 import { categoryLabel } from '../../lib/category';
 import { csCollator } from '../../lib/collator';
+import { taskTypeKey, TYPE_OPTIONS } from '../../lib/group';
 import { byNumber, byText } from '../../lib/sort';
 import { usePersistentState } from '../../platform/storage/usePersistentState';
 import { Button } from '../../ui/Button';
@@ -68,8 +69,13 @@ export function TasksScreen() {
   const isAdmin = role === 'admin';
 
   const [sort, setSort] = usePersistentState<TaskSort>('kwest.tasks.sort', 'nameAsc');
+  // One filter value: '' (all), a task-type key (`@type:*`), or a category tag's `cs` — types and
+  // categories share the one dropdown (spec 9.2).
   const [category, setCategory] = usePersistentState('kwest.tasks.category', '');
-  const [onlyAvailable, setOnlyAvailable] = usePersistentState('kwest.tasks.onlyAvailable', false);
+  // Two independent availability filters (spec 9.2): reservable tomorrow (`canReserveTask`) and
+  // pickable today (`canPickTaskNow`). Checked together, a task must pass both.
+  const [availToday, setAvailToday] = usePersistentState('kwest.tasks.availToday', false);
+  const [availTomorrow, setAvailTomorrow] = usePersistentState('kwest.tasks.availTomorrow', false);
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
   const [acting, setActing] = useState<Task | null>(null);
 
@@ -115,19 +121,23 @@ export function TasksScreen() {
   const filtered = useMemo(() => {
     const compare = taskComparator(sort, locale);
     return allTasks
-      .filter((task) => category === '' || task.categories.some((tag) => tag.cs === category))
       .filter(
         (task) =>
-          !onlyAvailable ||
-          settings === null ||
-          myPlayer === null ||
-          canReserveTask(myPlayer, task, settings).ok,
+          category === '' ||
+          task.categories.some((tag) => tag.cs === category) ||
+          taskTypeKey(task.minPlayers, task.maxPlayers) === category,
       )
+      .filter((task) => {
+        if (settings === null || myPlayer === null) return true;
+        if (availTomorrow && !canReserveTask(myPlayer, task, settings).ok) return false;
+        if (availToday && !canPickTaskNow(myPlayer, task, settings, takenBy).ok) return false;
+        return true;
+      })
       .sort(
         (a, b) =>
           compare(a, b) || csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
       );
-  }, [allTasks, category, onlyAvailable, sort, settings, myPlayer, locale]);
+  }, [allTasks, category, availToday, availTomorrow, sort, settings, myPlayer, takenBy, locale]);
 
   if (tasksState.status === 'loading') {
     return (
@@ -161,6 +171,11 @@ export function TasksScreen() {
           </Select>
           <Select value={category} onChange={(event) => setCategory(event.target.value)}>
             <option value="">{t('tasks.allCategories')}</option>
+            {TYPE_OPTIONS.map((option) => (
+              <option key={option.key} value={option.key}>
+                {t(`tasks.${option.labelKey}`)}
+              </option>
+            ))}
             {categories.map((category) => (
               <option key={category.cs} value={category.cs}>
                 {categoryLabel(localize(category, locale))}
@@ -168,11 +183,16 @@ export function TasksScreen() {
             ))}
           </Select>
           {myPlayer !== null && (
-            <div className="w-full py-1">
+            <div className="flex w-full flex-wrap gap-x-4 gap-y-1 py-1">
               <Checkbox
-                label={t('tasks.onlyAvailable')}
-                checked={onlyAvailable}
-                onChange={setOnlyAvailable}
+                label={t('tasks.onlyAvailableToday')}
+                checked={availToday}
+                onChange={setAvailToday}
+              />
+              <Checkbox
+                label={t('tasks.onlyAvailableTomorrow')}
+                checked={availTomorrow}
+                onChange={setAvailTomorrow}
               />
             </div>
           )}
@@ -215,13 +235,7 @@ export function TasksScreen() {
       )}
 
       {editing !== undefined && turnus !== null && (
-        <TaskEditDialog
-          task={editing}
-          onClose={() => setEditing(undefined)}
-          turnusId={turnus.id}
-          coinsPerDifficulty={turnus.coinsPerDifficulty}
-          penaltyRatio={turnus.penaltyRatio}
-        />
+        <TaskEditDialog task={editing} onClose={() => setEditing(undefined)} turnusId={turnus.id} />
       )}
 
       {acting !== null && turnus !== null && settings !== null && myPlayer !== null && (

@@ -1,3 +1,4 @@
+import { taskTypeKey } from '../lib/group';
 import { err, ok, type Result } from '../lib/result';
 
 import type { DomainError } from './errors';
@@ -25,11 +26,13 @@ export function canReserveTask(
 }
 
 /**
- * A task is open when any one of its category tags is in the open set. Tags are matched by
- * their canonical `cs` identity, which is what the open-category set stores (spec 7).
+ * A task is open when any one of its category tags is in the open set, or when its task type is —
+ * the open set carries both real tags (matched by their canonical `cs` identity) and the reserved
+ * type keys, so opening a type opens every task of that kind (spec 7).
  */
 function isCategoryOpen(task: Task, openCategories: readonly string[]): boolean {
-  return task.categories.some((category) => openCategories.includes(category.cs));
+  if (task.categories.some((category) => openCategories.includes(category.cs))) return true;
+  return openCategories.includes(taskTypeKey(task.minPlayers, task.maxPlayers));
 }
 
 /**

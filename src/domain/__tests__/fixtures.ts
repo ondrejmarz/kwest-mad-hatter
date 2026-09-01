@@ -18,8 +18,7 @@ export const loc = (cs: string, en = cs, de = cs): LocalizedText => ({ cs, en, d
 export const makeTurnus = (over: Partial<TurnusSettings> = {}): TurnusSettings => ({
   currentDay: Day(1),
   startingCoins: 0,
-  coinsPerDifficulty: 50,
-  penaltyRatio: 0.5,
+  failPenalty: 75,
   allowNegativeBalance: true,
   maxActiveRewardsPerPlayer: 1,
   maxActivePunishesPerPlayer: 1,
@@ -36,7 +35,6 @@ export const makeActiveTask = (over: Partial<ActiveTask> = {}): ActiveTask => ({
   description: loc(''),
   difficulty: 1,
   coinReward: 150,
-  coinPenalty: 75,
   partnerNames: [],
   ...over,
 });
@@ -61,7 +59,6 @@ export const makeTask = (over: Partial<Task> = {}): Task => ({
   minPlayers: 1,
   maxPlayers: 1,
   coinReward: 150,
-  coinPenalty: 75,
   usedByPlayerIds: [],
   active: true,
   ...over,
@@ -99,6 +96,7 @@ export const makeRewardBid = (over: Partial<RewardBid> = {}): RewardBid => ({
   day: Day(1),
   rewardId: RewardId('r1'),
   amount: 50,
+  targetIds: [],
   createdAt: 1000,
   ...over,
 });

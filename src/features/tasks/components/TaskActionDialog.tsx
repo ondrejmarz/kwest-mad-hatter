@@ -123,12 +123,7 @@ export function TaskActionDialog({
           </>
         }
         {...(task.description.cs !== '' ? { description: localize(task.description, locale) } : {})}
-        footerRight={
-          <div className="flex items-center gap-2">
-            <CoinAmount amount={task.coinReward} signed />
-            <CoinAmount amount={-task.coinPenalty} signed />
-          </div>
-        }
+        footerRight={<CoinAmount amount={task.coinReward} signed />}
         clampDescription={false}
       />
 

@@ -30,7 +30,6 @@ export interface ActiveTask {
   readonly description: LocalizedText;
   readonly difficulty: number;
   readonly coinReward: number;
-  readonly coinPenalty: number;
   /** Names of the co-members when this is a group task; empty for a solo task. */
   readonly partnerNames: readonly string[];
   readonly detail?: string;
@@ -56,7 +55,6 @@ export interface Task {
   readonly minPlayers: number;
   readonly maxPlayers: number;
   readonly coinReward: number;
-  readonly coinPenalty: number;
   readonly usedByPlayerIds: readonly PlayerId[];
   readonly active: boolean;
 }
@@ -104,6 +102,8 @@ export interface RewardBid {
   readonly day: Day;
   readonly rewardId: RewardId;
   readonly amount: number;
+  /** Whom this bid would punish if it wins — only for `punish_someone`, empty otherwise (spec 8). */
+  readonly targetIds: readonly PlayerId[];
   readonly createdAt: number;
 }
 
@@ -126,8 +126,7 @@ export interface Purchase {
 export interface TurnusSettings {
   readonly currentDay: Day;
   readonly startingCoins: number;
-  readonly coinsPerDifficulty: number;
-  readonly penaltyRatio: number;
+  readonly failPenalty: number;
   readonly allowNegativeBalance: boolean;
   readonly maxActiveRewardsPerPlayer: number;
   readonly maxActivePunishesPerPlayer: number;

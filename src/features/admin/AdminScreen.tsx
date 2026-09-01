@@ -4,7 +4,10 @@ import { db } from '../../data/firebase';
 import { leaveAdmin } from '../../data/transactions/leaveAdmin';
 import type { LocalizedText } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
+import { localize } from '../../i18n/localize';
+import { categoryLabel } from '../../lib/category';
 import { csCollator } from '../../lib/collator';
+import { TYPE_OPTIONS } from '../../lib/group';
 import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { useCatalogRewards, useCatalogTasks, usePlayers, useSession, useTurnus } from '../session';
@@ -12,6 +15,7 @@ import { useCatalogRewards, useCatalogTasks, usePlayers, useSession, useTurnus }
 import { CatalogImport } from './catalog/CatalogImport';
 import { CategoryPicker } from './catalog/CategoryPicker';
 import { EvaluationPanel } from './evaluation/EvaluationPanel';
+import { TurnusSettingsDialog } from './settings/TurnusSettingsDialog';
 
 /**
  * Admin area (spec 9.4). The daily action is day evaluation; below it the admin bulk-imports
@@ -19,12 +23,13 @@ import { EvaluationPanel } from './evaluation/EvaluationPanel';
  * the tabs behind the pencil.
  */
 export function AdminScreen() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { uid, turnus } = useSession();
   const turnusState = useTurnus();
   const playersState = usePlayers();
   const tasksState = useCatalogTasks();
   const rewardsState = useCatalogRewards();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (
     turnus === null ||
@@ -52,6 +57,23 @@ export function AdminScreen() {
     }
   }
   const categories = [...categoryMap.values()].sort((a, b) => csCollator.compare(a.cs, b.cs));
+  // What an admin can open for a day: the three task types first, then the real category tags —
+  // one flat list, each a checkbox (types gate exactly like a tag; spec 7). Empty until the catalog
+  // has tasks, which is when the "import first" hint is the useful thing to show.
+  const typeOptions = TYPE_OPTIONS.map((option) => ({
+    key: option.key,
+    label: t(`tasks.${option.labelKey}`),
+  }));
+  const categoryOptions =
+    categories.length === 0
+      ? []
+      : [
+          ...typeOptions,
+          ...categories.map((category) => ({
+            key: category.cs,
+            label: categoryLabel(localize(category, locale)),
+          })),
+        ];
   const meta = { actorUid: uid ?? '', actorLabel: 'Admin' };
 
   return (
@@ -63,33 +85,43 @@ export function AdminScreen() {
         rewards={rewards}
         meta={meta}
       />
+      <Button variant="secondary" onClick={() => setSettingsOpen(true)}>
+        {t('admin.settings')}
+      </Button>
+      {settingsOpen && (
+        <TurnusSettingsDialog
+          turnus={settings}
+          turnusId={turnus.id}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       <CatalogImport
         turnusId={turnus.id}
-        coinsPerDifficulty={settings.coinsPerDifficulty}
-        penaltyRatio={settings.penaltyRatio}
         taskNames={new Set(tasks.map((task) => task.name.cs))}
         rewardNames={new Set(rewards.map((reward) => reward.name.cs))}
       />
-      <CategoryPicker
-        turnusId={turnus.id}
-        day={settings.currentDay}
-        meta={meta}
-        field="currentDay"
-        title={t('catalog.categoriesTodayTitle')}
-        hint={t('catalog.categoriesTodayHint')}
-        categories={categories}
-        selected={settings.currentDayCategories}
-      />
-      <CategoryPicker
-        turnusId={turnus.id}
-        day={settings.currentDay}
-        meta={meta}
-        field="nextDay"
-        title={t('catalog.categoriesTomorrowTitle')}
-        hint={t('catalog.categoriesTomorrowHint')}
-        categories={categories}
-        selected={settings.nextDayCategories}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <CategoryPicker
+          turnusId={turnus.id}
+          day={settings.currentDay}
+          meta={meta}
+          field="currentDay"
+          title={t('catalog.categoriesTodayTitle')}
+          hint={t('catalog.categoriesTodayHint')}
+          options={categoryOptions}
+          selected={settings.currentDayCategories}
+        />
+        <CategoryPicker
+          turnusId={turnus.id}
+          day={settings.currentDay}
+          meta={meta}
+          field="nextDay"
+          title={t('catalog.categoriesTomorrowTitle')}
+          hint={t('catalog.categoriesTomorrowHint')}
+          options={categoryOptions}
+          selected={settings.nextDayCategories}
+        />
+      </div>
       <LeaveAdminButton turnusId={turnus.id} uid={uid ?? ''} />
     </section>
   );

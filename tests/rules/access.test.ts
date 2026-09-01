@@ -89,7 +89,6 @@ beforeEach(async () => {
           category: 'c',
           difficulty: 1,
           coinReward: 150,
-          coinPenalty: 75,
           partnerNames: [],
         },
       }),
@@ -111,7 +110,6 @@ beforeEach(async () => {
       difficulty: 1,
       active: true,
       coinReward: 150,
-      coinPenalty: 75,
     });
     await put('rewards/r1', { name: 'R', price: 10, form: 'reward', active: true });
 
@@ -258,7 +256,6 @@ describe('same-day task pick', () => {
     description: '',
     difficulty: 1,
     coinReward: 150,
-    coinPenalty: 75,
     partnerNames: [],
   };
 
@@ -341,7 +338,6 @@ describe('a player cannot tamper with their own document', () => {
           category: 'c',
           difficulty: 1,
           coinReward: 9999,
-          coinPenalty: 0,
           partnerNames: [],
         },
       }),
@@ -412,6 +408,25 @@ describe('admin-only writes', () => {
   it('lets an admin reject a pending player but never delete an approved one', async () => {
     await assertSucceeds(deleteDoc(doc(authed('admin'), path('players/p5'))));
     await assertFails(deleteDoc(doc(authed('admin'), path('players/p1'))));
+  });
+
+  it('lets an admin write an owned-reward purchase but denies a player', async () => {
+    const purchase = {
+      day: 1,
+      buyerId: 'p1',
+      buyerName: 'Alice',
+      rewardId: 'r1',
+      rewardName: { cs: 'R', en: '', de: '' },
+      description: { cs: '', en: '', de: '' },
+      price: 20,
+      form: 'reward',
+      targetIds: [],
+      targetNames: [],
+      refunded: false,
+      createdAt: serverTimestamp(),
+    };
+    await assertSucceeds(setDoc(doc(authed('admin'), path('purchases/1_r1')), purchase));
+    await assertFails(setDoc(doc(authed('alice'), path('purchases/1_r1b')), purchase));
   });
 
   it('does not let a player delete a character', async () => {

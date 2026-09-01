@@ -36,7 +36,6 @@ const activeTaskFor = (taskId: string, name: string): ActiveTask => ({
   description: L(''),
   difficulty: 1,
   coinReward: 150,
-  coinPenalty: 75,
   partnerNames: [],
 });
 
@@ -46,14 +45,12 @@ const turnusSettings = {
   currentDay: 1,
   archived: false,
   startingCoins: 10,
-  coinsPerDifficulty: 50,
-  penaltyRatio: 0.5,
+  failPenalty: 75,
   allowNegativeBalance: true,
   maxActiveRewardsPerPlayer: 1,
   maxActivePunishesPerPlayer: 1,
   noPickPenalty: 100,
   dayLocked: false,
-  lockTime: '08:30',
   nextDayCategories: ['c'],
   currentDayCategories: ['c'],
 };
@@ -113,7 +110,6 @@ beforeEach(async () => {
       minPlayers: 1,
       maxPlayers: 1,
       coinReward: 150,
-      coinPenalty: 75,
       usedByPlayerIds: [],
       active: true,
       manualCoins: false,
@@ -259,7 +255,6 @@ describe('runRollover and undoRollover', () => {
     minPlayers: 1,
     maxPlayers: 1,
     coinReward: 150,
-    coinPenalty: 75,
     usedByPlayerIds: [],
     active: true,
   });
@@ -267,8 +262,7 @@ describe('runRollover and undoRollover', () => {
     turnus: {
       currentDay: Day(1),
       startingCoins: 10,
-      coinsPerDifficulty: 50,
-      penaltyRatio: 0.5,
+      failPenalty: 75,
       allowNegativeBalance: true,
       maxActiveRewardsPerPlayer: 1,
       maxActivePunishesPerPlayer: 1,
@@ -337,6 +331,7 @@ describe('runRollover and undoRollover', () => {
           day: Day(1),
           rewardId: RewardId('r1'),
           amount: 60,
+          targetIds: [],
           createdAt: 1000,
         },
       ],
@@ -347,10 +342,16 @@ describe('runRollover and undoRollover', () => {
     // p1 completes t1 (+150 => 250), then wins r1 (−60 => 190).
     expect((await read('players/p1'))?.coins).toBe(190);
     expect(await read('rewardBids/p1')).toBeUndefined();
+    // The win is recorded as an owned-reward purchase (id = `${day}_${rewardId}`).
+    const purchase = await read('purchases/1_r1');
+    expect(purchase?.buyerId).toBe('p1');
+    expect(purchase?.price).toBe(60);
+    expect(purchase?.form).toBe('reward');
 
     const undone = await undoRollover(asDb('admin'), T, ADMIN);
     expect(undone.ok).toBe(true);
     expect((await read('players/p1'))?.coins).toBe(100);
     expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');
+    expect(await read('purchases/1_r1')).toBeUndefined();
   });
 });

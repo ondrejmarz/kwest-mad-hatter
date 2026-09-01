@@ -18,7 +18,7 @@ export function projectBalance(player: Player, turnus: TurnusSettings): BalanceP
   const current = player.coins;
   const task = player.activeTask;
   const taskReward = task ? task.coinReward : 0;
-  const taskPenalty = task ? task.coinPenalty : 0;
+  const taskPenalty = task ? turnus.failPenalty : 0;
   // A player who never picks a task takes the no-pick penalty at evaluation (spec, C).
   const noPickPenalty = !task && player.status === 'approved' ? turnus.noPickPenalty : 0;
 

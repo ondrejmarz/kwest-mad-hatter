@@ -25,7 +25,6 @@ export function pickTaskNow(
     description: task.description,
     difficulty: task.difficulty,
     coinReward: task.coinReward,
-    coinPenalty: task.coinPenalty,
     partnerNames: [],
   });
 }

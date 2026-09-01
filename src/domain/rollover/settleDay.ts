@@ -34,7 +34,7 @@ export function settleDay(
     }
 
     const completed = completedPlayerIds.has(player.id);
-    const nominal = completed ? task.coinReward : -task.coinPenalty;
+    const nominal = completed ? task.coinReward : -turnus.failPenalty;
     const coins = applyFloor(before + nominal, turnus.allowNegativeBalance);
     const delta = coins - before;
     return {

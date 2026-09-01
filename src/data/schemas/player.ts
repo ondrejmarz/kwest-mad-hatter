@@ -12,7 +12,6 @@ export const activeTaskSchema = z.object({
   description: zLocalizedText,
   difficulty: z.number(),
   coinReward: z.number(),
-  coinPenalty: z.number(),
   partnerNames: z.array(z.string()).readonly(),
   detail: z.string().optional(),
 });

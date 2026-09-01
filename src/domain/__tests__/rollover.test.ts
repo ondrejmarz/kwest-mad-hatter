@@ -87,7 +87,7 @@ describe('resolveRollover — settlement (step 1)', () => {
     const p1 = makePlayer({
       id: PlayerId('p1'),
       coins: 100,
-      activeTask: makeActiveTask({ taskId: TaskId('t1'), coinPenalty: 75 }),
+      activeTask: makeActiveTask({ taskId: TaskId('t1') }),
     });
     const result = run({
       players: [p1],
@@ -104,7 +104,7 @@ describe('resolveRollover — settlement (step 1)', () => {
       makePlayer({
         id: PlayerId('p1'),
         coins: 20,
-        activeTask: makeActiveTask({ taskId: TaskId('t1'), coinPenalty: 75 }),
+        activeTask: makeActiveTask({ taskId: TaskId('t1') }),
       });
     const tasks = [makeTask({ id: TaskId('t1') })];
     const negative = run({ players: [failing()], tasks, turnus: { allowNegativeBalance: true } });
@@ -187,7 +187,7 @@ describe('resolveRollover — reservations (step 3)', () => {
     const p1 = makePlayer({
       id: PlayerId('p1'),
       coins: 100,
-      activeTask: makeActiveTask({ taskId: TaskId('a'), coinPenalty: 80 }),
+      activeTask: makeActiveTask({ taskId: TaskId('a') }),
     });
     const p2 = makePlayer({
       id: PlayerId('p2'),
@@ -195,7 +195,7 @@ describe('resolveRollover — reservations (step 3)', () => {
       activeTask: makeActiveTask({ taskId: TaskId('b'), coinReward: 100 }),
     });
     const result = run({
-      turnus: chores,
+      turnus: { ...chores, failPenalty: 80 },
       players: [p1, p2],
       tasks: [makeTask({ id: TaskId('a') }), makeTask({ id: TaskId('b') }), t1],
       completed: [PlayerId('p2')],
@@ -423,6 +423,62 @@ describe('resolveRollover — reward auctions (step 2)', () => {
       coins: -60,
     });
     expect(result.rollbackSnapshot.rewardBids).toHaveLength(1);
+    // The win becomes an owned-reward Purchase (price = what they paid); undo can find it by id.
+    expect(result.purchases).toEqual([
+      {
+        id: '1_r1',
+        day: 1,
+        buyerId: 'p1',
+        buyerName: 'Jana',
+        rewardId: 'r1',
+        rewardName: loc('Extra dessert'),
+        description: loc(''),
+        price: 60,
+        form: 'reward',
+        targetIds: [],
+        targetNames: [],
+        refunded: false,
+      },
+    ]);
+    expect(result.rollbackSnapshot.purchaseIds).toEqual(['1_r1']);
+  });
+
+  it('creates no purchases when the auction has no winners', () => {
+    const result = run({ turnus: { currentDay: Day(1), noPickPenalty: 0 } });
+    expect(result.purchases).toEqual([]);
+    expect(result.rollbackSnapshot.purchaseIds).toEqual([]);
+  });
+
+  it('records the punishment targets on a won punish_someone purchase', () => {
+    const result = run({
+      turnus: { currentDay: Day(1), noPickPenalty: 0, maxActivePunishesPerPlayer: 1 },
+      players: [
+        makePlayer({ id: PlayerId('p1'), name: 'Jana', coins: 100 }),
+        makePlayer({ id: PlayerId('p2'), name: 'Bob', coins: 100 }),
+      ],
+      rewards: [
+        makeReward({
+          id: RewardId('r1'),
+          form: 'punish_someone',
+          minTargets: 1,
+          maxTargets: 1,
+          price: 10,
+        }),
+      ],
+      rewardBids: [
+        makeRewardBid({
+          playerId: PlayerId('p1'),
+          rewardId: RewardId('r1'),
+          amount: 30,
+          day: Day(1),
+          targetIds: [PlayerId('p2')],
+        }),
+      ],
+    });
+    const purchase = result.purchases.find((p) => p.rewardId === 'r1');
+    expect(purchase?.form).toBe('punish_someone');
+    expect(purchase?.targetIds).toEqual(['p2']);
+    expect(purchase?.targetNames).toEqual(['Bob']);
   });
 });
 

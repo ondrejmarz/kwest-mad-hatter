@@ -7,8 +7,8 @@ import { parseDoc, zDay, zTurnusId } from './shared';
 
 /**
  * The full turnus document (spec 4) — a superset of the pure-logic `TurnusSettings`.
- * Codes live in `private/config` (rules only); `lockTime` is a display reminder, the
- * authoritative lock is the `dayLocked` boolean flipped by an admin action.
+ * Codes live in `private/config` (rules only); the day is frozen for evaluation by the
+ * `dayLocked` boolean an admin flips (there is no clock-based lock).
  */
 export const turnusSchema = z.object({
   id: zTurnusId,
@@ -17,14 +17,12 @@ export const turnusSchema = z.object({
   currentDay: zDay,
   archived: z.boolean(),
   startingCoins: z.number(),
-  coinsPerDifficulty: z.number(),
-  penaltyRatio: z.number(),
+  failPenalty: z.number(),
   allowNegativeBalance: z.boolean(),
   maxActiveRewardsPerPlayer: z.number(),
   maxActivePunishesPerPlayer: z.number(),
   noPickPenalty: z.number(),
   dayLocked: z.boolean(),
-  lockTime: z.string(),
   nextDayCategories: z.array(z.string()).readonly(),
   currentDayCategories: z.array(z.string()).readonly(),
 });
@@ -36,8 +34,7 @@ export function toTurnusSettings(t: Turnus): TurnusSettings {
   return {
     currentDay: t.currentDay,
     startingCoins: t.startingCoins,
-    coinsPerDifficulty: t.coinsPerDifficulty,
-    penaltyRatio: t.penaltyRatio,
+    failPenalty: t.failPenalty,
     allowNegativeBalance: t.allowNegativeBalance,
     maxActiveRewardsPerPlayer: t.maxActiveRewardsPerPlayer,
     maxActivePunishesPerPlayer: t.maxActivePunishesPerPlayer,

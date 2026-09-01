@@ -50,8 +50,7 @@ service cloud.firestore {
         && dayUnlocked(t)
         && exists(taskRef(t, at.taskId))
         && get(taskRef(t, at.taskId)).data.active == true
-        && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward
-        && at.coinPenalty == get(taskRef(t, at.taskId)).data.coinPenalty;
+        && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
     }
 
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
@@ -234,10 +233,11 @@ service cloud.firestore {
         allow update, delete: if isAdmin(t);
       }
 
-      // Purchases: coin-linked create + admin refund arrive in phase 7.
+      // Owned rewards: created by day evaluation and removed by undo — both run as admin. Members
+      // read them for the "has a reward" chip (spec 8).
       match /purchases/{id} {
         allow read: if isMember(t);
-        allow write: if false;
+        allow write: if isAdmin(t);
       }
 
       // Append-only public audit log.

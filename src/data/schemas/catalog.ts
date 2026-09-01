@@ -19,7 +19,6 @@ export const taskSchema = z.object({
   minPlayers: z.number(),
   maxPlayers: z.number(),
   coinReward: z.number(),
-  coinPenalty: z.number(),
   usedByPlayerIds: z.array(zPlayerId).readonly(),
   active: z.boolean(),
   manualCoins: z.boolean(),

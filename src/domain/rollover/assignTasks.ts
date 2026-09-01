@@ -79,7 +79,6 @@ function buildActiveTask(task: Task, partnerNames: readonly string[]): ActiveTas
     description: task.description,
     difficulty: task.difficulty,
     coinReward: task.coinReward,
-    coinPenalty: task.coinPenalty,
     partnerNames,
   };
 }

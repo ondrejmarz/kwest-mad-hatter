@@ -19,14 +19,10 @@ const AREA =
 /** TSV import with a live preview (spec 10): counts of new vs. updated before applying. */
 export function CatalogImport({
   turnusId,
-  coinsPerDifficulty,
-  penaltyRatio,
   taskNames,
   rewardNames,
 }: {
   turnusId: string;
-  coinsPerDifficulty: number;
-  penaltyRatio: number;
   taskNames: ReadonlySet<string>;
   rewardNames: ReadonlySet<string>;
 }) {
@@ -52,7 +48,7 @@ export function CatalogImport({
     setBusy(true);
     setDone(null);
     const result = isTasks
-      ? await applyTaskImport(db, turnusId, parseTasks(text), coinsPerDifficulty, penaltyRatio)
+      ? await applyTaskImport(db, turnusId, parseTasks(text))
       : await applyRewardImport(db, turnusId, parseRewards(text));
     setBusy(false);
     setDone(result);

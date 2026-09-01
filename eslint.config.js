@@ -132,7 +132,7 @@ export default tseslint.config(
     files: [
       'tests/**/*.{ts,tsx}',
       'seed/**/*.ts',
-      'scripts/**/*.ts',
+      'scripts/**/*.{ts,mjs}',
       'vite.config.ts',
       'vitest.config.ts',
       'vitest.rules.config.ts',

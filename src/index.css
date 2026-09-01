@@ -49,3 +49,17 @@
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/*
+ * iOS Safari zooms the whole page toward any form control it focuses whose computed font-size is
+ * below 16px. Several of our controls use Tailwind's 14px `text-sm`, so on touch devices we pin
+ * form controls to 16px — kept out of a layer and marked important so it beats the utility, and
+ * behind a coarse-pointer query so desktop keeps its designed sizing.
+ */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

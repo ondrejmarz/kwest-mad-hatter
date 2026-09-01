@@ -142,4 +142,14 @@ comes before data/rules (phase 2) on purpose.
    snapshot. **Rule fix:** undo runs as admin over the client SDK, so `reservations`/`rewardBids`
    create+update now also allow `isAdmin` (the only admin writer is the snapshot restore) — this
    closes a latent reservation-undo gap too. Deferred: persistent "owned reward" (`Purchase` doc +
-   "má odměnu" chip); punish-target selection/effects (handled off-app for now). 8. PWA + polish. 9. Showcase.
+   "má odměnu" chip); punish-target selection/effects (handled off-app for now).
+8. PWA + polish — **done.** `vite-plugin-pwa` (generateSW/Workbox, `registerType: 'autoUpdate'`,
+   `injectRegister: 'auto'`) precaches the app shell + serves an installable manifest (standalone,
+   portrait, `theme_color`/`background_color` #f8fafc). Icons rasterized from `public/favicon.svg`
+   by `scripts/generate-icons.mjs` (uses `sharp`, a build-time devDep) → `public/pwa-192`, `pwa-512`,
+   `pwa-maskable-512`, `apple-touch-icon` (glyph on white; maskable gets a bigger safe zone).
+   `index.html` carries the apple-touch-icon + `apple-mobile-web-app-*` meta. **iOS input-zoom fix:**
+   an unlayered `@media (pointer: coarse)` rule pins form controls to 16px `!important` so focusing a
+   `text-sm` field no longer zooms the page. SW registration only runs on a real browser/HTTPS (the
+   sandboxed in-app preview browser blocks it — build artifacts verified by curl instead).
+9. Showcase.

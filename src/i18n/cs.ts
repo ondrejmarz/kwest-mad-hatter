@@ -26,6 +26,7 @@ export const cs = {
     language: 'Jazyk',
     menu: 'Menu',
     somethingWrong: 'Aplikace narazila na chybu.',
+    close: 'Zavřít',
     edit: 'Upravit',
   },
   entry: {
@@ -147,7 +148,6 @@ export const cs = {
     reservedChip: 'Rezervováno',
     cancelReservation: 'Zrušit rezervaci',
     choosePartner: 'Vyber parťáka',
-    inviteCountHint: 'Pozvi parťáky (skupina {min}–{max})',
     noPartners: 'Není koho pozvat.',
     replaceHint: 'Nahradí tvoji rezervaci: {name}',
     reasonClosed: 'Tahle kategorie není zítra otevřená.',
@@ -156,14 +156,14 @@ export const cs = {
   },
   pair: {
     inviteChip: 'Pozvánka',
-    youInvited: 'Pozval(a) sis hráče {names} na „{task}“',
+    youInvited: '{names} byl(a) pozván(a) na „{task}“',
     invitedBy: '{name} tě zve na úkol „{task}“',
     accept: 'Přijmout',
     decline: 'Odmítnout',
     acceptedResult: 'Přijato',
     declinedResult: 'Odmítnuto',
     pending: 'Čeká na odpověď',
-    cancelInvite: 'Zrušit pro všechny',
+    cancelInvite: 'Zrušit pro oba',
   },
   rewards: {
     forms: {

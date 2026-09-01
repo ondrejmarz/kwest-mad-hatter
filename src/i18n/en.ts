@@ -24,6 +24,7 @@ export const en: Dictionary = {
     language: 'Language',
     menu: 'Menu',
     somethingWrong: 'The app hit an error.',
+    close: 'Close',
     edit: 'Edit',
   },
   entry: {
@@ -145,7 +146,6 @@ export const en: Dictionary = {
     reservedChip: 'Reserved',
     cancelReservation: 'Cancel reservation',
     choosePartner: 'Choose a partner',
-    inviteCountHint: 'Invite partners (group {min}–{max})',
     noPartners: 'No one to invite.',
     replaceHint: 'Replaces your reservation: {name}',
     reasonClosed: 'This category is not open tomorrow.',
@@ -154,14 +154,14 @@ export const en: Dictionary = {
   },
   pair: {
     inviteChip: 'Invite',
-    youInvited: 'You invited {names} to “{task}”',
+    youInvited: '{names} was invited to “{task}”',
     invitedBy: '{name} invites you to “{task}”',
     accept: 'Accept',
     decline: 'Decline',
     acceptedResult: 'Accepted',
     declinedResult: 'Declined',
     pending: 'Waiting for an answer',
-    cancelInvite: 'Cancel for everyone',
+    cancelInvite: 'Cancel for both',
   },
   rewards: {
     forms: {

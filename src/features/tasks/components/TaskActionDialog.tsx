@@ -20,10 +20,11 @@ import { DifficultyDots } from '../../../ui/DifficultyDots';
 import { Select } from '../../../ui/Select';
 
 /**
- * Tap a task, reserve it (spec 7). Solo tasks reserve straight away; group tasks pick who to
- * invite (between minPlayers−1 and maxPlayers−1 others), and each invitee still has to accept —
- * the group only forms if enough do by evaluation. If this task is already the player's own
- * reservation, the dialog shows the accept/decline tally and offers to cancel it.
+ * Tap a task, reserve it for tomorrow (spec 7). Solo and group tasks are reserved individually — a
+ * group is pooled with the other reservers at evaluation. A pair picks one partner from a dropdown,
+ * who still has to accept. A solo task can also be taken for today (first-come); pairs and groups
+ * are reservation-only. If this task is already the player's own reservation, the dialog offers to
+ * cancel it.
  */
 export function TaskActionDialog({
   task,

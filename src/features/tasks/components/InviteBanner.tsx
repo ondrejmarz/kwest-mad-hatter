@@ -21,12 +21,12 @@ import {
 const CARD = 'rounded-2xl border border-border bg-surface-raised p-4';
 
 /**
- * Group invites follow the player across every screen (spec 7), styled as cards so they sit with
- * the rest of the app. Both sides see the same "Pozvánka" chip and the task's description; the
- * inviter sees each partner's answer and a Cancel that drops the invite for everyone, and each
- * invited player sees a Confirm/Decline toggle they can flip until evaluation. The check or cross
- * pops in the moment an answer lands, so both know how it turned out. Names and descriptions come
- * from the roster and catalog (the reservation stores only ids and the task name).
+ * Pair invites follow the player across every screen (spec 7), styled as cards so they sit with the
+ * rest of the app. Both sides see the same "Pozvánka" chip, the task's description, and the same
+ * bottom row — a name-and-status on the left, the action on the right. The inviter offers a
+ * cancel-for-both, the invited player a Confirm/Decline. Once the partner answers, the check or
+ * cross pops in, both cards lock, and a ✕ appears to tuck the settled card away. Names and
+ * descriptions come from the roster and catalog (the reservation stores only ids and the task name).
  */
 export function InviteBanner() {
   const { turnus } = useSession();
@@ -108,7 +108,22 @@ function ResultBadge({ answer }: { answer: ReservationResponse | undefined }) {
   return <span className="text-sm text-content-muted">{t('pair.pending')}</span>;
 }
 
-/** The player's own group: each partner's answer, and a cancel-for-everyone. */
+/** A ✕ in the card's top-right that tucks a settled invite away (until it is loaded afresh). */
+function DismissButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      aria-label={t('common.close')}
+      onClick={onClick}
+      className="-mr-1 -mt-1 shrink-0 rounded-lg px-2 text-lg leading-none text-content-muted"
+    >
+      ✕
+    </button>
+  );
+}
+
+/** The inviter's own pair: the partner's name and answer on the left, cancel-for-both on the right. */
 function InitiatorCard({
   reservation,
   description,
@@ -122,40 +137,51 @@ function InitiatorCard({
 }) {
   const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const names = reservation.invitees.map(nameOf).join(', ');
+  const [dismissed, setDismissed] = useState(false);
+  const answered = reservation.invitees.every((id) => reservation.responses[id] !== undefined);
+  if (dismissed) return null;
 
   return (
     <div className={CARD}>
-      <Chip tone="accent">{t('pair.inviteChip')}</Chip>
+      <div className="flex items-start justify-between gap-2">
+        <Chip tone="accent">{t('pair.inviteChip')}</Chip>
+        {answered && <DismissButton onClick={() => setDismissed(true)} />}
+      </div>
       <p className="mt-2 text-sm text-content">
-        {t('pair.youInvited', { names, task: localize(reservation.taskName, locale) })}
+        {t('pair.youInvited', {
+          names: reservation.invitees.map(nameOf).join(', '),
+          task: localize(reservation.taskName, locale),
+        })}
       </p>
       {description !== '' && <p className="mt-1 text-sm text-content-muted">{description}</p>}
-      <div className="mt-3 flex flex-col gap-1">
-        {reservation.invitees.map((id) => (
-          <div key={id} className="flex items-center justify-between gap-2">
-            <span className="text-sm text-content">{nameOf(id)}</span>
-            <ResultBadge answer={reservation.responses[id]} />
-          </div>
-        ))}
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-0.5">
+          {reservation.invitees.map((id) => (
+            <div key={id} className="flex items-center gap-2">
+              <span className="text-sm text-content">{nameOf(id)}</span>
+              <ResultBadge answer={reservation.responses[id]} />
+            </div>
+          ))}
+        </div>
+        <Button
+          variant="danger"
+          disabled={busy || answered}
+          onClick={() => {
+            if (busy) return;
+            setBusy(true);
+            void cancelReservation(db, turnusId, reservation.playerId).finally(() =>
+              setBusy(false),
+            );
+          }}
+        >
+          {t('pair.cancelInvite')}
+        </Button>
       </div>
-      <Button
-        variant="danger"
-        className="mt-3"
-        disabled={busy}
-        onClick={() => {
-          if (busy) return;
-          setBusy(true);
-          void cancelReservation(db, turnusId, reservation.playerId).finally(() => setBusy(false));
-        }}
-      >
-        {t('pair.cancelInvite')}
-      </Button>
     </div>
   );
 }
 
-/** An invite to this player: a Confirm/Decline toggle plus the popping result of their answer. */
+/** An invite to this player: their answer on the left, a Confirm/Decline that locks once given. */
 function InviteCard({
   invite,
   inviterName,
@@ -171,7 +197,10 @@ function InviteCard({
 }) {
   const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const myAnswer = invite.responses[myPlayerId];
+  const answered = myAnswer !== undefined;
+  if (dismissed) return null;
 
   const respond = (accept: boolean): void => {
     if (busy) return;
@@ -183,7 +212,10 @@ function InviteCard({
 
   return (
     <div className={CARD}>
-      <Chip tone="accent">{t('pair.inviteChip')}</Chip>
+      <div className="flex items-start justify-between gap-2">
+        <Chip tone="accent">{t('pair.inviteChip')}</Chip>
+        {answered && <DismissButton onClick={() => setDismissed(true)} />}
+      </div>
       <p className="mt-2 text-sm text-content">
         {t('pair.invitedBy', { name: inviterName, task: localize(invite.taskName, locale) })}
       </p>
@@ -191,17 +223,16 @@ function InviteCard({
       <div className="mt-3 flex items-center justify-between gap-2">
         <ResultBadge answer={myAnswer} />
         <div className="flex gap-2">
-          {/* The chosen answer stays highlighted and disabled — tap the other to switch. */}
           <Button
             variant={myAnswer === 'declined' ? 'danger' : 'secondary'}
-            disabled={busy || myAnswer === 'declined'}
+            disabled={busy || answered}
             onClick={() => respond(false)}
           >
             {t('pair.decline')}
           </Button>
           <Button
             variant={myAnswer === 'accepted' ? 'primary' : 'secondary'}
-            disabled={busy || myAnswer === 'accepted'}
+            disabled={busy || answered}
             onClick={() => respond(true)}
           >
             {t('pair.accept')}

@@ -24,6 +24,7 @@ export const de: Dictionary = {
     language: 'Sprache',
     menu: 'Menü',
     somethingWrong: 'Die App ist auf einen Fehler gestoßen.',
+    close: 'Schließen',
     edit: 'Bearbeiten',
   },
   entry: {
@@ -146,7 +147,6 @@ export const de: Dictionary = {
     reservedChip: 'Reserviert',
     cancelReservation: 'Reservierung stornieren',
     choosePartner: 'Partner wählen',
-    inviteCountHint: 'Lade Partner ein (Gruppe {min}–{max})',
     noPartners: 'Niemand zum Einladen.',
     replaceHint: 'Ersetzt deine Reservierung: {name}',
     reasonClosed: 'Diese Kategorie ist morgen nicht offen.',
@@ -155,14 +155,14 @@ export const de: Dictionary = {
   },
   pair: {
     inviteChip: 'Einladung',
-    youInvited: 'Du hast {names} zu „{task}“ eingeladen',
+    youInvited: '{names} wurde zu „{task}“ eingeladen',
     invitedBy: '{name} lädt dich zu „{task}“ ein',
     accept: 'Annehmen',
     decline: 'Ablehnen',
     acceptedResult: 'Angenommen',
     declinedResult: 'Abgelehnt',
     pending: 'Wartet auf Antwort',
-    cancelInvite: 'Für alle abbrechen',
+    cancelInvite: 'Für beide abbrechen',
   },
   rewards: {
     forms: {

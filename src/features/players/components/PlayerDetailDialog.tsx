@@ -14,8 +14,9 @@ import { TextInput } from '../../../ui/TextInput';
 import { useSession } from '../../session';
 
 /**
- * Player detail (spec 9.1). A foreign player is view-only, except for the "I lost access"
- * recovery. A free character offers a no-PIN first claim; an owned one needs the PIN.
+ * Player detail (spec 9.1). A foreign character is claimed by entering its 4-digit PIN — the same
+ * whether it is the first claim or moving the character to this device; claiming releases whatever
+ * character this device held before (one device, one character).
  */
 export function PlayerDetailDialog({
   player,
@@ -31,34 +32,26 @@ export function PlayerDetailDialog({
   const { t, locale } = useTranslation();
   const { uid } = useSession();
   const mine = uid !== null && player.ownerUids.includes(uid);
-  const claimable = player.ownerUids.length === 0;
-  const [recovering, setRecovering] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const claim = async (recoveryPin?: string): Promise<void> => {
-    if (uid === null || busy) return;
+  const submit = async (event: FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (uid === null || busy || !/^\d{4}$/.test(pin)) return;
     setBusy(true);
     setError(null);
-    const result = await claimPlayer(db, turnusId, player.id, uid, player.name, day, recoveryPin);
+    const result = await claimPlayer(db, turnusId, player.id, uid, player.name, day, pin);
     setBusy(false);
-    if (result.ok) {
-      onClose();
-    } else if (result.error.code === 'REQUIRES_ONLINE') {
-      setError(t('entry.offline'));
-    } else if (recoveryPin !== undefined) {
-      setError(t('players.wrongPin'));
-    } else {
-      setError(t('players.alreadyClaimed'));
-    }
+    if (result.ok) onClose();
+    else if (result.error.code === 'REQUIRES_ONLINE') setError(t('entry.offline'));
+    else setError(t('players.wrongPin'));
   };
 
-  const recoverSubmit = (event: FormEvent): void => {
-    event.preventDefault();
-    if (/^\d{4}$/.test(pin)) void claim(pin);
-  };
-
+  const active = player.activeTask;
+  const description = active
+    ? localize(active.description, locale) || localize(active.name, locale)
+    : undefined;
   const chips = mine ? (
     <Chip tone="accent">{t('players.you')}</Chip>
   ) : player.needsPick ? (
@@ -70,44 +63,30 @@ export function PlayerDetailDialog({
       <CardLayout
         title={player.name}
         {...(chips !== undefined ? { chips } : {})}
-        {...(player.activeTask ? { description: localize(player.activeTask.name, locale) } : {})}
+        {...(description !== undefined ? { description } : {})}
         footerRight={<CoinAmount amount={player.coins} />}
         clampDescription={false}
       />
 
       {!mine && (
-        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
-          {claimable ? (
-            <>
-              <p className="text-sm text-content-muted">
-                {t('players.claimHint', { name: player.name })}
-              </p>
-              <Button onClick={() => void claim()} disabled={busy}>
-                {t('players.claimConfirm')}
-              </Button>
-            </>
-          ) : recovering ? (
-            <form onSubmit={recoverSubmit} className="flex flex-col gap-3">
-              <p className="text-sm text-content-muted">{t('players.recoverHint')}</p>
-              <TextInput
-                value={pin}
-                onChange={(event) => setPin(event.target.value)}
-                inputMode="numeric"
-                maxLength={4}
-                autoComplete="off"
-                autoFocus
-              />
-              <Button type="submit" disabled={busy || !/^\d{4}$/.test(pin)}>
-                {t('players.recoverSubmit')}
-              </Button>
-            </form>
-          ) : (
-            <Button variant="ghost" onClick={() => setRecovering(true)}>
-              {t('players.recover')}
-            </Button>
-          )}
+        <form onSubmit={submit} className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+          <p className="text-sm text-content-muted">
+            {t('players.claimHint', { name: player.name })}
+          </p>
+          <TextInput
+            label={t('players.pinLabel')}
+            value={pin}
+            onChange={(event) => setPin(event.target.value)}
+            inputMode="numeric"
+            maxLength={4}
+            autoComplete="off"
+            autoFocus
+          />
           {error !== null && <p className="text-sm text-danger">{error}</p>}
-        </div>
+          <Button type="submit" disabled={busy || !/^\d{4}$/.test(pin)}>
+            {t('players.claimConfirm')}
+          </Button>
+        </form>
       )}
     </Dialog>
   );

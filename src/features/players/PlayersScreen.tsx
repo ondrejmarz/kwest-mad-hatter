@@ -1,9 +1,12 @@
 import { useState } from 'react';
 
+import { db } from '../../data/firebase';
+import { adjustCoins } from '../../data/transactions/adjustCoins';
 import type { Player } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { byName, csCollator } from '../../lib/collator';
 import { byNumber, byText } from '../../lib/sort';
+import { usePersistentState } from '../../platform/storage/usePersistentState';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
@@ -41,7 +44,7 @@ export function PlayersScreen() {
   const myPlayer = useMyPlayer();
   const isAdmin = role === 'admin';
 
-  const [sort, setSort] = useState<PlayerSort>('nameAsc');
+  const [sort, setSort] = usePersistentState<PlayerSort>('kwest.players.sort', 'nameAsc');
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Player | null>(null);
   const [editing, setEditing] = useState<Player | null>(null);
@@ -50,6 +53,10 @@ export function PlayersScreen() {
   const turnusId = turnus.id;
   const day = turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay : 1;
   const meta = { actorUid: uid ?? '', actorLabel: myPlayer?.name ?? 'Admin' };
+  // Quick coin steps from the roster; the audit note is auto-filled (spec 9.4).
+  const adjustCoinsFor = (playerId: string) => (delta: number) => {
+    void adjustCoins(db, turnusId, playerId, delta, t('players.quickAdjust'), meta);
+  };
 
   if (playersState.status === 'loading') {
     return (
@@ -102,6 +109,7 @@ export function PlayersScreen() {
           isAdmin={isAdmin}
           onOpen={() => setSelected(myPlayer)}
           onEdit={() => setEditing(myPlayer)}
+          onAdjustCoins={adjustCoinsFor(myPlayer.id)}
         />
       )}
 
@@ -117,6 +125,7 @@ export function PlayersScreen() {
               isAdmin={isAdmin}
               onOpen={() => setSelected(player)}
               onEdit={() => setEditing(player)}
+              onAdjustCoins={adjustCoinsFor(player.id)}
             />
           ))
         )}

@@ -80,10 +80,11 @@ Hard rules:
   dayLocked, currentDay), stored in an admin-only doc, not on the hot turnus doc.
 - **Reservations are secret.** Reservation/pair-invite actions are not written to the public
   `events` log during the day; reservation events only appear at evaluation.
-- **Character ownership is multi-device:** `ownerUids: string[]`. First claim on an empty set
-  needs no PIN; adding another device to a non-empty set needs the 4-digit PIN
-  (5 tries, then a 15-minute lockout enforced server-side via a guard doc + `request.time`).
-  A character can be claimed only after admin approval.
+- **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the 4-digit
+  PIN** — even the first on an empty character — so nobody grabs the wrong one (updated from the
+  original "first claim is free"). **One device owns one character:** claiming a new one releases
+  the old (removes this uid via `releasesOwnership`); a character may still have several devices.
+  A character can be claimed only after admin approval. (5-try/15-min lockout still deferred.)
 - **Purchase coins deduct atomically** in one transaction (instant balance, no overdraft),
   with rules linking the coin decrease to a matching `purchase` (preferred over deferred deduction).
 - **Purchase limits:** `maxActiveRewardsPerPlayer` counts all of a buyer's active purchases

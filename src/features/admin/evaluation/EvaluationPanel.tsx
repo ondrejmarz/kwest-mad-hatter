@@ -223,7 +223,6 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
                 {t('eval.lossLine', {
                   name: loss.playerName,
                   task: localize(loss.taskName, locale),
-                  winner: loss.winnerName,
                 })}
               </li>
             ))}

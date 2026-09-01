@@ -5,28 +5,33 @@ import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
-import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
-/** One player in the list (spec 9.1): name, chips, active task, coins, admin pencil. */
+import { AdminCoinControls } from './AdminCoinControls';
+
+/** One player in the list (spec 9.1): name, chips, active task, coins, admin coin controls. */
 export const PlayerRow = memo(function PlayerRow({
   player,
   mine,
   isAdmin,
   onOpen,
   onEdit,
+  onAdjustCoins,
 }: {
   player: Player;
   mine: boolean;
   isAdmin: boolean;
   onOpen: () => void;
   onEdit: () => void;
+  onAdjustCoins: (delta: number) => void;
 }) {
   const { t, locale } = useTranslation();
-  const partner =
-    player.activeTask?.isPair && player.activeTask.partnerName
-      ? ` · ${player.activeTask.partnerName}`
-      : '';
+  const active = player.activeTask;
+  const partner = active?.isPair && active.partnerName ? ` · ${active.partnerName}` : '';
+  // What they're actually doing reads better as the task's description than its name (spec 9.1).
+  const activeLabel = active
+    ? `${localize(active.description, locale) || localize(active.name, locale)}${partner}`
+    : undefined;
   const hasChips = mine || player.needsPick;
   return (
     <ListCard
@@ -41,10 +46,10 @@ export const PlayerRow = memo(function PlayerRow({
           </>
         ) : undefined
       }
-      description={
-        player.activeTask ? `${localize(player.activeTask.name, locale)}${partner}` : undefined
+      description={activeLabel}
+      footerLeft={
+        isAdmin ? <AdminCoinControls onAdjust={onAdjustCoins} onEdit={onEdit} /> : undefined
       }
-      footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
       footerRight={<CoinAmount amount={player.coins} />}
     />
   );

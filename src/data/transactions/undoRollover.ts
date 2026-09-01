@@ -38,6 +38,7 @@ export async function undoRollover(
     tx.update(turnusDoc(db, t), {
       currentDay: snapshot.currentDay,
       currentDayCategories: snapshot.currentDayCategories,
+      nextDayCategories: snapshot.nextDayCategories,
       dayLocked: snapshot.dayLocked,
     });
     for (const reservation of snapshot.reservations) {

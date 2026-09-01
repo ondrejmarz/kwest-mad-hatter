@@ -221,8 +221,14 @@ describe('a player cannot tamper with their own document', () => {
 });
 
 describe('character claiming', () => {
-  it('lets a member claim a free, approved character without a PIN', async () => {
-    await assertSucceeds(updateDoc(doc(authed('dan'), path('players/p3')), { ownerUids: ['dan'] }));
+  it('requires a PIN even for a free, approved character', async () => {
+    await assertFails(updateDoc(doc(authed('dan'), path('players/p3')), { ownerUids: ['dan'] }));
+  });
+
+  it('lets a member claim a free character with the correct PIN', async () => {
+    const db = authed('dan');
+    await assertSucceeds(setDoc(doc(db, path('claimAttempts/dan')), { pin: '4321' }));
+    await assertSucceeds(updateDoc(doc(db, path('players/p3')), { ownerUids: ['dan'] }));
   });
 
   it('forbids claiming an owned character without a matching PIN', async () => {
@@ -231,16 +237,24 @@ describe('character claiming', () => {
     );
   });
 
-  it('allows recovery with the correct PIN', async () => {
+  it('lets a second device join with the correct PIN', async () => {
     const db = authed('bob');
     await assertSucceeds(setDoc(doc(db, path('claimAttempts/bob')), { pin: '1234' }));
     await assertSucceeds(updateDoc(doc(db, path('players/p1')), { ownerUids: ['alice', 'bob'] }));
   });
 
-  it('rejects recovery with the wrong PIN', async () => {
+  it('rejects a wrong PIN', async () => {
     const db = authed('bob');
     await assertSucceeds(setDoc(doc(db, path('claimAttempts/bob')), { pin: '0000' }));
     await assertFails(updateDoc(doc(db, path('players/p1')), { ownerUids: ['alice', 'bob'] }));
+  });
+
+  it('lets an owner release their own character (no PIN needed to leave)', async () => {
+    await assertSucceeds(updateDoc(doc(authed('carol'), path('players/p4')), { ownerUids: [] }));
+  });
+
+  it('forbids stripping someone else from a character', async () => {
+    await assertFails(updateDoc(doc(authed('dan'), path('players/p4')), { ownerUids: [] }));
   });
 });
 

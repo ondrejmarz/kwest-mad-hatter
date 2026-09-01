@@ -55,6 +55,7 @@ export async function runRollover(
     tx.update(turnusDoc(db, t), {
       currentDay: result.turnus.currentDay,
       currentDayCategories: result.turnus.currentDayCategories,
+      nextDayCategories: result.turnus.nextDayCategories,
       dayLocked: result.turnus.dayLocked,
     });
     tx.set(rollbackDoc(db, t), { snapshot: result.rollbackSnapshot, savedAt: serverTimestamp() });

@@ -98,6 +98,10 @@ beforeEach(async () => {
     await put('players/p2', player({ name: 'B', activeTask: activeTaskFor('t2', 'Task 2') }));
     await put('players/free', player({ name: 'Free', coins: 0, needsPick: true }));
     await put('players/pending', player({ name: 'Pending', status: 'pending', coins: 0 }));
+    // Recovery PINs — every claim (even the first) is verified against these.
+    await put('players/free/private/auth', { recoveryPin: '1234' });
+    await put('players/p1/private/auth', { recoveryPin: '1234' });
+    await put('players/p2/private/auth', { recoveryPin: '1234' });
     await put('ownerIndex/alice', { playerId: 'p1' });
 
     const task = (over: Record<string, unknown>): Record<string, unknown> => ({
@@ -156,17 +160,26 @@ describe('joinTurnus', () => {
 });
 
 describe('claimPlayer', () => {
-  it('claims a free character and writes the owner index', async () => {
-    const result = await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1);
+  it('claims a character with the right PIN and writes the owner index', async () => {
+    const result = await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1, '1234');
     expect(result.ok).toBe(true);
     expect((await read('players/free'))?.ownerUids).toEqual(['dan']);
     expect((await read('ownerIndex/dan'))?.playerId).toBe('free');
   });
 
-  it('refuses an owned character without a PIN', async () => {
-    await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1);
-    const result = await claimPlayer(asDb('eve'), T, 'free', 'eve', 'Eve', 1);
+  it('refuses a wrong PIN, even on a free character', async () => {
+    const result = await claimPlayer(asDb('eve'), T, 'free', 'eve', 'Eve', 1, '9999');
     expect(result).toEqual({ ok: false, error: { code: 'PLAYER_ALREADY_CLAIMED' } });
+    expect((await read('players/free'))?.ownerUids).toEqual([]);
+  });
+
+  it('releases the previous character when claiming a new one', async () => {
+    await claimPlayer(asDb('dan'), T, 'free', 'dan', 'Dan', 1, '1234');
+    const result = await claimPlayer(asDb('dan'), T, 'p2', 'dan', 'Dan', 1, '1234');
+    expect(result.ok).toBe(true);
+    expect((await read('players/p2'))?.ownerUids).toEqual(['dan']);
+    expect((await read('players/free'))?.ownerUids).toEqual([]);
+    expect((await read('ownerIndex/dan'))?.playerId).toBe('p2');
   });
 });
 

@@ -10,6 +10,7 @@ import type { Locale } from '../../i18n/translate';
 import { categoryLabel } from '../../lib/category';
 import { csCollator } from '../../lib/collator';
 import { byNumber, byText } from '../../lib/sort';
+import { usePersistentState } from '../../platform/storage/usePersistentState';
 import { Button } from '../../ui/Button';
 import { Checkbox } from '../../ui/Checkbox';
 import { EmptyState } from '../../ui/EmptyState';
@@ -68,9 +69,9 @@ export function TasksScreen() {
   const reservationState = useMyReservation();
   const isAdmin = role === 'admin';
 
-  const [sort, setSort] = useState<TaskSort>('nameAsc');
-  const [category, setCategory] = useState('');
-  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [sort, setSort] = usePersistentState<TaskSort>('kwest.tasks.sort', 'nameAsc');
+  const [category, setCategory] = usePersistentState('kwest.tasks.category', '');
+  const [onlyAvailable, setOnlyAvailable] = usePersistentState('kwest.tasks.onlyAvailable', false);
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
   const [acting, setActing] = useState<Task | null>(null);
 

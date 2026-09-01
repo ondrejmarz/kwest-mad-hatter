@@ -1,4 +1,5 @@
 import {
+  arrayRemove,
   arrayUnion,
   deleteDoc,
   doc,
@@ -18,10 +19,11 @@ import { parsePlayer } from '../schemas/player';
 import { actionEvent } from './shared';
 
 /**
- * A device claims a character (spec 3b). An empty, approved character needs no PIN; adding a
- * device to an owned character sends a PIN attempt the rules verify against the private auth
- * doc. Player + reverse index are written in one batch so the ownerIndex rule sees the new
- * ownerUids via getAfter. (The 5-try/15-min lockout guard lands with the phase-4 claim UI.)
+ * A device claims a character (spec 3b). Every claim needs the 4-digit PIN set at character
+ * creation — the rules verify a claimAttempt against the private auth doc — so nobody grabs the
+ * wrong character. One device owns one character: claiming a new one releases the previous. The
+ * release, the add and the reverse index are one batch; the ownerIndex rule sees the new
+ * ownerUids via getAfter. (The 5-try/15-min lockout guard is deferred hardening.)
  */
 export async function claimPlayer(
   db: Firestore,
@@ -30,7 +32,7 @@ export async function claimPlayer(
   uid: string,
   actorLabel: string,
   day: number,
-  pin?: string,
+  pin: string,
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
 
@@ -40,14 +42,16 @@ export async function claimPlayer(
 
   if (player.status !== 'approved') return err({ code: 'PLAYER_NOT_APPROVED' });
   if (player.ownerUids.includes(uid)) return ok(undefined);
-  if (player.ownerUids.length > 0 && pin === undefined) {
-    return err({ code: 'PLAYER_ALREADY_CLAIMED' });
-  }
 
-  if (pin !== undefined) {
-    await setDoc(claimAttemptDoc(db, t, uid), { pin });
-  }
+  // One device owns one character — release the previous one, if any.
+  const indexSnap = await getDoc(ownerIndexDoc(db, t, uid));
+  const previousPlayerId = indexSnap.exists() ? (indexSnap.data().playerId as string) : null;
+
+  await setDoc(claimAttemptDoc(db, t, uid), { pin });
   const batch = writeBatch(db);
+  if (previousPlayerId !== null && previousPlayerId !== playerId) {
+    batch.update(playerDoc(db, t, previousPlayerId), { ownerUids: arrayRemove(uid) });
+  }
   batch.update(playerDoc(db, t, playerId), { ownerUids: arrayUnion(uid) });
   batch.set(ownerIndexDoc(db, t, uid), { playerId });
   batch.set(
@@ -59,11 +63,9 @@ export async function claimPlayer(
     await batch.commit();
     return ok(undefined);
   } catch {
-    // Non-empty owner set with a wrong PIN — the rules denied the write.
+    // The rules denied it — a wrong PIN (the only gate the user controls).
     return err({ code: 'PLAYER_ALREADY_CLAIMED' });
   } finally {
-    if (pin !== undefined) {
-      await deleteDoc(claimAttemptDoc(db, t, uid)).catch(() => undefined);
-    }
+    await deleteDoc(claimAttemptDoc(db, t, uid)).catch(() => undefined);
   }
 }

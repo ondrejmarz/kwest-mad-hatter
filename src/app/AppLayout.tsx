@@ -53,7 +53,8 @@ export function AppLayout() {
         <NavBar showAdmin={role === 'admin'} />
         <PairInviteBanner />
       </div>
-      <main className="safe-bottom flex-1 px-4 py-4">
+      {/* A consistent bottom gap on every platform, plus the iPhone home-indicator inset on top. */}
+      <main className="flex-1 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <Outlet />
       </main>
     </div>

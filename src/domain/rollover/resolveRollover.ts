@@ -72,6 +72,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
   const rollbackSnapshot: RollbackSnapshot = {
     currentDay,
     currentDayCategories: turnus.currentDayCategories,
+    nextDayCategories: turnus.nextDayCategories,
     dayLocked: turnus.dayLocked,
     players: approved.map((player) => ({
       playerId: player.id,
@@ -95,12 +96,14 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     ...assignment.events,
   ];
 
-  // Step 4 — advance the round: tomorrow's categories become today's, and the day unlocks.
+  // Step 4 — advance the round: tomorrow's categories become today's, tomorrow resets to empty
+  // (admins re-pick), and the day unlocks.
   return {
     nextDay,
     turnus: {
       currentDay: nextDay,
       currentDayCategories: turnus.nextDayCategories,
+      nextDayCategories: [],
       dayLocked: false,
     },
     playerUpdates,

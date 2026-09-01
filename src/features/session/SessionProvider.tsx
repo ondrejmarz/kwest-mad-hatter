@@ -41,7 +41,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [uid, setUid] = useState<string | null>(null);
   const [turnus, setTurnus] = useState<RememberedTurnus | null>(() => readRememberedTurnus());
   const [role, setRole] = useState<Role | null>(null);
-  const [roleLoading, setRoleLoading] = useState(false);
+  // Booting with a remembered turnus means we WILL resolve a role — start in the loading state so
+  // a reload of a deep route (e.g. /tasks) waits instead of bouncing to /enter during the gap
+  // between the uid arriving and the role listener attaching.
+  const [roleLoading, setRoleLoading] = useState(() => readRememberedTurnus() !== null);
 
   // One anonymous uid per device (spec 3b).
   useEffect(() => {
@@ -56,9 +59,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Learn this device's role in the current turnus (spec 4).
   useEffect(() => {
-    if (uid === null || turnus === null) {
+    if (turnus === null) {
       setRole(null);
       setRoleLoading(false);
+      return;
+    }
+    // We have a turnus but not the uid yet — still resolving, not "not a member".
+    if (uid === null) {
+      setRoleLoading(true);
       return;
     }
     setRoleLoading(true);

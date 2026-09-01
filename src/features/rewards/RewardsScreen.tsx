@@ -6,6 +6,7 @@ import { localize } from '../../i18n/localize';
 import type { Locale } from '../../i18n/translate';
 import { csCollator } from '../../lib/collator';
 import { byNumber, byText } from '../../lib/sort';
+import { usePersistentState } from '../../platform/storage/usePersistentState';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select } from '../../ui/Select';
@@ -40,8 +41,8 @@ export function RewardsScreen() {
   const turnusState = useTurnus();
   const isAdmin = role === 'admin';
 
-  const [sort, setSort] = useState<RewardSort>('nameAsc');
-  const [formFilter, setFormFilter] = useState<'' | RewardForm>('');
+  const [sort, setSort] = usePersistentState<RewardSort>('kwest.rewards.sort', 'nameAsc');
+  const [formFilter, setFormFilter] = usePersistentState<'' | RewardForm>('kwest.rewards.form', '');
   const [editing, setEditing] = useState<Reward | null | undefined>(undefined);
 
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;

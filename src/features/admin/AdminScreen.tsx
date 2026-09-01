@@ -1,4 +1,5 @@
 import type { LocalizedText } from '../../domain/types';
+import { useTranslation } from '../../i18n/LocaleProvider';
 import { csCollator } from '../../lib/collator';
 import { Spinner } from '../../ui/Spinner';
 import { useCatalogRewards, useCatalogTasks, usePlayers, useSession, useTurnus } from '../session';
@@ -13,6 +14,7 @@ import { EvaluationPanel } from './evaluation/EvaluationPanel';
  * the tabs behind the pencil.
  */
 export function AdminScreen() {
+  const { t } = useTranslation();
   const { uid, turnus } = useSession();
   const turnusState = useTurnus();
   const playersState = usePlayers();
@@ -61,6 +63,19 @@ export function AdminScreen() {
         turnusId={turnus.id}
         day={settings.currentDay}
         meta={meta}
+        field="currentDay"
+        title={t('catalog.categoriesTodayTitle')}
+        hint={t('catalog.categoriesTodayHint')}
+        categories={categories}
+        selected={settings.currentDayCategories}
+      />
+      <CategoryPicker
+        turnusId={turnus.id}
+        day={settings.currentDay}
+        meta={meta}
+        field="nextDay"
+        title={t('catalog.categoriesTomorrowTitle')}
+        hint={t('catalog.categoriesTomorrowHint')}
         categories={categories}
         selected={settings.nextDayCategories}
       />

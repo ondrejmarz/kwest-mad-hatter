@@ -65,6 +65,7 @@ export interface PlayerSnapshot {
 export interface RollbackSnapshot {
   readonly currentDay: Day;
   readonly currentDayCategories: readonly string[];
+  readonly nextDayCategories: readonly string[];
   readonly dayLocked: boolean;
   readonly players: readonly PlayerSnapshot[];
   readonly tasks: readonly TaskUpdate[];
@@ -109,6 +110,7 @@ export interface RolloverPreview {
 export interface TurnusUpdate {
   readonly currentDay: Day;
   readonly currentDayCategories: readonly string[];
+  readonly nextDayCategories: readonly string[];
   readonly dayLocked: boolean;
 }
 

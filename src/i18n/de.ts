@@ -1,7 +1,7 @@
 import type { Dictionary } from './cs';
 
 export const de: Dictionary = {
-  appName: 'Kwest',
+  appName: '/ˈKWEST/',
   nav: {
     players: 'Spieler',
     tasks: 'Aufgaben',
@@ -66,22 +66,17 @@ export const de: Dictionary = {
     createSubmit: 'Hinzufügen',
     invalidName: 'Gib einen Namen ein.',
     invalidPin: 'PIN muss 4 Ziffern haben.',
-    claimTitle: 'Bist du das?',
-    claimHint: 'Du meldest dich als {name} an und kommst nächstes Mal direkt rein.',
-    claimConfirm: 'Ja, das bin ich',
-    recover: 'Das bin ich, ich habe den Zugang verloren',
-    recoverTitle: 'Zugang wiederherstellen',
-    recoverHint: 'Gib die Wiederherstellungs-PIN ein, die du bei der Erstellung gewählt hast.',
-    recoverSubmit: 'Zugang wiederherstellen',
+    claimHint:
+      'Gib die PIN ein, um dich als {name} anzumelden. Das meldet deine vorherige Figur ab.',
+    claimConfirm: 'Anmelden',
     wrongPin: 'Falsche PIN.',
-    alreadyClaimed: 'Diese Figur gehört bereits jemandem.',
-    detailTitle: 'Spielerdetail',
     you: 'Du',
     editTitle: 'Spieler bearbeiten',
     coinsLabel: 'Münzen',
     coinsAdjustLabel: 'Münzänderung (±)',
     coinsNoteLabel: 'Notiz für das Protokoll',
     noteRequired: 'Gib eine Notiz zur Münzänderung an.',
+    quickAdjust: 'Schnelle Anpassung',
     save: 'Speichern',
   },
   tasks: {
@@ -162,8 +157,10 @@ export const de: Dictionary = {
     preview: 'Vorschau: {created} neu, {updated} aktualisiert',
     apply: 'Importieren',
     done: 'Fertig: {created} neu, {updated} aktualisiert.',
-    categoriesTitle: 'Verfügbare Kategorien',
-    categoriesHint: 'Wähle die Aufgabenkategorien, die im Spiel sind.',
+    categoriesTodayTitle: 'Kategorien für heute',
+    categoriesTodayHint: 'Offen für die heutige Auswahl (wer keine Reservierung bekam).',
+    categoriesTomorrowTitle: 'Kategorien für morgen',
+    categoriesTomorrowHint: 'Offen für die morgigen Reservierungen.',
     noCategories: 'Noch keine Kategorien — importiere zuerst Aufgaben.',
   },
   eval: {
@@ -181,7 +178,7 @@ export const de: Dictionary = {
     assignments: 'Für morgen zugeteilt',
     none: 'Nichts',
     losses: 'Nicht bekommen',
-    lossLine: '{name}: {task} — ging an {winner}',
+    lossLine: '{name}: {task}',
     withoutTask: 'Ohne Aufgabe',
     outcomeCompleted: 'Erledigt',
     outcomeFailed: 'Nicht erledigt',

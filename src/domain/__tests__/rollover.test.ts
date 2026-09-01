@@ -39,7 +39,12 @@ describe('resolveRollover — settlement (step 1)', () => {
     expect(result.playerUpdates).toEqual([]);
     expect(result.taskUpdates).toEqual([]);
     expect(result.events).toEqual([]);
-    expect(result.turnus).toEqual({ currentDay: 2, currentDayCategories: [], dayLocked: false });
+    expect(result.turnus).toEqual({
+      currentDay: 2,
+      currentDayCategories: [],
+      nextDayCategories: [],
+      dayLocked: false,
+    });
   });
 
   it('pays everyone who completed their task', () => {
@@ -384,6 +389,7 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
     expect(result.turnus).toEqual({
       currentDay: 4,
       currentDayCategories: ['new'],
+      nextDayCategories: [],
       dayLocked: false,
     });
   });
@@ -419,6 +425,7 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
     const snap = result.rollbackSnapshot;
     expect(snap.currentDay).toBe(1);
     expect(snap.currentDayCategories).toEqual(['a']);
+    expect(snap.nextDayCategories).toEqual(['b']);
     expect(snap.dayLocked).toBe(true);
     expect(snap.players).toEqual([
       { playerId: 'p1', coins: 100, activeTask: p1.activeTask, needsPick: false },

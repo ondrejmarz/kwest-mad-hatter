@@ -32,8 +32,9 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
-    // A device claims a character by adding its uid to `ownerUids`: free on an empty,
-    // approved character; otherwise it needs a claimAttempt whose PIN matches (spec 3b, 11).
+    // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
+    // on an empty character — needs a claimAttempt whose PIN matches, so nobody grabs the wrong
+    // character (spec 3b, 11).
     function pinMatches(t, pid) {
       return exists(/databases/$(database)/documents/turnuses/$(t)/claimAttempts/$(uid()))
         && get(/databases/$(database)/documents/turnuses/$(t)/claimAttempts/$(uid())).data.pin
@@ -41,15 +42,17 @@ service cloud.firestore {
     }
     function claimsOwnership(t, pid) {
       return onlyChanged(['ownerUids'])
+        && resource.data.status == 'approved'
         && uid() in request.resource.data.ownerUids
-        && (
-          (resource.data.ownerUids.size() == 0
-            && resource.data.status == 'approved'
-            && request.resource.data.ownerUids == [uid()])
-          || (resource.data.ownerUids.size() > 0
-            && request.resource.data.ownerUids == resource.data.ownerUids.concat([uid()])
-            && pinMatches(t, pid))
-        );
+        && request.resource.data.ownerUids == resource.data.ownerUids.concat([uid()])
+        && pinMatches(t, pid);
+    }
+    // One device owns one character: claiming a new one releases the old by removing only its
+    // own uid (no PIN needed to leave a character you already hold).
+    function releasesOwnership(t, pid) {
+      return onlyChanged(['ownerUids'])
+        && uid() in resource.data.ownerUids
+        && request.resource.data.ownerUids == resource.data.ownerUids.removeAll([uid()]);
     }
     // The invited partner accepts a pair invite (spec 7).
     function confirmsInvite(t, pid) {
@@ -135,9 +138,10 @@ service cloud.firestore {
           && request.resource.data.ownerUids.size() == 0
           && request.resource.data.createdByUid == uid()
           && request.resource.data.name is string;
-        // A player never changes their own coins/status/activeTask — only claims a character.
-        // Pick and purchase writes are added with their transactions (phases 6, 7).
-        allow update: if isAdmin(t) || (isMember(t) && claimsOwnership(t, pid));
+        // A player never changes their own coins/status/activeTask — only claims a character or
+        // releases one they hold. Pick and purchase writes are added with their transactions.
+        allow update: if isAdmin(t)
+          || (isMember(t) && (claimsOwnership(t, pid) || releasesOwnership(t, pid)));
         // Reject a pending character (spec 9.4); approved players are never hard-deleted.
         allow delete: if isAdmin(t) && resource.data.status == 'pending';
 

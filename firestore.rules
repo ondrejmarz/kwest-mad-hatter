@@ -1,13 +1,185 @@
 rules_version = '2';
 
-// Phase 0 skeleton: deny every client read and write.
-// The real, adversarially-tested ruleset arrives in Phase 2 (data + rules).
-// Seed scripts and rules tests bypass this via the emulator's
-// withSecurityRulesDisabled context, so a deny-all default is safe here.
+// Authorization for the whole app lives here (spec 11) — there is no backend. The key
+// trick: get()/exists() inside a rule read documents the client itself cannot, so codes
+// and PINs are verified without ever being exposed.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    function memberRef(t) {
+      return /databases/$(database)/documents/turnuses/$(t)/members/$(uid());
+    }
+    function isMember(t) { return signedIn() && exists(memberRef(t)); }
+    function isAdmin(t) { return isMember(t) && get(memberRef(t)).data.role == 'admin'; }
+
+    function codes(t) {
+      return get(/databases/$(database)/documents/turnuses/$(t)/private/config).data;
+    }
+    function joinAttemptRef(t) {
+      return /databases/$(database)/documents/turnuses/$(t)/joinAttempts/$(uid());
+    }
+    function joinCode(t) { return get(joinAttemptRef(t)).data.code; }
+
+    function ownerIndexRef(t) {
+      return /databases/$(database)/documents/turnuses/$(t)/ownerIndex/$(uid());
+    }
+    function hasPlayer(t) { return signedIn() && exists(ownerIndexRef(t)); }
+    function myPlayerId(t) { return get(ownerIndexRef(t)).data.playerId; }
+
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // A device claims a character by adding its uid to `ownerUids`: free on an empty,
+    // approved character; otherwise it needs a claimAttempt whose PIN matches (spec 3b, 11).
+    function pinMatches(t, pid) {
+      return exists(/databases/$(database)/documents/turnuses/$(t)/claimAttempts/$(uid()))
+        && get(/databases/$(database)/documents/turnuses/$(t)/claimAttempts/$(uid())).data.pin
+           == get(/databases/$(database)/documents/turnuses/$(t)/players/$(pid)/private/auth).data.recoveryPin;
+    }
+    function claimsOwnership(t, pid) {
+      return onlyChanged(['ownerUids'])
+        && uid() in request.resource.data.ownerUids
+        && (
+          (resource.data.ownerUids.size() == 0
+            && resource.data.status == 'approved'
+            && request.resource.data.ownerUids == [uid()])
+          || (resource.data.ownerUids.size() > 0
+            && request.resource.data.ownerUids == resource.data.ownerUids.concat([uid()])
+            && pinMatches(t, pid))
+        );
+    }
+    // The invited partner accepts a pair invite (spec 7).
+    function confirmsInvite(t, pid) {
+      return hasPlayer(t)
+        && resource.data.get('invitePartnerId', '') == myPlayerId(t)
+        && onlyChanged(['confirmed', 'partnerId', 'invitePartnerId'])
+        && request.resource.data.confirmed == true;
+    }
+
+    // Global catalog templates — read-only for clients; copied into a turnus by admins.
+    match /catalogTasks/{id} { allow read: if signedIn(); allow write: if false; }
+    match /catalogRewards/{id} { allow read: if signedIn(); allow write: if false; }
+
+    match /turnuses/{t} {
+      // The turnus doc is public (listing + entry). Codes are in private/config, never here.
+      allow read: if signedIn();
+      allow create: if false; // turnuses are provisioned by seed/console
+      allow update: if isAdmin(t);
+      allow delete: if false;
+
+      // Codes: no client ever reads them; rules read via get(). An admin may set them.
+      match /private/{doc} {
+        allow read: if false;
+        allow write: if isAdmin(t);
+      }
+
+      // Membership is rules-only. Role is derived from which code the joinAttempt matched;
+      // the same rule upgrades a player to admin with a valid admin joinAttempt.
+      match /members/{u} {
+        allow read: if false;
+        allow create, update: if signedIn() && uid() == u && exists(joinAttemptRef(t))
+          && ((request.resource.data.role == 'player' && joinCode(t) == codes(t).playerCode)
+            || (request.resource.data.role == 'admin' && joinCode(t) == codes(t).adminCode));
+        allow delete: if false;
+      }
+
+      // Only the owner reads their own role; it must mirror the members doc committed alongside it.
+      match /roles/{u} {
+        allow read: if signedIn() && uid() == u;
+        allow create, update: if signedIn() && uid() == u
+          && request.resource.data.role == getAfter(memberRef(t)).data.role;
+        allow delete: if false;
+      }
+
+      // Code check happens here: a wrong code cannot even create the attempt.
+      match /joinAttempts/{u} {
+        allow read: if false;
+        allow create: if signedIn() && uid() == u
+          && (request.resource.data.code == codes(t).playerCode
+            || request.resource.data.code == codes(t).adminCode);
+        allow update: if false;
+        allow delete: if signedIn() && uid() == u;
+      }
+
+      // PIN guesses for character recovery; verified against private/auth via get() in a rule.
+      match /claimAttempts/{u} {
+        allow read: if false;
+        allow create, delete: if signedIn() && uid() == u;
+        allow update: if false;
+      }
+
+      // uid -> playerId reverse index so rules can resolve "my player" without a query.
+      // Writable only in lockstep with the matching player's ownerUids.
+      match /ownerIndex/{u} {
+        allow read: if signedIn() && uid() == u;
+        allow create, update: if signedIn() && uid() == u
+          && uid() in getAfter(/databases/$(database)/documents/turnuses/$(t)/players/$(request.resource.data.playerId)).data.ownerUids;
+        allow delete: if (signedIn() && uid() == u) || isAdmin(t);
+      }
+
+      // One-shot full-undo snapshot — admins only, kept off the hot turnus doc.
+      match /admin/{doc} {
+        allow read, write: if isAdmin(t);
+      }
+
+      match /players/{pid} {
+        allow read: if isMember(t);
+        allow create: if isMember(t)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.coins == 0
+          && request.resource.data.needsPick == false
+          && request.resource.data.activeTask == null
+          && request.resource.data.ownerUids.size() == 0
+          && request.resource.data.createdByUid == uid()
+          && request.resource.data.name is string;
+        // A player never changes their own coins/status/activeTask — only claims a character.
+        // Pick and purchase writes are added with their transactions (phases 6, 7).
+        allow update: if isAdmin(t) || (isMember(t) && claimsOwnership(t, pid));
+        allow delete: if false;
+
+        // Recovery PIN: unreadable by everyone (even the owner); rules compare it via get().
+        match /private/auth {
+          allow read: if false;
+          allow create: if isMember(t);
+          allow update, delete: if isAdmin(t);
+        }
+      }
+
+      match /tasks/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
+      match /rewards/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
+
+      // Reservations are secret: readable only by the initiator, the invited partner and admins.
+      match /reservations/{pid} {
+        allow read: if isAdmin(t)
+          || (hasPlayer(t) && (pid == myPlayerId(t)
+            || resource.data.get('invitePartnerId', '') == myPlayerId(t)
+            || resource.data.get('partnerId', '') == myPlayerId(t)));
+        allow create: if hasPlayer(t) && pid == myPlayerId(t);
+        allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || confirmsInvite(t, pid);
+        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+      }
+
+      // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.
+      match /reservationCounts/{day} {
+        allow read: if isMember(t);
+        allow write: if isMember(t);
+      }
+
+      // Purchases: coin-linked create + admin refund arrive in phase 7.
+      match /purchases/{id} {
+        allow read: if isMember(t);
+        allow write: if false;
+      }
+
+      // Append-only public audit log.
+      match /events/{id} {
+        allow read: if isMember(t);
+        allow create: if isMember(t);
+        allow update, delete: if false;
+      }
     }
   }
 }

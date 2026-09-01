@@ -1,36 +1,294 @@
 import { readFileSync } from 'node:fs';
 
-import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc } from 'firebase/firestore';
-import { afterAll, beforeAll, describe, it } from 'vitest';
+import {
+  assertFails,
+  assertSucceeds,
+  initializeTestEnvironment,
+  type RulesTestEnvironment,
+} from '@firebase/rules-unit-testing';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
 /**
- * Phase-0 rules are deny-all. These tests prove the emulator + test harness work
- * and that access is closed by default. Phase 2 replaces them with the real,
- * adversarial ruleset (spec 15.10).
+ * The rules are the whole security model (spec 11) — there is no backend to fall back on.
+ * These tests are written as an attacker (spec 15.10): the "denies" must fail, the "allows"
+ * must pass. Baseline data is seeded via the rules-disabled context before each test.
  */
-let testEnv: RulesTestEnvironment;
+const T = 'demo';
+let env: RulesTestEnvironment;
+
+const authed = (uid: string) => env.authenticatedContext(uid).firestore();
+const anon = () => env.unauthenticatedContext().firestore();
+const path = (suffix: string): string => `turnuses/${T}/${suffix}`;
 
 beforeAll(async () => {
-  testEnv = await initializeTestEnvironment({
+  env = await initializeTestEnvironment({
     projectId: 'demo-tabor',
     firestore: { rules: readFileSync('firestore.rules', 'utf8') },
   });
 });
 
 afterAll(async () => {
-  await testEnv.cleanup();
+  await env.cleanup();
 });
 
-describe('phase-0 deny-all rules', () => {
-  it('denies an unauthenticated read', async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    await assertFails(getDoc(doc(db, 'turnuses/anything')));
+beforeEach(async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    const put = (suffix: string, data: Record<string, unknown>): Promise<void> =>
+      setDoc(doc(db, path(suffix)), data);
+
+    await setDoc(doc(db, `turnuses/${T}`), { name: 'Demo', slug: 'demo', currentDay: 1 });
+    await put('private/config', { playerCode: 'PLAY01', adminCode: 'ADMIN1' });
+
+    for (const [uid, role] of [
+      ['admin', 'admin'],
+      ['alice', 'player'],
+      ['bob', 'player'],
+      ['carol', 'player'],
+      ['dan', 'player'],
+    ] as const) {
+      await put(`members/${uid}`, { role });
+      await put(`roles/${uid}`, { role });
+    }
+
+    const player = (over: Record<string, unknown>): Record<string, unknown> => ({
+      name: 'X',
+      coins: 100,
+      status: 'approved',
+      ownerUids: [],
+      needsPick: false,
+      activeTask: null,
+      createdByUid: 'admin',
+      ...over,
+    });
+    await put(
+      'players/p1',
+      player({
+        name: 'Alice',
+        ownerUids: ['alice'],
+        activeTask: {
+          taskId: 't1',
+          name: 'T',
+          description: '',
+          category: 'c',
+          difficulty: 1,
+          coinReward: 150,
+          coinPenalty: 75,
+          isPair: false,
+        },
+      }),
+    );
+    await put('players/p2', player({ name: 'Bob', ownerUids: ['bob'] }));
+    await put('players/p3', player({ name: 'Free', coins: 0, needsPick: true }));
+    await put('players/p4', player({ name: 'Carol', ownerUids: ['carol'] }));
+    await put('players/p5', player({ name: 'Pending', status: 'pending', coins: 0 }));
+    await put('players/p1/private/auth', { recoveryPin: '1234' });
+    await put('players/p3/private/auth', { recoveryPin: '4321' });
+
+    await put('ownerIndex/alice', { playerId: 'p1' });
+    await put('ownerIndex/bob', { playerId: 'p2' });
+    await put('ownerIndex/carol', { playerId: 'p4' });
+
+    await put('tasks/t1', { name: 'T', category: 'c', difficulty: 1, active: true });
+    await put('rewards/r1', { name: 'R', price: 10, form: 'reward', active: true });
+
+    await put('reservations/p1', {
+      day: 2,
+      taskId: 't1',
+      taskName: 'T',
+      isPair: true,
+      partnerId: 'p2',
+      invitePartnerId: 'p2',
+      confirmed: false,
+      createdAt: serverTimestamp(),
+    });
+    await put('events/e1', {
+      type: 'task_completed',
+      day: 1,
+      actorUid: 'admin',
+      actorLabel: 'Admin',
+      payload: {},
+      createdAt: serverTimestamp(),
+    });
+  });
+});
+
+describe('reads', () => {
+  it('denies a non-member reading players', async () => {
+    await assertFails(getDocs(collection(authed('stranger'), path('players'))));
+    await assertFails(getDocs(collection(anon(), path('players'))));
   });
 
-  it('denies an authenticated read', async () => {
-    const db = testEnv.authenticatedContext('user-1').firestore();
-    await assertFails(getDoc(doc(db, 'players/anything')));
+  it('lets a member read players', async () => {
+    await assertSucceeds(getDocs(collection(authed('alice'), path('players'))));
+  });
+
+  it('hides the turnus codes from everyone, including admins', async () => {
+    await assertFails(getDoc(doc(authed('alice'), path('private/config'))));
+    await assertFails(getDoc(doc(authed('admin'), path('private/config'))));
+  });
+
+  it('hides recovery PINs from everyone, even the character owner', async () => {
+    await assertFails(getDoc(doc(authed('alice'), path('players/p1/private/auth'))));
+    await assertFails(getDoc(doc(authed('admin'), path('players/p1/private/auth'))));
+  });
+
+  it("hides other members' membership", async () => {
+    await assertFails(getDoc(doc(authed('alice'), path('members/bob'))));
+  });
+
+  it('lets a member read only their own role', async () => {
+    await assertSucceeds(getDoc(doc(authed('alice'), path('roles/alice'))));
+    await assertFails(getDoc(doc(authed('alice'), path('roles/bob'))));
+  });
+});
+
+describe('reservations are secret', () => {
+  it("denies an uninvolved member reading someone else's reservation", async () => {
+    await assertFails(getDoc(doc(authed('carol'), path('reservations/p1'))));
+  });
+
+  it('lets the initiator and the invited partner read it', async () => {
+    await assertSucceeds(getDoc(doc(authed('alice'), path('reservations/p1'))));
+    await assertSucceeds(getDoc(doc(authed('bob'), path('reservations/p1'))));
+  });
+
+  it('lets the owner change their own reservation', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('alice'), path('reservations/p1')), { taskId: 't2' }),
+    );
+    await assertSucceeds(deleteDoc(doc(authed('alice'), path('reservations/p1'))));
+  });
+
+  it('lets the invited partner accept the pair invite', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('bob'), path('reservations/p1')), {
+        confirmed: true,
+        invitePartnerId: null,
+      }),
+    );
+  });
+});
+
+describe('a player cannot tamper with their own document', () => {
+  it('denies raising their own coins', async () => {
+    await assertFails(updateDoc(doc(authed('alice'), path('players/p1')), { coins: 9999 }));
+  });
+
+  it('denies self-approval', async () => {
+    await assertFails(updateDoc(doc(authed('alice'), path('players/p1')), { status: 'pending' }));
+  });
+
+  it('denies overwriting activeTask.coinReward', async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: {
+          taskId: 't1',
+          name: 'T',
+          description: '',
+          category: 'c',
+          difficulty: 1,
+          coinReward: 9999,
+          coinPenalty: 0,
+          isPair: false,
+        },
+      }),
+    );
+  });
+
+  it('denies a member approving a pending player', async () => {
+    await assertFails(updateDoc(doc(authed('alice'), path('players/p5')), { status: 'approved' }));
+  });
+});
+
+describe('character claiming', () => {
+  it('lets a member claim a free, approved character without a PIN', async () => {
+    await assertSucceeds(updateDoc(doc(authed('dan'), path('players/p3')), { ownerUids: ['dan'] }));
+  });
+
+  it('forbids claiming an owned character without a matching PIN', async () => {
+    await assertFails(
+      updateDoc(doc(authed('bob'), path('players/p1')), { ownerUids: ['alice', 'bob'] }),
+    );
+  });
+
+  it('allows recovery with the correct PIN', async () => {
+    const db = authed('bob');
+    await assertSucceeds(setDoc(doc(db, path('claimAttempts/bob')), { pin: '1234' }));
+    await assertSucceeds(updateDoc(doc(db, path('players/p1')), { ownerUids: ['alice', 'bob'] }));
+  });
+
+  it('rejects recovery with the wrong PIN', async () => {
+    const db = authed('bob');
+    await assertSucceeds(setDoc(doc(db, path('claimAttempts/bob')), { pin: '0000' }));
+    await assertFails(updateDoc(doc(db, path('players/p1')), { ownerUids: ['alice', 'bob'] }));
+  });
+});
+
+describe('admin-only writes', () => {
+  it('denies a player writing tasks, rewards or the turnus', async () => {
+    await assertFails(updateDoc(doc(authed('alice'), path('tasks/t1')), { active: false }));
+    await assertFails(updateDoc(doc(authed('alice'), path('rewards/r1')), { price: 0 }));
+    await assertFails(updateDoc(doc(authed('alice'), `turnuses/${T}`), { currentDay: 99 }));
+  });
+
+  it('lets an admin approve a pending player and edit the catalog', async () => {
+    const db = authed('admin');
+    await assertSucceeds(
+      updateDoc(doc(db, path('players/p5')), { status: 'approved', coins: 0, needsPick: true }),
+    );
+    await assertSucceeds(updateDoc(doc(db, path('tasks/t1')), { active: false }));
+    await assertSucceeds(
+      setDoc(doc(db, path('private/config')), { playerCode: 'NEW1', adminCode: 'NEW2' }),
+    );
+  });
+});
+
+describe('turnus entry', () => {
+  it('rejects a wrong code', async () => {
+    await assertFails(
+      setDoc(doc(authed('newbie'), path('joinAttempts/newbie')), { code: 'WRONG' }),
+    );
+  });
+
+  it('accepts the correct code and lets the visitor become a member', async () => {
+    const db = authed('newbie');
+    await assertSucceeds(setDoc(doc(db, path('joinAttempts/newbie')), { code: 'PLAY01' }));
+    await assertSucceeds(setDoc(doc(db, path('members/newbie')), { role: 'player' }));
+  });
+
+  it('does not let a player-code joiner claim the admin role', async () => {
+    const db = authed('newbie');
+    await assertSucceeds(setDoc(doc(db, path('joinAttempts/newbie')), { code: 'PLAY01' }));
+    await assertFails(setDoc(doc(db, path('members/newbie')), { role: 'admin' }));
+  });
+});
+
+describe('the audit log is append-only', () => {
+  it('lets a member append an event but never edit or delete one', async () => {
+    const db = authed('alice');
+    await assertSucceeds(
+      setDoc(doc(db, path('events/e2')), {
+        type: 'note',
+        day: 1,
+        actorUid: 'alice',
+        actorLabel: 'Alice',
+        payload: {},
+        createdAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(updateDoc(doc(db, path('events/e1')), { day: 2 }));
+    await assertFails(deleteDoc(doc(db, path('events/e1'))));
   });
 });

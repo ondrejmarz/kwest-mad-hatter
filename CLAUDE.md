@@ -99,6 +99,7 @@ One phase per session; finish it (incl. tests) green before the next. Domain (ph
 comes before data/rules (phase 2) on purpose.
 
 0. Skeleton — **done.**
-1. Domain — pure game logic incl. `resolveRollover`, full unit tests. **Next.**
-2. Data + rules — zod schemas, converters, repositories, transactions, `firestore.rules`, rules tests, seed.
+1. Domain — pure game logic incl. `resolveRollover`, full unit tests. **Done** (100% domain coverage).
+2. Data + rules. **2a done** — zod schemas + converters, repositories/subscriptions, `firestore.rules`
+   with adversarial rules tests, seed. **2b next** — `data/transactions/` (the only `runTransaction` sites).
 3. Auth & turnuses. 4. Players. 5. Catalog (TSV import). 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase (README, ADRs, deploy, previews).

@@ -84,6 +84,8 @@ async function waitForEmulator(): Promise<void> {
   throw new Error(`Firestore emulator not reachable at ${HOST}:${PORT}`);
 }
 
+const SAMPLE_PLAYERS = ['Jana', 'Kuba', 'Míša', 'Tom', 'Eliška'];
+
 async function writeSeed(db: Firestore, tasks: SeedTask[], rewards: SeedReward[]): Promise<void> {
   await setDoc(doc(db, 'turnuses', 'demo'), {
     name: 'Ukázkový turnus',
@@ -103,29 +105,66 @@ async function writeSeed(db: Firestore, tasks: SeedTask[], rewards: SeedReward[]
     currentDayCategories: [],
   });
 
+  // Fictional codes so a dev can enter the turnus (spec 3, 15.14 — no real codes).
+  await setDoc(doc(db, 'turnuses', 'demo', 'private', 'config'), {
+    playerCode: 'HRAC24',
+    adminCode: 'SEFKA7',
+  });
+
+  // Global catalog templates (source for the import feature) plus turnus-scoped copies,
+  // so the demo turnus is immediately playable.
   await Promise.all(
     tasks.map((task, index) => {
       const coinReward = 100 + task.difficulty * COINS_PER_DIFFICULTY;
-      return setDoc(doc(collection(db, 'catalogTasks'), `task-${index}`), {
+      const catalog = {
         ...task,
         coinReward,
         coinPenalty: Math.round(coinReward * PENALTY_RATIO),
         manualCoins: false,
         active: true,
-      });
+      };
+      return Promise.all([
+        setDoc(doc(collection(db, 'catalogTasks'), `task-${index}`), catalog),
+        setDoc(doc(collection(db, 'turnuses', 'demo', 'tasks'), `task-${index}`), {
+          ...catalog,
+          usedByPlayerIds: [],
+        }),
+      ]);
     }),
   );
 
   await Promise.all(
-    rewards.map((reward, index) =>
-      setDoc(doc(collection(db, 'catalogRewards'), `reward-${index}`), {
+    rewards.map((reward, index) => {
+      const catalog = {
         ...reward,
         minTargets: reward.form === 'punish_someone' ? 1 : 0,
         maxTargets: reward.form === 'punish_someone' ? 1 : 0,
         exclusivePerDay: false,
         active: true,
+      };
+      return Promise.all([
+        setDoc(doc(collection(db, 'catalogRewards'), `reward-${index}`), catalog),
+        setDoc(doc(collection(db, 'turnuses', 'demo', 'rewards'), `reward-${index}`), catalog),
+      ]);
+    }),
+  );
+
+  // A few approved, unclaimed characters (recovery PIN 0000 for the demo).
+  await Promise.all(
+    SAMPLE_PLAYERS.flatMap((name, index) => [
+      setDoc(doc(collection(db, 'turnuses', 'demo', 'players'), `player-${index}`), {
+        name,
+        coins: 0,
+        status: 'approved',
+        ownerUids: [],
+        needsPick: true,
+        activeTask: null,
+        createdByUid: 'seed',
       }),
-    ),
+      setDoc(doc(db, 'turnuses', 'demo', 'players', `player-${index}`, 'private', 'auth'), {
+        recoveryPin: '0000',
+      }),
+    ]),
   );
 }
 
@@ -148,7 +187,9 @@ async function main(): Promise<void> {
   });
   await testEnv.cleanup();
 
-  console.log(`Seeded ${tasks.length} tasks and ${rewards.length} rewards into the emulator.`);
+  console.log(
+    `Seeded turnus "demo" (codes HRAC24 / SEFKA7): ${tasks.length} tasks, ${rewards.length} rewards, ${SAMPLE_PLAYERS.length} players.`,
+  );
 }
 
 main().catch((error: unknown) => {

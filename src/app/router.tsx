@@ -9,15 +9,28 @@ import { TurnusEntryRoute, TurnusEntryScreen } from '../features/turnus-entry';
 import { Spinner } from '../ui/Spinner';
 
 import { AppLayout } from './AppLayout';
-import { RouteError } from './ErrorBoundary';
+import { AppErrorBoundary, RouteError } from './ErrorBoundary';
 import { RequireAdmin } from './guards/RequireAdmin';
 import { RequireTurnus } from './guards/RequireTurnus';
 import { GameProviders } from './providers/GameProviders';
 
-// The whole admin feature is lazy — most users never load it (spec 15.13).
-const AdminScreen = lazy(() =>
-  import('../features/admin').then((module) => ({ default: module.AdminScreen })),
-);
+// The whole admin feature is lazy — most users never load it (spec 15.13). The dynamic import is
+// retried a few times: the admin chunk is fetched the first time a device opens the admin area,
+// often moments after unlocking admin, when a transient network hiccup or a just-activated service
+// worker can drop the request. React caches a lazy rejection permanently, so without the retry a
+// single blip would wedge the admin tab on the error screen until a full reload.
+const AdminScreen = lazy(async () => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    try {
+      return { default: (await import('../features/admin')).AdminScreen };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+});
 
 export const router = createBrowserRouter([
   { path: '/t/:slug', element: <TurnusEntryRoute />, errorElement: <RouteError /> },
@@ -43,10 +56,15 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'admin',
+                    // A recoverable boundary (with a working retry) rather than the bare route
+                    // error, so a transient first-load hiccup can be dismissed in place instead of
+                    // stranding the admin on the error screen until they leave and come back.
                     element: (
-                      <Suspense fallback={<Spinner />}>
-                        <AdminScreen />
-                      </Suspense>
+                      <AppErrorBoundary>
+                        <Suspense fallback={<Spinner />}>
+                          <AdminScreen />
+                        </Suspense>
+                      </AppErrorBoundary>
                     ),
                   },
                 ],

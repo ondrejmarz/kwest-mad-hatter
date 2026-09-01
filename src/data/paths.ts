@@ -60,13 +60,11 @@ export const rewardBidDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'rewardBids', playerId);
 export const rewardBidCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'rewardBidCounts', String(day));
-// One create-only marker per player who has been aimed a punishment at this turnus, keyed by the
-// target's id — so a target is claimed first-come and can never be picked again by anyone (spec 8).
-// Existence only (no bidder), so it leaks nothing about the sealed auction. Persists across days.
-export const punishTargetsCol = (db: Firestore, t: string) =>
-  collection(db, 'turnuses', t, 'punishTargets');
-export const punishTargetDoc = (db: Firestore, t: string, targetId: string) =>
-  doc(db, 'turnuses', t, 'punishTargets', targetId);
+// Public live tally of how many current bids aim a punishment at each player, keyed by the day and
+// holding a count per target id — a count only, no bidder, so the sealed auction stays secret. A
+// target locks once it reaches `maxActivePunishesPerPlayer`; the count moves as bids change (spec 8).
+export const punishTargetCountsDoc = (db: Firestore, t: string, day: number) =>
+  doc(db, 'turnuses', t, 'punishTargetCounts', String(day));
 // First-come marker for a same-day task pick, one doc per (day, task). Create-only for players, so
 // the first writer wins the task for the day; the id encodes both so it is unique per day. A pair
 // pick carries an `invitee` who must accept before either member gets the task.

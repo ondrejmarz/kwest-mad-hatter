@@ -5,7 +5,7 @@ import { type PlayerId } from '../../domain/ids';
 import { createBid } from '../../domain/reward';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { punishTargetDoc, rewardBidCountsDoc, rewardBidDoc, rewardDoc } from '../paths';
+import { punishTargetCountsDoc, rewardBidCountsDoc, rewardBidDoc, rewardDoc } from '../paths';
 import { parseReward } from '../schemas/catalog';
 
 import { readPlayer, readTurnus } from './shared';
@@ -15,7 +15,9 @@ import { readPlayer, readTurnus } from './shared';
  * object are decided by the pure domain; the transaction only reads state, writes the bid and
  * moves the public interest count (one per player, so switching rewards moves the count). Bids are
  * secret, so nothing is written to the public events log during the day — the win appears only at
- * evaluation (decision A3).
+ * evaluation (decision A3). Punishment targets ride along on the bid and stay editable all day; the
+ * transaction moves a live per-target tally by the delta so a target locks once it reaches the cap,
+ * yet who is actually punished is settled only at evaluation.
  */
 export async function bidReward(
   db: Firestore,
@@ -35,24 +37,26 @@ export async function bidReward(
 
     const previous = await tx.get(rewardBidDoc(db, t, playerId));
     const previousRewardId = previous.exists() ? (previous.data().rewardId as string) : null;
-    const keptTargets = previous.exists() ? ((previous.data().targetIds as string[]) ?? []) : [];
-    // Targets are first-come across all bidders and locked for the whole turnus: a target already
-    // claimed (marker exists) can't be picked, except one the bidder is keeping from their own bid
-    // (spec 8). Read the markers for the newly-chosen targets to decide.
-    const chosen = reward.form === 'punish_someone' ? [...new Set(targetIds)] : [];
-    const newTargets = chosen.filter((id) => !keptTargets.includes(id));
-    const usedTargets: PlayerId[] = [];
-    for (const target of newTargets) {
-      const markerSnap = await tx.get(punishTargetDoc(db, t, target));
-      if (markerSnap.exists()) usedTargets.push(target);
-    }
+    const previousTargets = previous.exists()
+      ? ((previous.data().targetIds as PlayerId[] | undefined) ?? [])
+      : [];
+
+    // The live per-target tally: how many current bids aim at each player. A newly-chosen target
+    // already at the cap is refused by the domain; the buyer's own current picks are exempt.
+    const targetCountsRef = punishTargetCountsDoc(db, t, turnus.currentDay);
+    const targetCountsSnap = await tx.get(targetCountsRef);
+    const storedCounts = (targetCountsSnap.data()?.counts ?? {}) as Record<string, number>;
+    const targetCounts = new Map<PlayerId, number>(
+      Object.entries(storedCounts).map(([id, n]) => [id as PlayerId, n]),
+    );
 
     const built = createBid({
       player,
       reward,
       amount,
       targetIds,
-      usedTargets,
+      previousTargets,
+      targetCounts,
       turnus,
       createdAt: 0,
     });
@@ -61,19 +65,24 @@ export async function bidReward(
     const { createdAt: _placeholder, ...fields } = built.value;
     tx.set(rewardBidDoc(db, t, playerId), { ...fields, createdAt: serverTimestamp() });
 
-    // Claim each newly-chosen target with a create-only marker; contention on it settles first-come.
-    for (const target of newTargets) {
-      tx.set(punishTargetDoc(db, t, target), { day: turnus.currentDay });
+    // Move the live target tally by the delta between the old and new picks (dropped ones free up).
+    const newTargets = built.value.targetIds;
+    const targetDelta: Record<string, ReturnType<typeof increment>> = {};
+    for (const id of previousTargets) if (!newTargets.includes(id)) targetDelta[id] = increment(-1);
+    for (const id of newTargets) if (!previousTargets.includes(id)) targetDelta[id] = increment(1);
+    if (Object.keys(targetDelta).length > 0) {
+      tx.set(targetCountsRef, { counts: targetDelta }, { merge: true });
     }
 
-    const countsRef = rewardBidCountsDoc(db, t, built.value.day);
+    // Move the public reward-interest count (one per player, so switching rewards moves it).
+    const interestRef = rewardBidCountsDoc(db, t, built.value.day);
     if (previousRewardId === rewardId) {
       // Same reward — count unchanged.
     } else if (previousRewardId === null) {
-      tx.set(countsRef, { counts: { [rewardId]: increment(1) } }, { merge: true });
+      tx.set(interestRef, { counts: { [rewardId]: increment(1) } }, { merge: true });
     } else {
       tx.set(
-        countsRef,
+        interestRef,
         { counts: { [previousRewardId]: increment(-1), [rewardId]: increment(1) } },
         { merge: true },
       );

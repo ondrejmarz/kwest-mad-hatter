@@ -246,14 +246,11 @@ service cloud.firestore {
         allow write: if isMember(t);
       }
 
-      // Punishment target claims — one create-only marker per target already spent this turnus
-      // (spec 8). Members read them (to grey out taken targets) and claim one (create-only, so
-      // first-come; contention picks the winner). Existence only, no bidder, so the sealed auction
-      // stays secret. Permanent for the turnus, so no member update or delete; admins may clear them.
-      match /punishTargets/{targetId} {
+      // Public live per-target punishment tally — a count only, no bidders, so a target can be
+      // greyed out once it reaches the cap. Kept honest at evaluation, so member-writable (spec 8).
+      match /punishTargetCounts/{day} {
         allow read: if isMember(t);
-        allow create: if hasPlayer(t) && dayUnlocked(t);
-        allow update, delete: if isAdmin(t);
+        allow write: if isMember(t);
       }
 
       // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the

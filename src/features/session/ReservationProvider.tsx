@@ -6,7 +6,7 @@ import {
   subscribeMyReservation,
   subscribeReservationCounts,
 } from '../../data/repositories/reservations';
-import { subscribeClaimedTargets, subscribeMyBid } from '../../data/repositories/rewardBids';
+import { subscribeMyBid } from '../../data/repositories/rewardBids';
 import { subscribeTaskClaims } from '../../data/repositories/taskClaims';
 import type { ReservationCounts } from '../../data/schemas/reservation';
 import type { TaskClaim } from '../../data/schemas/taskClaim';
@@ -31,8 +31,6 @@ interface ReservationValue {
   readonly counts: Subscription<ReservationCounts | null>;
   /** Same-day claim markers, incl. pending pair picks (member-readable). */
   readonly claims: Subscription<readonly TaskClaim[]>;
-  /** Ids of players already claimed as a punishment target this turnus (first-come, member-readable). */
-  readonly claimedTargets: Subscription<readonly string[]>;
 }
 
 const empty = <T,>(data: T): Subscription<T> => ({ status: 'ready', data, fromCache: false });
@@ -57,9 +55,6 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
     status: 'loading',
   });
   const [claims, setClaims] = useState<Subscription<readonly TaskClaim[]>>({ status: 'loading' });
-  const [claimedTargets, setClaimedTargets] = useState<Subscription<readonly string[]>>({
-    status: 'loading',
-  });
 
   useEffect(() => {
     if (turnus === null || playerId === null) {
@@ -106,18 +101,9 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
     return subscribeTaskClaims(db, turnus.id, setClaims);
   }, [turnus]);
 
-  useEffect(() => {
-    if (turnus === null) {
-      setClaimedTargets(empty([]));
-      return;
-    }
-    setClaimedTargets({ status: 'loading' });
-    return subscribeClaimedTargets(db, turnus.id, setClaimedTargets);
-  }, [turnus]);
-
   const value = useMemo<ReservationValue>(
-    () => ({ mine, invites, bid, counts, claims, claimedTargets }),
-    [mine, invites, bid, counts, claims, claimedTargets],
+    () => ({ mine, invites, bid, counts, claims }),
+    [mine, invites, bid, counts, claims],
   );
   return <ReservationContext.Provider value={value}>{children}</ReservationContext.Provider>;
 }
@@ -136,5 +122,3 @@ export const useMyBid = (): Subscription<RewardBid | null> => useReservation().b
 export const useReservationCounts = (): Subscription<ReservationCounts | null> =>
   useReservation().counts;
 export const useTaskClaims = (): Subscription<readonly TaskClaim[]> => useReservation().claims;
-export const useClaimedTargets = (): Subscription<readonly string[]> =>
-  useReservation().claimedTargets;

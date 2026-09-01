@@ -250,3 +250,79 @@ E. **Stability & quick UI fixes** — no rules.
   K. **Showcase + README + player rules page (LAST).** Representative seed, README refresh (still says
   "Phase 0"), final visual pass, optional 5-try/15-min PIN lockout. Then a simple trilingual
   "how to play" page — only once every mechanic above is frozen.
+
+## Post-I adjustments (feedback, 2026-09)
+
+- **Punishment-target locking reworked to a live per-day tally.** Two earlier commits (`68e1c26`
+  per-bidder once-per-turnus, then `88876ec` global first-come `punishTargets` markers) locked a
+  target _permanently_ at bid time — so a player who kept re-bidding onto new targets used them all
+  up. Replaced by `punishTargetCounts/{day}`: a public per-target count (no bidder, so secret-safe)
+  that `bidReward` moves by the delta between a bid's old and new picks and `cancelBid` releases, so a
+  target is locked only while `maxActivePunishesPerPlayer` current bids aim at it and frees the moment
+  one of them changes. `createBid` refuses a newly-added target already at the cap
+  (`TARGET_AT_PUNISH_LIMIT`), exempting the bidder's own current picks; the bid dialog greys locked
+  targets (single-target as a disabled dropdown option). The count is only a live bidding guard — the
+  real, capped assignment stays at evaluation (`assignPunishTargets`, so with cap 3 three buyers may
+  share a target), and `runRollover` resets the tally alongside the bids each day. Removed with the old
+  approach: the `punishTargets` collection + rule, `subscribeClaimedTargets`/`useClaimedTargets` and
+  the per-bidder `usedTargets`/`TARGET_ALREADY_USED`. The old "both charged, neither got the reward"
+  bug stays fixed at the eval layer (one bid per player → charged at most once; contested targets go
+  to the higher bid, the loser is auto-filled), covered by `assignPunishTargets.test.ts`.
+- **Single-target punishment uses a dropdown** (min 1 = max 1), like the pair-partner picker; ranges
+  keep the checkbox list. **Reward chips:** interest is `Má zájemce`/`Má zájemce (N)` in warning
+  orange (like tasks); the `punish_all` form chip is danger red. **Group chip** shows the size in
+  parentheses: `Skupina (3–4)`. **Android dark status bar — final fix: let the system theme it.**
+  An installed Android WebAPK freezes the manifest `theme_color` at install time and paints the
+  status bar with it, ignoring runtime `<meta theme-color>` changes (so a JS "forcer" repaints only
+  the icon tint, never the background). Neither per-scheme metas nor a runtime forcer could darken
+  the bar. Fix: drop the fixed colour entirely so the WebAPK falls back to the system-themed status
+  bar (follows the OS light/dark preference). `vite.config.ts` manifest sets `theme_color: ''`
+  (empty, because vite-plugin-pwa injects its `#42b883` default when the key is omitted); the
+  `<meta name="theme-color">` tags are removed from `index.html`. **Requires uninstalling +
+  reinstalling the PWA** (or waiting for Chrome's periodic WebAPK re-fetch) — the old `theme_color`
+  stays frozen in the installed app until the WebAPK regenerates. (`display: standalone` on Android
+  can't do a transparent status bar — that's an iOS-only `apple-mobile-web-app-status-bar-style:
+black-translucent` feature; confirmed still absent on Android in 2026.) **Admin first-load** hardened: the lazy admin chunk import
+  retries a few times (a rejected `React.lazy` is cached forever, which wedged the tab after a
+  transient blip), and the admin route now sits under a recoverable `AppErrorBoundary`. The exact
+  first-load throw could not be reproduced statically (no emulator/console here); if it recurs, the
+  browser console logs it via `ErrorBoundary`'s `console.error`.
+- **Entry-screen top bar + app version + name-not-slug (status-bar seam follow-up).** Letting the
+  system theme the status bar means it no longer matches the app; on the header-less entry screens
+  the near-white system bar met the page background (`bg-surface`) with a faint seam. `EntryLayout`
+  now has a raised top bar (`bg-surface-raised` filling the `safe-top` inset) that mirrors the in-app
+  header, so the seam is gone the same way it is after login. That bar shows the credit `© Ondřej
+März` (left) and the **app version** (centre). Versioning is a build timestamp: `vite.config.ts`
+  computes `appVersion` from `new Date()` at config-eval time as `YYYY.MM.DD.HHmm` (local, e.g.
+  `2026.09.01.1459`) and injects it via `define` as the `__APP_VERSION__` global (declared in
+  `src/vite-env.d.ts`) — a quick "which build am I running" check. `CodeEntryScreen` now shows the
+  turnus **name** instead of `turnus.slug` (slug is the URL token, not meant as a label); `name` was
+  added to `RememberedTurnus` (persisted, back-compat falls back to slug) and set from `getTurnusBySlug`.
+
+## Backlog (planned rework, confirmed with the user — not yet scheduled)
+
+Discussed 2026-09; ordered roughly by the user's interest, not by dependency. The rules tab (item 3)
+stays LAST, after every mechanic is frozen.
+
+1. **Coin history + per-player stats.** Manual coin edits already force a note (`noteRequired`) but it
+   is shown nowhere. Add a transaction ledger to the player's own card/detail: started at 0, +160 for
+   _which_ task, −X for _which_ reward, manual edits with their note — the running story of a balance.
+   Plus totals: tasks completed, rewards won, coins earned, coins spent. Source is likely the `events`
+   log (structured payloads) folded per player; may need a dedicated per-player ledger if events are
+   not enough.
+2. **Gated turnus creation (= roadmap J-2).** Only the owner (this user) may create a group. Mechanism
+   undecided: global super-admin flag, a creation code, or just editing the DB by hand (user is open
+   to skipping an in-app form). Needs the `turnuses` create rule (currently `if false`). Decide the
+   gate before building.
+3. **Rules tab + full manuals (= roadmap K, LAST).** In-tab rules as short and clear as possible, each
+   section with a `?` that opens a dialog with the full detail — e.g. "poorer player wins a contested
+   task" → what the rule is, how the balance is computed, how it applies to pairs vs. groups, and the
+   reservation-time tie-break when it can't decide. Cover every mechanic. Plus a complete **player**
+   rules page and a complete **organizer** manual (all the details). Only once mechanics are frozen.
+4. **"Add to home screen" prompt + how-to.** A notice that the PWA is installable on iOS and Android,
+   with step-by-step instructions per platform.
+5. **Secret achievements.** Hidden achievements — no mention anywhere in the UI — earned by in-app
+   actions. A turnus setting **"Úspěchy jsou veřejné"** (default OFF): off = a player sees achievements
+   only on the character they own; on = everyone sees everyone's. Each achievement has an obscure name
+   (must not reveal its trigger) + an emoji, and awards coins configured per-achievement. The concrete
+   list is to be designed together first — decide what is technically detectable before implementing.

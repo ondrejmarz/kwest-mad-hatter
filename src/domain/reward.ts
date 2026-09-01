@@ -13,19 +13,26 @@ import type { Player, Reward, RewardBid, TurnusSettings } from './types';
  * more than they currently hold (hoping to earn the difference before evaluation). The winner's
  * ability to pay is re-checked at evaluation, where an unaffordable top bid forfeits to the next.
  *
- * `usedTargets` are people this bidder has already aimed a punishment at earlier in the turnus: each
- * (bidder, target) pair may be chosen only once, ever, whether or not that bid won (spec 8).
+ * A `punish_someone` bid records the buyer's intended targets, freely editable all day. A person can
+ * be aimed at by at most `maxActivePunishesPerPlayer` bidders at once: `targetCounts` is the live
+ * public tally per target, and a target newly added to this bid that is already at the cap is
+ * refused. `previousTargets` — the buyer's own current picks — are exempt, so they keep them freely
+ * even at the cap. The lock only limits who can be picked; who is actually punished, and the final
+ * cap, is settled at evaluation (`assignPunishTargets`), so two buyers may share a target when the
+ * cap allows (spec 8).
  */
 export function createBid(params: {
   readonly player: Player;
   readonly reward: Reward;
   readonly amount: number;
   readonly targetIds: readonly PlayerId[];
-  readonly usedTargets: readonly PlayerId[];
+  readonly previousTargets: readonly PlayerId[];
+  readonly targetCounts: ReadonlyMap<PlayerId, number>;
   readonly turnus: TurnusSettings;
   readonly createdAt: number;
 }): Result<RewardBid, DomainError> {
-  const { player, reward, amount, targetIds, usedTargets, turnus, createdAt } = params;
+  const { player, reward, amount, targetIds, previousTargets, targetCounts, turnus, createdAt } =
+    params;
   if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
   if (!reward.active) return err({ code: 'REWARD_INACTIVE' });
   if (!Number.isInteger(amount) || amount < reward.price) {
@@ -36,8 +43,10 @@ export function createBid(params: {
   const targets = reward.form === 'punish_someone' ? [...new Set(targetIds)] : [];
   if (reward.form === 'punish_someone') {
     if (targets.includes(player.id)) return err({ code: 'CANNOT_TARGET_SELF' });
-    if (targets.some((id) => usedTargets.includes(id))) {
-      return err({ code: 'TARGET_ALREADY_USED' });
+    // A target newly added to this bid needs a free slot; ones the buyer already holds are kept.
+    const added = targets.filter((id) => !previousTargets.includes(id));
+    if (added.some((id) => (targetCounts.get(id) ?? 0) >= turnus.maxActivePunishesPerPlayer)) {
+      return err({ code: 'TARGET_AT_PUNISH_LIMIT', max: turnus.maxActivePunishesPerPlayer });
     }
     if (targets.length < reward.minTargets || targets.length > reward.maxTargets) {
       return err({

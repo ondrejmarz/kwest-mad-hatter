@@ -9,6 +9,7 @@ import { isOnline } from '../../platform/connectivity/isOnline';
 import {
   eventsCol,
   playerDoc,
+  punishTargetCountsDoc,
   purchaseDoc,
   reservationCountsDoc,
   reservationDoc,
@@ -71,6 +72,7 @@ export async function runRollover(
       tx.delete(rewardBidDoc(db, t, bid.playerId));
     }
     tx.set(rewardBidCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
+    tx.set(punishTargetCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
     // Owned rewards: the winners' purchase docs (id is the doc key; `createdAt` is server-stamped).
     for (const purchase of result.purchases) {
       const { id, ...data } = purchase;

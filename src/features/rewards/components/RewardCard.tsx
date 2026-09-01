@@ -35,7 +35,15 @@ export const RewardCard = memo(function RewardCard({
       title={localize(reward.name, locale)}
       chips={
         <>
-          <Chip tone={reward.form === 'reward' ? 'success' : 'warning'}>
+          <Chip
+            tone={
+              reward.form === 'reward'
+                ? 'success'
+                : reward.form === 'punish_all'
+                  ? 'danger'
+                  : 'warning'
+            }
+          >
             {t(`rewards.forms.${reward.form}`)}
           </Chip>
           {reward.categories.map((category) => (
@@ -43,7 +51,11 @@ export const RewardCard = memo(function RewardCard({
           ))}
           {reserved && <Chip tone="success">{t('rewards.reservedChip')}</Chip>}
           {interested > 0 && (
-            <Chip tone="accent">{t('rewards.interestChip', { count: interested })}</Chip>
+            <Chip tone="warning">
+              {interested > 1
+                ? t('rewards.hasInterestCount', { count: interested })
+                : t('rewards.hasInterest')}
+            </Chip>
           )}
         </>
       }

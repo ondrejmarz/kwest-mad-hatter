@@ -10,7 +10,8 @@ describe('createBid', () => {
     player: makePlayer({ id: PlayerId('p1') }),
     reward: makeReward({ id: RewardId('r1'), price: 50 }),
     targetIds: [],
-    usedTargets: [],
+    previousTargets: [],
+    targetCounts: new Map<PlayerId, number>(),
     turnus: makeTurnus({ currentDay: Day(3) }),
     createdAt: 1234,
   };
@@ -67,16 +68,28 @@ describe('createBid', () => {
     });
   });
 
-  it('rejects a target this bidder already punished this turnus', () => {
+  it('rejects a target already at the per-day punish cap', () => {
     expect(
       createBid({
         ...base,
         reward: punish,
         amount: 80,
         targetIds: [PlayerId('p2')],
-        usedTargets: [PlayerId('p2')],
+        targetCounts: new Map([[PlayerId('p2'), 1]]),
       }),
-    ).toEqual({ ok: false, error: { code: 'TARGET_ALREADY_USED' } });
+    ).toEqual({ ok: false, error: { code: 'TARGET_AT_PUNISH_LIMIT', max: 1 } });
+  });
+
+  it('lets the bidder keep a target they already hold, even at the cap', () => {
+    const result = createBid({
+      ...base,
+      reward: punish,
+      amount: 80,
+      targetIds: [PlayerId('p2')],
+      previousTargets: [PlayerId('p2')],
+      targetCounts: new Map([[PlayerId('p2'), 1]]),
+    });
+    expect(result.ok && result.value.targetIds).toEqual(['p2']);
   });
 
   it('rejects a bid while the day is locked', () => {

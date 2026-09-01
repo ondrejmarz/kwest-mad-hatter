@@ -14,8 +14,8 @@ import { Checkbox } from '../../../ui/Checkbox';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
-import { useClaimedTargets } from '../../session';
 
 /**
  * Tap a reward, bid on it in the day's hidden auction (spec 8). A bid must be at least the reward's
@@ -29,6 +29,7 @@ export function RewardBidDialog({
   settings,
   bid,
   count,
+  targetCounts,
   candidates,
   turnusId,
   onClose,
@@ -38,6 +39,8 @@ export function RewardBidDialog({
   settings: TurnusSettings;
   bid: RewardBid | null;
   count: number;
+  /** Live public tally of how many current bids aim at each player id (spec 8). */
+  targetCounts: Readonly<Record<string, number>>;
   candidates: readonly Player[];
   turnusId: string;
   onClose: () => void;
@@ -52,21 +55,26 @@ export function RewardBidDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Targets already claimed this turnus (by anyone, first-come), minus the ones on this bidder's own
-  // current bid (which they may keep) — the checklist greys the rest out (spec 8).
-  const claimedState = useClaimedTargets();
-  const claimed = claimedState.status === 'ready' ? claimedState.data : [];
-  const kept = mine && bid !== null ? bid.targetIds : [];
-  const spent = new Set(claimed.filter((id) => !kept.includes(id as PlayerId)));
+  // A single-target punishment (exactly one target) picks it from a dropdown — the common case, and
+  // quicker than a one-item checklist. A range still uses checkboxes.
+  const singleTarget = isPunish && reward.minTargets === 1 && reward.maxTargets === 1;
+
+  // A target is locked once `maxActivePunishesPerPlayer` other bidders aim at it. A player has one
+  // sealed bid, and placing this one replaces it — even a bid on a different reward — so the targets
+  // that current bid holds are subtracted: the buyer can re-pick them here without pushing the count
+  // over. (Were a player ever allowed several concurrent bids, this would need all of their picks.)
+  const ownSubmitted = bid !== null ? bid.targetIds : [];
+  const isLocked = (id: PlayerId): boolean =>
+    (targetCounts[id] ?? 0) - (ownSubmitted.includes(id) ? 1 : 0) >=
+    settings.maxActivePunishesPerPlayer;
 
   const toggleTarget = (id: PlayerId): void => {
-    if (spent.has(id)) return;
     setTargets((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
-        : prev.length < reward.maxTargets
-          ? [...prev, id]
-          : prev,
+        : isLocked(id) || prev.length >= reward.maxTargets
+          ? prev
+          : [...prev, id],
     );
   };
 
@@ -80,7 +88,7 @@ export function RewardBidDialog({
     else setError(t('entry.offline'));
   };
 
-  const place = (event: FormEvent): void => {
+  const place = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     const value = Number(amount);
     if (!Number.isInteger(value) || value < reward.price) {
@@ -88,10 +96,28 @@ export function RewardBidDialog({
       return;
     }
     if (isPunish && (targets.length < reward.minTargets || targets.length > reward.maxTargets)) {
-      setError(t('rewards.targetCountHint', { min: reward.minTargets, max: reward.maxTargets }));
+      setError(
+        singleTarget
+          ? t('rewards.chooseTarget')
+          : t('rewards.targetCountHint', { min: reward.minTargets, max: reward.maxTargets }),
+      );
       return;
     }
-    void run(bidReward(db, turnusId, myPlayer.id, reward.id, value, isPunish ? targets : []));
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await bidReward(
+      db,
+      turnusId,
+      myPlayer.id,
+      reward.id,
+      value,
+      isPunish ? targets : [],
+    );
+    setBusy(false);
+    if (result.ok) onClose();
+    else if (result.error.code === 'TARGET_AT_PUNISH_LIMIT') setError(t('rewards.targetUsed'));
+    else setError(t('entry.offline'));
   };
 
   return (
@@ -100,7 +126,15 @@ export function RewardBidDialog({
         title={localize(reward.name, locale)}
         chips={
           <>
-            <Chip tone={reward.form === 'reward' ? 'success' : 'warning'}>
+            <Chip
+              tone={
+                reward.form === 'reward'
+                  ? 'success'
+                  : reward.form === 'punish_all'
+                    ? 'danger'
+                    : 'warning'
+              }
+            >
               {t(`rewards.forms.${reward.form}`)}
             </Chip>
             {reward.categories.map((category) => (
@@ -123,7 +157,7 @@ export function RewardBidDialog({
         ) : !reward.active ? (
           <p className="text-sm text-content-muted">{t('rewards.reasonInactive')}</p>
         ) : (
-          <form onSubmit={place} className="flex flex-col gap-3">
+          <form onSubmit={(event) => void place(event)} className="flex flex-col gap-3">
             <TextInput
               label={t('rewards.bidAmountLabel', { min: reward.price })}
               value={amount}
@@ -134,6 +168,27 @@ export function RewardBidDialog({
             {isPunish &&
               (candidates.length === 0 ? (
                 <p className="text-sm text-content-muted">{t('rewards.noTargets')}</p>
+              ) : singleTarget ? (
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-content-muted">
+                    {t('rewards.chooseTarget')}
+                  </span>
+                  <Select
+                    value={targets[0] ?? ''}
+                    onChange={(event) =>
+                      setTargets(event.target.value ? [event.target.value as PlayerId] : [])
+                    }
+                  >
+                    <option value="">{t('rewards.chooseTarget')}</option>
+                    {candidates.map((player) => (
+                      <option key={player.id} value={player.id} disabled={isLocked(player.id)}>
+                        {isLocked(player.id)
+                          ? `${player.name} — ${t('rewards.targetUsed')}`
+                          : player.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
               ) : (
                 <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-content-muted">
@@ -146,12 +201,12 @@ export function RewardBidDialog({
                     <Checkbox
                       key={player.id}
                       label={
-                        spent.has(player.id)
+                        isLocked(player.id)
                           ? `${player.name} — ${t('rewards.targetUsed')}`
                           : player.name
                       }
                       checked={targets.includes(player.id)}
-                      disabled={spent.has(player.id)}
+                      disabled={isLocked(player.id)}
                       onChange={() => toggleTarget(player.id)}
                     />
                   ))}

@@ -3,12 +3,13 @@ import { type Firestore, increment, runTransaction } from 'firebase/firestore';
 import type { DomainError } from '../../domain/errors';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { rewardBidCountsDoc, rewardBidDoc } from '../paths';
+import { punishTargetCountsDoc, rewardBidCountsDoc, rewardBidDoc } from '../paths';
 import { parseRewardBid } from '../schemas/rewardBid';
 
 /**
  * A player withdraws their bid before the day is evaluated (spec 8). Deleting the doc drops the
- * reward's public interest count by one. Secret, so no public event is written.
+ * reward's public interest count by one and frees any punishment targets it held (the live tally
+ * goes down, so a locked target can be picked again). Secret, so no public event is written.
  */
 export async function cancelBid(
   db: Firestore,
@@ -28,6 +29,11 @@ export async function cancelBid(
         { counts: { [bid.rewardId]: increment(-1) } },
         { merge: true },
       );
+      if (bid.targetIds.length > 0) {
+        const targetDelta: Record<string, ReturnType<typeof increment>> = {};
+        for (const id of bid.targetIds) targetDelta[id] = increment(-1);
+        tx.set(punishTargetCountsDoc(db, t, bid.day), { counts: targetDelta }, { merge: true });
+      }
     }
     return ok(undefined);
   });

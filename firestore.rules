@@ -246,11 +246,14 @@ service cloud.firestore {
         allow write: if isMember(t);
       }
 
-      // A bidder's own punishment history — the targets they have already spent this turnus (spec 8).
-      // Private to that bidder: only they read it (to grey out used targets) and write it (alongside
-      // their bid). Writing only ever restricts the writer, so no cross-player check is needed.
-      match /punishHistory/{pid} {
-        allow read, write: if hasPlayer(t) && pid == myPlayerId(t);
+      // Punishment target claims — one create-only marker per target already spent this turnus
+      // (spec 8). Members read them (to grey out taken targets) and claim one (create-only, so
+      // first-come; contention picks the winner). Existence only, no bidder, so the sealed auction
+      // stays secret. Permanent for the turnus, so no member update or delete; admins may clear them.
+      match /punishTargets/{targetId} {
+        allow read: if isMember(t);
+        allow create: if hasPlayer(t) && dayUnlocked(t);
+        allow update, delete: if isAdmin(t);
       }
 
       // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the

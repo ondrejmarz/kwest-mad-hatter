@@ -5,9 +5,8 @@ import { type PlayerId } from '../../domain/ids';
 import { createBid } from '../../domain/reward';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { punishHistoryDoc, rewardBidCountsDoc, rewardBidDoc, rewardDoc } from '../paths';
+import { punishTargetDoc, rewardBidCountsDoc, rewardBidDoc, rewardDoc } from '../paths';
 import { parseReward } from '../schemas/catalog';
-import { parsePunishHistory, usedTargetsOf } from '../schemas/punishHistory';
 
 import { readPlayer, readTurnus } from './shared';
 
@@ -37,15 +36,16 @@ export async function bidReward(
     const previous = await tx.get(rewardBidDoc(db, t, playerId));
     const previousRewardId = previous.exists() ? (previous.data().rewardId as string) : null;
     const keptTargets = previous.exists() ? ((previous.data().targetIds as string[]) ?? []) : [];
-    // Targets this bidder has locked before (excluding any they are keeping from their current bid,
-    // which stays allowed) — each (bidder, target) pair is once-per-turnus (spec 8).
-    const historySnap = await tx.get(punishHistoryDoc(db, t, playerId));
-    const history = historySnap.exists()
-      ? parsePunishHistory(historySnap.id, historySnap.data() ?? {})
-      : null;
-    const usedTargets = usedTargetsOf(history).filter(
-      (id) => !keptTargets.includes(id),
-    ) as PlayerId[];
+    // Targets are first-come across all bidders and locked for the whole turnus: a target already
+    // claimed (marker exists) can't be picked, except one the bidder is keeping from their own bid
+    // (spec 8). Read the markers for the newly-chosen targets to decide.
+    const chosen = reward.form === 'punish_someone' ? [...new Set(targetIds)] : [];
+    const newTargets = chosen.filter((id) => !keptTargets.includes(id));
+    const usedTargets: PlayerId[] = [];
+    for (const target of newTargets) {
+      const markerSnap = await tx.get(punishTargetDoc(db, t, target));
+      if (markerSnap.exists()) usedTargets.push(target);
+    }
 
     const built = createBid({
       player,
@@ -61,11 +61,9 @@ export async function bidReward(
     const { createdAt: _placeholder, ...fields } = built.value;
     tx.set(rewardBidDoc(db, t, playerId), { ...fields, createdAt: serverTimestamp() });
 
-    // Every target on the bid is now permanently spent for this bidder.
-    if (built.value.targetIds.length > 0) {
-      const spent: Record<string, boolean> = {};
-      for (const id of built.value.targetIds) spent[id] = true;
-      tx.set(punishHistoryDoc(db, t, playerId), { targets: spent }, { merge: true });
+    // Claim each newly-chosen target with a create-only marker; contention on it settles first-come.
+    for (const target of newTargets) {
+      tx.set(punishTargetDoc(db, t, target), { day: turnus.currentDay });
     }
 
     const countsRef = rewardBidCountsDoc(db, t, built.value.day);

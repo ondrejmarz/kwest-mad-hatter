@@ -205,7 +205,7 @@ export const en: Dictionary = {
     cancelBid: 'Withdraw bid',
     targetCountHint: 'Pick targets (min {min} – max {max})',
     noTargets: 'No one to target.',
-    targetUsed: 'already used',
+    targetUsed: 'already taken',
     minTargetsLabel: 'Min. targets',
     maxTargetsLabel: 'Max. targets',
   },

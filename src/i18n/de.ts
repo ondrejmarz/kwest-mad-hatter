@@ -206,7 +206,7 @@ export const de: Dictionary = {
     cancelBid: 'Gebot zurückziehen',
     targetCountHint: 'Ziele wählen (min {min} – max {max})',
     noTargets: 'Niemand zum Zielen.',
-    targetUsed: 'schon gewählt',
+    targetUsed: 'schon vergeben',
     minTargetsLabel: 'Min. Ziele',
     maxTargetsLabel: 'Max. Ziele',
   },

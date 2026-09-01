@@ -1,8 +1,7 @@
 import { type Firestore } from 'firebase/firestore';
 
 import type { RewardBid } from '../../domain/types';
-import { punishHistoryDoc, rewardBidCountsDoc, rewardBidDoc, rewardBidsCol } from '../paths';
-import { parsePunishHistory, type PunishHistory } from '../schemas/punishHistory';
+import { punishTargetsCol, rewardBidCountsDoc, rewardBidDoc, rewardBidsCol } from '../paths';
 import { parseRewardBid, parseRewardBidCounts, type RewardBidCounts } from '../schemas/rewardBid';
 import { subscribeDoc, subscribeQuery, type Subscription } from '../subscriptions';
 
@@ -14,13 +13,12 @@ export const subscribeMyBid = (
   onState: (state: Subscription<RewardBid | null>) => void,
 ): (() => void) => subscribeDoc(rewardBidDoc(db, t, playerId), parseRewardBid, onState);
 
-/** My own punishment history — targets I have already spent this turnus (spec 8). */
-export const subscribeMyPunishHistory = (
+/** Every punishment target already claimed this turnus — the marker's id is the target's id (spec 8). */
+export const subscribeClaimedTargets = (
   db: Firestore,
   t: string,
-  playerId: string,
-  onState: (state: Subscription<PunishHistory | null>) => void,
-): (() => void) => subscribeDoc(punishHistoryDoc(db, t, playerId), parsePunishHistory, onState);
+  onState: (state: Subscription<readonly string[]>) => void,
+): (() => void) => subscribeQuery(punishTargetsCol(db, t), (id) => id, onState);
 
 /** Every bid — admin only (rules deny a plain member this whole set), read for evaluation. */
 export const subscribeAllBids = (

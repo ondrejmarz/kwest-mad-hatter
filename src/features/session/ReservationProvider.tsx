@@ -6,9 +6,8 @@ import {
   subscribeMyReservation,
   subscribeReservationCounts,
 } from '../../data/repositories/reservations';
-import { subscribeMyBid, subscribeMyPunishHistory } from '../../data/repositories/rewardBids';
+import { subscribeClaimedTargets, subscribeMyBid } from '../../data/repositories/rewardBids';
 import { subscribeTaskClaims } from '../../data/repositories/taskClaims';
-import type { PunishHistory } from '../../data/schemas/punishHistory';
 import type { ReservationCounts } from '../../data/schemas/reservation';
 import type { TaskClaim } from '../../data/schemas/taskClaim';
 import type { Subscription } from '../../data/subscriptions';
@@ -32,8 +31,8 @@ interface ReservationValue {
   readonly counts: Subscription<ReservationCounts | null>;
   /** Same-day claim markers, incl. pending pair picks (member-readable). */
   readonly claims: Subscription<readonly TaskClaim[]>;
-  /** My own punishment history — targets I have already spent this turnus (secret). */
-  readonly punishHistory: Subscription<PunishHistory | null>;
+  /** Ids of players already claimed as a punishment target this turnus (first-come, member-readable). */
+  readonly claimedTargets: Subscription<readonly string[]>;
 }
 
 const empty = <T,>(data: T): Subscription<T> => ({ status: 'ready', data, fromCache: false });
@@ -58,7 +57,7 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
     status: 'loading',
   });
   const [claims, setClaims] = useState<Subscription<readonly TaskClaim[]>>({ status: 'loading' });
-  const [punishHistory, setPunishHistory] = useState<Subscription<PunishHistory | null>>({
+  const [claimedTargets, setClaimedTargets] = useState<Subscription<readonly string[]>>({
     status: 'loading',
   });
 
@@ -108,17 +107,17 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
   }, [turnus]);
 
   useEffect(() => {
-    if (turnus === null || playerId === null) {
-      setPunishHistory(empty(null));
+    if (turnus === null) {
+      setClaimedTargets(empty([]));
       return;
     }
-    setPunishHistory({ status: 'loading' });
-    return subscribeMyPunishHistory(db, turnus.id, playerId, setPunishHistory);
-  }, [turnus, playerId]);
+    setClaimedTargets({ status: 'loading' });
+    return subscribeClaimedTargets(db, turnus.id, setClaimedTargets);
+  }, [turnus]);
 
   const value = useMemo<ReservationValue>(
-    () => ({ mine, invites, bid, counts, claims, punishHistory }),
-    [mine, invites, bid, counts, claims, punishHistory],
+    () => ({ mine, invites, bid, counts, claims, claimedTargets }),
+    [mine, invites, bid, counts, claims, claimedTargets],
   );
   return <ReservationContext.Provider value={value}>{children}</ReservationContext.Provider>;
 }
@@ -137,5 +136,5 @@ export const useMyBid = (): Subscription<RewardBid | null> => useReservation().b
 export const useReservationCounts = (): Subscription<ReservationCounts | null> =>
   useReservation().counts;
 export const useTaskClaims = (): Subscription<readonly TaskClaim[]> => useReservation().claims;
-export const useMyPunishHistory = (): Subscription<PunishHistory | null> =>
-  useReservation().punishHistory;
+export const useClaimedTargets = (): Subscription<readonly string[]> =>
+  useReservation().claimedTargets;

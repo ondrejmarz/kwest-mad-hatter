@@ -1,7 +1,6 @@
 import { type FormEvent, useState } from 'react';
 
 import { db } from '../../../data/firebase';
-import { usedTargetsOf } from '../../../data/schemas/punishHistory';
 import { bidReward } from '../../../data/transactions/bidReward';
 import { cancelBid } from '../../../data/transactions/cancelBid';
 import type { PlayerId } from '../../../domain/ids';
@@ -16,7 +15,7 @@ import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
-import { useMyPunishHistory } from '../../session';
+import { useClaimedTargets } from '../../session';
 
 /**
  * Tap a reward, bid on it in the day's hidden auction (spec 8). A bid must be at least the reward's
@@ -53,12 +52,12 @@ export function RewardBidDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Targets this bidder already spent this turnus, minus the ones on their current bid (which they
-  // may keep) — those stay locked forever, so the checklist greys them out (spec 8).
-  const historyState = useMyPunishHistory();
-  const history = historyState.status === 'ready' ? historyState.data : null;
+  // Targets already claimed this turnus (by anyone, first-come), minus the ones on this bidder's own
+  // current bid (which they may keep) — the checklist greys the rest out (spec 8).
+  const claimedState = useClaimedTargets();
+  const claimed = claimedState.status === 'ready' ? claimedState.data : [];
   const kept = mine && bid !== null ? bid.targetIds : [];
-  const spent = new Set(usedTargetsOf(history).filter((id) => !kept.includes(id as PlayerId)));
+  const spent = new Set(claimed.filter((id) => !kept.includes(id as PlayerId)));
 
   const toggleTarget = (id: PlayerId): void => {
     if (spent.has(id)) return;

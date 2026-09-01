@@ -24,7 +24,7 @@ export function TurnusEntryRoute() {
     getTurnusBySlug(db, slug)
       .then((found) => {
         if (!active) return;
-        if (found) enterTurnus({ id: found.id, slug: found.slug });
+        if (found) enterTurnus({ id: found.id, slug: found.slug, name: found.name });
         else setNotFound(true);
       })
       .catch(() => {

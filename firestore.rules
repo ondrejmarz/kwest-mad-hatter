@@ -280,13 +280,6 @@ service cloud.firestore {
         allow read: if isMember(t);
         allow write: if isAdmin(t);
       }
-
-      // Append-only public audit log.
-      match /events/{id} {
-        allow read: if isMember(t);
-        allow create: if isMember(t);
-        allow update, delete: if false;
-      }
     }
   }
 }

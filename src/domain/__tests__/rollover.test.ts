@@ -51,7 +51,6 @@ describe('resolveRollover — settlement (step 1)', () => {
     expect(result.nextDay).toBe(2);
     expect(result.playerUpdates).toEqual([]);
     expect(result.taskUpdates).toEqual([]);
-    expect(result.events).toEqual([]);
     expect(result.turnus).toEqual({
       currentDay: 2,
       currentDayCategories: [],
@@ -80,7 +79,7 @@ describe('resolveRollover — settlement (step 1)', () => {
     expect(pu(result, 'p2').coins).toBe(300);
     expect(pu(result, 'p1').activeTask).toBeNull();
     expect(pu(result, 'p1').needsPick).toBe(true);
-    expect(result.events.filter((e) => e.type === 'task_completed')).toHaveLength(2);
+    expect(result.preview.settlements.every((s) => s.outcome === 'completed')).toBe(true);
   });
 
   it('penalizes a failed task and still marks it used', () => {
@@ -95,7 +94,7 @@ describe('resolveRollover — settlement (step 1)', () => {
       completed: [],
     });
     expect(pu(result, 'p1').coins).toBe(25);
-    expect(result.events.some((e) => e.type === 'task_failed')).toBe(true);
+    expect(result.preview.settlements.find((s) => s.playerId === 'p1')?.outcome).toBe('failed');
     expect(result.taskUpdates.find((t) => t.taskId === 't1')?.usedByPlayerIds).toContain('p1');
   });
 
@@ -117,12 +116,7 @@ describe('resolveRollover — settlement (step 1)', () => {
     const p = makePlayer({ id: PlayerId('p1'), coins: 100, activeTask: null });
     const result = run({ turnus: { noPickPenalty: 40 }, players: [p] });
     expect(pu(result, 'p1').coins).toBe(60);
-    expect(result.events).toContainEqual({
-      type: 'no_task_penalty',
-      day: 1,
-      playerId: 'p1',
-      coins: -40,
-    });
+    expect(result.preview.settlements.find((s) => s.playerId === 'p1')?.outcome).toBe('no_task');
   });
 
   it('ignores players who are not approved', () => {
@@ -178,9 +172,7 @@ describe('resolveRollover — reservations (step 3)', () => {
     expect(pu(result, 'p1').needsPick).toBe(false);
     expect(pu(result, 'p2').activeTask).toBeNull();
     expect(pu(result, 'p2').needsPick).toBe(true);
-    expect(result.events.some((e) => e.type === 'reservation_lost' && e.playerId === 'p2')).toBe(
-      true,
-    );
+    expect(result.preview.losses.some((l) => l.playerId === 'p2')).toBe(true);
   });
 
   it('ranks on post-settlement coins, not yesterday — reversing the steps would flip the winner', () => {
@@ -255,7 +247,7 @@ describe('resolveRollover — reservations (step 3)', () => {
     expect(pu(result, 'p1').activeTask?.taskId).toBe('t1');
     expect(pu(result, 'p2').needsPick).toBe(true);
     expect(pu(result, 'p3').needsPick).toBe(true);
-    expect(result.events.filter((e) => e.type === 'reservation_lost')).toHaveLength(2);
+    expect(result.preview.losses).toHaveLength(2);
   });
 
   it('flags a player who reserved nothing as needing to pick', () => {
@@ -323,7 +315,6 @@ describe('resolveRollover — groups and pairs (step 3)', () => {
     });
     expect(pu(result, 'a').activeTask).toBeNull();
     expect(pu(result, 'a').needsPick).toBe(true);
-    expect(result.events.filter((e) => e.type === 'reservation_expired')).toHaveLength(1);
   });
 
   it('drops the richest over the upper bound so the poorest fill the seats', () => {
@@ -344,10 +335,6 @@ describe('resolveRollover — groups and pairs (step 3)', () => {
     expect(pu(result, 'b').activeTask?.taskId).toBe('g1');
     expect(pu(result, 'c').activeTask?.taskId).toBe('g1');
     expect(pu(result, 'd').activeTask?.taskId).toBe('g1');
-    const expired = result.events
-      .filter((e) => e.type === 'reservation_expired')
-      .map((e) => (e.type === 'reservation_expired' ? e.playerId : ''));
-    expect(expired).toEqual(['a']);
   });
 
   const pairTask = makeTask({
@@ -395,7 +382,6 @@ describe('resolveRollover — groups and pairs (step 3)', () => {
     });
     expect(pu(result, 'a').activeTask).toBeNull();
     expect(pu(result, 'a').needsPick).toBe(true);
-    expect(result.events.filter((e) => e.type === 'reservation_expired')).toHaveLength(1);
   });
 });
 
@@ -418,13 +404,6 @@ describe('resolveRollover — reward auctions (step 2)', () => {
     expect(result.preview.auctions).toEqual([
       { rewardId: 'r1', rewardName: loc('Extra dessert'), winnerName: 'Jana', amount: 60 },
     ]);
-    expect(result.events).toContainEqual({
-      type: 'reward_won',
-      day: 1,
-      playerId: 'p1',
-      rewardId: 'r1',
-      coins: -60,
-    });
     expect(result.rollbackSnapshot.rewardBids).toHaveLength(1);
     // The win becomes an owned-reward Purchase (price = what they paid); undo can find it by id.
     expect(result.purchases).toEqual([

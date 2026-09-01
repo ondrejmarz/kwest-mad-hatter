@@ -74,17 +74,10 @@ export function AdminScreen() {
             label: categoryLabel(localize(category, locale)),
           })),
         ];
-  const meta = { actorUid: uid ?? '', actorLabel: 'Admin' };
 
   return (
     <section className="flex flex-col gap-3">
-      <EvaluationPanel
-        turnus={settings}
-        players={players}
-        tasks={tasks}
-        rewards={rewards}
-        meta={meta}
-      />
+      <EvaluationPanel turnus={settings} players={players} tasks={tasks} rewards={rewards} />
       <Button variant="secondary" onClick={() => setSettingsOpen(true)}>
         {t('admin.settings')}
       </Button>
@@ -103,8 +96,6 @@ export function AdminScreen() {
       <div className="grid grid-cols-2 gap-3">
         <CategoryPicker
           turnusId={turnus.id}
-          day={settings.currentDay}
-          meta={meta}
           field="currentDay"
           title={t('catalog.categoriesTodayTitle')}
           hint={t('catalog.categoriesTodayHint')}
@@ -113,8 +104,6 @@ export function AdminScreen() {
         />
         <CategoryPicker
           turnusId={turnus.id}
-          day={settings.currentDay}
-          meta={meta}
           field="nextDay"
           title={t('catalog.categoriesTomorrowTitle')}
           hint={t('catalog.categoriesTomorrowHint')}

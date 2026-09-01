@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Day, PlayerId, RewardId } from '../ids';
+import { PlayerId, RewardId } from '../ids';
 import { resolveAuctions } from '../rollover/resolveAuctions';
 
 import { makeReward, makeRewardBid } from './fixtures';
@@ -14,13 +14,9 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 40 })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r1'), amount: 60 })],
       coins({ p1: 100 }),
-      Day(1),
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'p1', amount: 60 }]);
     expect(result.coinsAfter.get(PlayerId('p1'))).toBe(40);
-    expect(result.events).toEqual([
-      { type: 'reward_won', day: 1, playerId: 'p1', rewardId: 'r1', coins: -60 },
-    ]);
   });
 
   it('gives it to the highest bid when several compete', () => {
@@ -31,7 +27,6 @@ describe('resolveAuctions', () => {
         makeRewardBid({ playerId: PlayerId('p2'), rewardId: RewardId('r1'), amount: 50 }),
       ],
       coins({ p1: 100, p2: 100 }),
-      Day(1),
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'p2', amount: 50 }]);
     expect(result.coinsAfter.get(PlayerId('p2'))).toBe(50);
@@ -56,7 +51,6 @@ describe('resolveAuctions', () => {
         }),
       ],
       coins({ late: 100, early: 100 }),
-      Day(1),
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'early', amount: 40 }]);
   });
@@ -69,7 +63,6 @@ describe('resolveAuctions', () => {
         makeRewardBid({ playerId: PlayerId('payer'), rewardId: RewardId('r1'), amount: 50 }),
       ],
       coins({ bold: 20, payer: 100 }),
-      Day(1),
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'payer', amount: 50 }]);
     expect(result.coinsAfter.get(PlayerId('payer'))).toBe(50);
@@ -81,10 +74,8 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 10 })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r1'), amount: 90 })],
       coins({ p1: 20 }),
-      Day(1),
     );
     expect(result.wins).toEqual([]);
-    expect(result.events).toEqual([]);
     expect(result.coinsAfter.get(PlayerId('p1'))).toBe(20);
   });
 
@@ -93,7 +84,6 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1') }), makeReward({ id: RewardId('r2') })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r2'), amount: 50 })],
       coins({ p1: 100 }),
-      Day(1),
     );
     expect(result.wins).toEqual([{ rewardId: 'r2', playerId: 'p1', amount: 50 }]);
   });
@@ -103,7 +93,6 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 10 })],
       [makeRewardBid({ playerId: PlayerId('ghost'), rewardId: RewardId('r1'), amount: 20 })],
       coins({}),
-      Day(1),
     );
     expect(result.wins).toEqual([]);
   });

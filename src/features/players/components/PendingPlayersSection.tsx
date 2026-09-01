@@ -7,24 +7,15 @@ import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 
-interface Meta {
-  readonly actorUid: string;
-  readonly actorLabel: string;
-}
-
 /** Pending characters, greyed out; admins approve or reject them (spec 9.1, 9.4). */
 export function PendingPlayersSection({
   pending,
   isAdmin,
   turnusId,
-  day,
-  meta,
 }: {
   pending: readonly Player[];
   isAdmin: boolean;
   turnusId: string;
-  day: number;
-  meta: Meta;
 }) {
   const { t } = useTranslation();
   if (pending.length === 0) return null;
@@ -40,9 +31,7 @@ export function PendingPlayersSection({
             className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-2"
           >
             <span className="truncate text-content-muted">{player.name}</span>
-            {isAdmin && (
-              <PendingActions playerId={player.id} turnusId={turnusId} day={day} meta={meta} />
-            )}
+            {isAdmin && <PendingActions playerId={player.id} turnusId={turnusId} />}
           </li>
         ))}
       </ul>
@@ -50,17 +39,7 @@ export function PendingPlayersSection({
   );
 }
 
-function PendingActions({
-  playerId,
-  turnusId,
-  day,
-  meta,
-}: {
-  playerId: string;
-  turnusId: string;
-  day: number;
-  meta: Meta;
-}) {
+function PendingActions({ playerId, turnusId }: { playerId: string; turnusId: string }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const run = async (action: () => Promise<unknown>): Promise<void> => {
@@ -73,14 +52,11 @@ function PendingActions({
       <Button
         variant="secondary"
         disabled={busy}
-        onClick={() => void run(() => rejectPlayer(db, turnusId, playerId, day, meta))}
+        onClick={() => void run(() => rejectPlayer(db, turnusId, playerId))}
       >
         {t('players.reject')}
       </Button>
-      <Button
-        disabled={busy}
-        onClick={() => void run(() => approvePlayer(db, turnusId, playerId, meta))}
-      >
+      <Button disabled={busy} onClick={() => void run(() => approvePlayer(db, turnusId, playerId))}>
         {t('players.approve')}
       </Button>
     </div>

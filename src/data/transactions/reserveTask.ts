@@ -15,8 +15,8 @@ import { readPlayer, readTurnus } from './shared';
  * Reserve a task for tomorrow (spec 7). Eligibility is decided by the pure domain; the
  * transaction only reads state, builds the reservation and adjusts the public interest
  * counts (a group counts as one). `inviteeIds` are the others invited (empty for a solo task).
- * Reservations are secret, so nothing is written to the public events log during the day
- * (decision A3). Changing a reservation moves the count.
+ * Reservations are secret: only the interest count is public during the day, and who won a
+ * contested task is revealed at evaluation (decision A3). Changing a reservation moves the count.
  */
 export async function reserveTask(
   db: Firestore,

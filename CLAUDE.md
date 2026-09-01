@@ -69,12 +69,15 @@ Hard rules:
   create-vite default. Tailwind stays v3 for the typed `tailwind.config.ts` tokens.
 - **Trilingual UI (cs/en/de)** via a small typed dictionary layer + `LocaleProvider`.
   No i18next. Names still sort with `Intl.Collator('cs')`.
-- **Coin formula:** `coinReward = 100 + difficulty * coinsPerDifficulty`;
-  `coinPenalty = round(coinReward * penaltyRatio)`. Will be balanced later; keep it in one place.
+- **Coin formula:** one fixed rule, `coinReward = 80 + 20 * difficulty` (100 easiest … 200 hardest),
+  in `deriveReward` — no per-turnus coefficient, overridable per task via `manualCoins`. Failing a
+  task costs a flat, turnus-wide `failPenalty` — the same for everyone, independent of the task (no
+  per-task penalty, no ratio); not picking one at all costs `noPickPenalty`. Both applied at
+  settlement. Will be balanced later; keep it in one place.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
   rules, freezes task selection AND reward purchases for the day; reservations stay editable
-  until evaluation. `lockTime` is only a reminder.
+  until evaluation. (There is no clock-based lock — an earlier `lockTime` reminder was removed.)
 - **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
   (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, counts, categories,
   dayLocked, currentDay), stored in an admin-only doc, not on the hot turnus doc.
@@ -85,6 +88,12 @@ Hard rules:
   - `responses: {playerId → accepted|declined}` (invitees toggle until evaluation, rules let them
     touch only their own key). At evaluation the members are the initiator + accepted invitees; the
     group competes only if it reaches `minPlayers` (else it expires), balance = poorest member.
+- **Task types are synthetic categories.** The three types (solo/pair/group, derived from the size
+  interval by `lib/group.taskType`) double as reserved category keys `@type:{solo,pair,group}`
+  (`TYPE_KEYS`). The admin's open-day set (`currentDay`/`nextDayCategories`) and the list's one
+  category filter carry these keys alongside real tags; eligibility (`isCategoryOpen`) matches a task
+  if any real tag OR its type key is open (a UNION — opening "pairs" opens every pair). No new field,
+  no rules change — the type keys just live in the existing category arrays.
 - **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the 4-digit
   PIN** — even the first on an empty character — so nobody grabs the wrong one (updated from the
   original "first claim is free"). **One device owns one character:** claiming a new one releases
@@ -204,19 +213,37 @@ E. **Stability & quick UI fixes** — no rules.
   members+roles from admin→player; a new rule allows that self-downgrade with no code — RULES,
   redeploy `firestore:rules`).
   I. **Owned rewards + punishment targeting** — RULES.
-- Auction winner gets a `Purchase` doc (member-readable) → "má odměnu" chip on every player's
-  card/detail (fills the slot from E).
-- `punish_someone` carries a target COUNT (reuse `Reward.minTargets`/`maxTargets`, already in the
-  type) like a group size; when the buyer wins, they pick that many targets (targets do NOT
-  confirm). Enforce `maxActivePunishesPerPlayer` (default 1): a character can be targeted by at
-  most N `punish_someone` per day.
+- **I-a owned rewards — done (RULES, redeploy `firestore:rules`).** Auction winners get a `Purchase`
+  doc at evaluation (`resolveRollover` builds them, id `${day}_${rewardId}`, price = amount paid,
+  `targetIds` empty for now; `runRollover` writes them with `serverTimestamp`, `undoRollover` deletes
+  them via `rollbackSnapshot.purchaseIds`). Rules: `purchases` write is now `isAdmin` (the rollover is
+  the only writer). `PurchasesProvider`/`usePurchases` (`subscribeAllPurchases`, member-readable);
+  "má odměnu" chip on every player card (form `reward`, not refunded) + a "Získané odměny" list in
+  `PlayerDetailDialog`.
+- **I-b punishment targeting — done (no rules change — the bid rule already lets a bidder write their
+  own doc's fields, and purchase writes are admin from I-a).** Targets are picked at BID time: the
+  `punish_someone` reward carries a `minTargets`/`maxTargets` range (editable in `RewardEditDialog`,
+  shown only for that form; import still defaults 1/1). `RewardBid` gained `targetIds`; `createBid`
+  validates them (de-dup, not self, count in range; other forms carry none). `RewardBidDialog` shows a
+  target checklist for `punish_someone`. At evaluation, pure `assignPunishTargets` resolves them
+  highest-bid-first: a person is targeted at most `maxActivePunishesPerPlayer` times/day (cap enforced
+  among WINNERS only — losing bids' targets are ignored, so nobody can bid-to-lose to "protect" a
+  friend); a buyer's over-capped picks are dropped and the shortfall auto-filled to `minTargets` from
+  the least-targeted free players, tie-broken by a `seed`-shuffle (the day) so the auto-fill rotates
+  fairly instead of always hitting the lowest ids — still pure/deterministic, no `Math.random`. Final
+  targets land on the
+  `Purchase.targetIds`/`targetNames`. Display: "Je terčem" chip on every player + a "Je terčem"
+  (targetedBy) list in `PlayerDetailDialog`. Effect stays record-only (counsellors enact off-app).
   J. **Turnus settings & creation** — RULES for creation.
-- Admin settings form to edit their turnus params (`startingCoins`, `coinsPerDifficulty`,
-  `penaltyRatio`, `noPickPenalty`, `allowNegativeBalance`, `maxActiveRewardsPerPlayer`,
-  `maxActivePunishesPerPlayer`, `lockTime`). Rules already allow `isAdmin(t)` to update the turnus
-  doc — this is just the UI.
-- Gated turnus CREATION (not every user may create a group): needs a gating decision
-  (global super-admin / creation code) + a rules change (`turnuses` create is currently `if false`).
+- **J-1 settings form — done (no rules change).** `TurnusSettingsDialog` (features/admin/settings) +
+  `data/turnusAdmin.updateTurnusSettings` (plain `updateDoc`, rules already allow `isAdmin(t)` to
+  update the turnus doc) edit `startingCoins`, `failPenalty`, `noPickPenalty`,
+  `allowNegativeBalance`, `maxActiveRewardsPerPlayer`, `maxActivePunishesPerPlayer`. Opened
+  from a "Nastavení turnusu" button on `AdminScreen`; new `turnusSettings.*` i18n block.
+- **J-2 gated turnus CREATION — pending a gating decision** (not every user may create a group):
+  needs a mechanism (global super-admin / creation code) + a rules change (`turnuses` create is
+  currently `if false`). The user is rethinking invites/targets to avoid repeated rule rewrites, so
+  hold J-2 (and its rules) until that lands, to batch the rule changes.
   K. **Showcase + README + player rules page (LAST).** Representative seed, README refresh (still says
   "Phase 0"), final visual pass, optional 5-try/15-min PIN lockout. Then a simple trilingual
   "how to play" page — only once every mechanic above is frozen.

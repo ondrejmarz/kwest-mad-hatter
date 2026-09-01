@@ -7,7 +7,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   return (
     <select
       className={cx(
-        'select-caret h-10 rounded-xl border border-border bg-surface px-3 text-sm text-content',
+        'select-caret h-9 rounded-xl border border-border bg-surface px-2.5 text-sm text-content',
         className,
       )}
       {...props}

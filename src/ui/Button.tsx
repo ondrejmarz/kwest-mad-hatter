@@ -13,12 +13,12 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 /**
- * `default` keeps the 44px comfortable tap target; `icon` is a compact 40px square — a single glyph
- * like "+", matching the height of a list-toolbar `Select` (which is also 40px).
+ * `default` keeps the 44px comfortable tap target; `icon` is a compact 36px square — a single glyph
+ * like "+", matching the height of a list-toolbar `Select` (which is also 36px).
  */
 const SIZES: Record<Size, string> = {
   default: 'tap-target px-4 py-2 text-sm',
-  icon: 'h-10 w-10 text-xl leading-none',
+  icon: 'h-9 w-9 text-lg leading-none',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

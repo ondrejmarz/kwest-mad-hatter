@@ -8,8 +8,7 @@ import { fileURLToPath } from 'node:url';
  * the cloud seed through firebase-admin. Keeping the shape in one place stops the two
  * paths from drifting.
  */
-export const COINS_PER_DIFFICULTY = 50;
-export const PENALTY_RATIO = 0.5;
+export const FAIL_PENALTY = 100;
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -153,14 +152,12 @@ export function buildSeedDocuments(): SeedDocument[] {
         currentDay: 1,
         archived: false,
         startingCoins: 0,
-        coinsPerDifficulty: COINS_PER_DIFFICULTY,
-        penaltyRatio: PENALTY_RATIO,
+        failPenalty: FAIL_PENALTY,
         allowNegativeBalance: true,
         noPickPenalty: 100,
         maxActiveRewardsPerPlayer: 1,
         maxActivePunishesPerPlayer: 1,
         dayLocked: false,
-        lockTime: '08:30',
         nextDayCategories: [],
         currentDayCategories: [],
       },
@@ -175,12 +172,11 @@ export function buildSeedDocuments(): SeedDocument[] {
     });
 
     tasks.forEach((task, index) => {
-      const coinReward = 100 + task.difficulty * COINS_PER_DIFFICULTY;
+      const coinReward = 80 + task.difficulty * 20;
 
       const catalog = {
         ...task,
         coinReward,
-        coinPenalty: Math.round(coinReward * PENALTY_RATIO),
         manualCoins: false,
         active: true,
       };
@@ -255,5 +251,5 @@ export const seedSummary = (docs: SeedDocument[]): string => {
   const tasks = docs.filter((d) => d.path.startsWith('turnuses/demo/tasks/')).length;
   const rewards = docs.filter((d) => d.path.startsWith('turnuses/demo/rewards/')).length;
   const players = docs.filter((d) => /^turnuses\/demo\/players\/player-\d+$/.test(d.path)).length;
-  return `turnus "demo" (codes HRAC24 / SEFKA7): ${tasks} tasks, ${rewards} rewards, ${players} players`;
+  return `turnus "demo" (codes ANALKA / ADMIN0): ${tasks} tasks, ${rewards} rewards, ${players} players`;
 };

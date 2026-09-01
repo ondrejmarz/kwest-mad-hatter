@@ -1,4 +1,4 @@
-# Táborová hra · Camp Game
+# Kvest
 
 A mobile-first Progressive Web App for a game that camp counselors play with kids:
 players pick a daily task, earn coins, and spend them on rewards — which are often

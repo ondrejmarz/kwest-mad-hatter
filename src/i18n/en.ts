@@ -1,7 +1,7 @@
 import type { Dictionary } from './cs';
 
 export const en: Dictionary = {
-  appName: 'Camp Game',
+  appName: 'Kvest',
   nav: {
     players: 'Players',
     tasks: 'Tasks',
@@ -13,6 +13,7 @@ export const en: Dictionary = {
     label: 'Round {day}',
   },
   connection: {
+    online: 'Connected',
     offline: 'Offline! Changes sync once you reconnect',
     fromCache: 'Showing cached data',
   },

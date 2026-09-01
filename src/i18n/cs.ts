@@ -3,7 +3,7 @@
  * forces `en` and `de` to stay complete — a missing key fails typecheck.
  */
 export const cs = {
-  appName: 'Táborová hra',
+  appName: 'Kvest',
   nav: {
     players: 'Hráči',
     tasks: 'Úkoly',
@@ -15,6 +15,7 @@ export const cs = {
     label: 'Kolo {day}',
   },
   connection: {
+    online: 'Připojeno',
     offline: 'Offline! Změny se odešlou po připojení',
     fromCache: 'Zobrazuji uložená data',
   },

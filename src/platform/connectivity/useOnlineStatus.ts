@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
+import { isOnline } from './isOnline';
+
 function subscribe(callback: () => void): () => void {
   window.addEventListener('online', callback);
   window.addEventListener('offline', callback);
@@ -10,7 +12,7 @@ function subscribe(callback: () => void): () => void {
 }
 
 function getSnapshot(): boolean {
-  return navigator.onLine;
+  return isOnline();
 }
 
 /** Reactive online/offline flag. Actions requiring a transaction gate on this. */

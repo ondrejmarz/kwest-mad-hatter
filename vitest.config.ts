@@ -1,7 +1,8 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Unit + component tests. Rules tests run under vitest.rules.config.ts against the emulator.
+// Unit + component tests. Rules and transaction-integration tests run under
+// vitest.rules.config.ts against the emulator.
 // Component tests opt into jsdom per-file with a `// @vitest-environment jsdom` docblock.
 export default defineConfig({
   plugins: [react()],
@@ -10,7 +11,13 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
-    exclude: ['tests/rules/**', 'node_modules/**', 'dist/**', 'dev-dist/**'],
+    exclude: [
+      'tests/rules/**',
+      'tests/integration/**',
+      'node_modules/**',
+      'dist/**',
+      'dev-dist/**',
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/domain/**'],

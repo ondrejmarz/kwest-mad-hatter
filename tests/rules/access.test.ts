@@ -179,6 +179,14 @@ describe('reservations are secret', () => {
       }),
     );
   });
+
+  it('lets the invited partner decline by deleting the invite', async () => {
+    await assertSucceeds(deleteDoc(doc(authed('bob'), path('reservations/p1'))));
+  });
+
+  it('does not let an uninvolved member delete a reservation', async () => {
+    await assertFails(deleteDoc(doc(authed('carol'), path('reservations/p1'))));
+  });
 });
 
 describe('a player cannot tamper with their own document', () => {

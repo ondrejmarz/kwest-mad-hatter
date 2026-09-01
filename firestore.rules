@@ -159,7 +159,10 @@ service cloud.firestore {
             || resource.data.get('partnerId', '') == myPlayerId(t)));
         allow create: if hasPlayer(t) && pid == myPlayerId(t);
         allow update: if (hasPlayer(t) && pid == myPlayerId(t)) || confirmsInvite(t, pid);
-        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+        // Owner, admin, or the invited partner declining the pair invite (spec 7).
+        allow delete: if (hasPlayer(t) && pid == myPlayerId(t))
+          || isAdmin(t)
+          || (hasPlayer(t) && resource.data.get('invitePartnerId', '') == myPlayerId(t));
       }
 
       // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.

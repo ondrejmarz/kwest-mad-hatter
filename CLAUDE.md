@@ -100,6 +100,8 @@ comes before data/rules (phase 2) on purpose.
 
 0. Skeleton — **done.**
 1. Domain — pure game logic incl. `resolveRollover`, full unit tests. **Done** (100% domain coverage).
-2. Data + rules. **2a done** — zod schemas + converters, repositories/subscriptions, `firestore.rules`
-   with adversarial rules tests, seed. **2b next** — `data/transactions/` (the only `runTransaction` sites).
+2. Data + rules — **done.** zod schemas + converters, repositories/subscriptions,
+   `data/transactions/` (the only `runTransaction` sites), `firestore.rules` with adversarial
+   rules + transaction-integration tests, seed. `pickTaskNow`/`purchaseReward`/`refundPurchase`
+   and their rule extensions land with feature phases 6/7.
 3. Auth & turnuses. 4. Players. 5. Catalog (TSV import). 6. Game loop. 7. Rewards. 8. PWA + polish. 9. Showcase (README, ADRs, deploy, previews).

@@ -156,6 +156,18 @@ Hard rules:
   mark committed directly under `public/` (no build-time rasterization) — re-export from
   IconKitchen and drop the files in to update. SW registration only runs on a real
   browser/HTTPS; the sandboxed in-app preview browser blocks it.
+- **Install prompt / add to home screen:** a dismissible `InstallBanner` on the entry screen
+  (`EntryLayout`), hidden once running standalone (`display-mode: standalone` + iOS
+  `navigator.standalone`; iPadOS-as-Mac disambiguated by touch points). Chrome/Chromium's
+  `beforeinstallprompt` is captured at module load by a React-free store
+  (`platform/install/beforeInstallPrompt`), so it survives firing before React mounts; Chrome no
+  longer auto-prompts, so the Install button replays that captured event to raise the real OS
+  dialog. iOS has no such event — there the button opens `InstallInstructionsDialog`, a
+  platform-aware how-to (Safari Share → Add to Home Screen, with a warning when opened outside
+  Safari, and a browser-menu fallback for Android/desktop). The empty `theme_color` (below) makes
+  vite-plugin-pwa warn the app "will not be able to be installed" — a false alarm: Chrome ignores
+  an invalid `theme_color`, and the manifest still carries every field install actually needs
+  (name, `start_url`, `standalone`, 192/512 + maskable icons, SW with a fetch handler).
 - **Android status bar:** manifest `theme_color: ''` (empty) so an installed WebAPK falls back
   to the **system-themed** bar. A WebAPK freezes `theme_color` at install time and ignores
   runtime `<meta theme-color>` changes, so a fixed colour can't be darkened for dark mode;
@@ -193,7 +205,6 @@ stays LAST, after every mechanic is frozen.
    (currently `if false`). Decide the gate before building.
 3. **Rules tab + full manuals (LAST).** Short in-app rules with a `?` per section opening the
    full detail; a complete player rules page and organizer manual. Only once mechanics freeze.
-4. **"Add to home screen" prompt + how-to** per platform (iOS/Android).
-5. **Secret achievements.** Hidden achievements earned by in-app actions, with a turnus setting
+4. **Secret achievements.** Hidden achievements earned by in-app actions, with a turnus setting
    "achievements are public" (default OFF). Obscure name + emoji + configurable coin award.
    Design the concrete list (what is technically detectable) before implementing.

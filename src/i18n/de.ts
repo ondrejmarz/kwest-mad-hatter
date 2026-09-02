@@ -40,6 +40,36 @@ export const de: Dictionary = {
     unknownTurnus: 'Diese Gruppe existiert nicht.',
     back: 'Zurück zur Gruppenauswahl',
   },
+  install: {
+    title: 'Füg die App zum Startbildschirm hinzu',
+    subtitle: 'Öffnet im Vollbild, startet schneller und läuft auch offline.',
+    installButton: 'Installieren',
+    howToButton: 'Anleitung',
+    dialogTitle: 'Zum Startbildschirm',
+    nativeIntro: 'Dein Browser bietet die Installation an — bestätige einfach das Fenster.',
+    ios: {
+      intro: 'In Safari sind es ein paar Schritte:',
+      step1: 'Tippe unten rechts auf „•••“.',
+      step2: 'Wähle „Teilen“.',
+      step3: 'Scroll nach unten und wähle „Zum Home-Bildschirm“.',
+      step4: 'Bestätige oben rechts mit „Hinzufügen“.',
+      shareNote:
+        'Auf dem iPad (und manchen iPhones) ist das Teilen-Symbol direkt in der Leiste — dann überspring den „•••“-Schritt.',
+      notSafari:
+        'Öffne den Link in Safari. In Chrome, Firefox oder einem In-App-Browser (Instagram, Messenger…) fehlt „Zum Home-Bildschirm“.',
+    },
+    android: {
+      intro: 'Falls die Installation nicht von selbst angeboten wird:',
+      step1: 'Öffne das Browser-Menü (⋮ oben rechts).',
+      step2: 'Wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.',
+      step3: 'Bestätige — die App landet auf dem Startbildschirm.',
+    },
+    other: {
+      intro: 'Am Computer fügst du die App so hinzu:',
+      step1: 'Öffne das Browser-Menü oder das Installationssymbol in der Adressleiste.',
+      step2: 'Wähle „Installieren“ und bestätige.',
+    },
+  },
   admin: {
     unlockTitle: 'Admin-Zugang',
     unlockHint: 'Der Admin-Code der Gruppe.',

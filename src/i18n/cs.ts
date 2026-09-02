@@ -42,6 +42,36 @@ export const cs = {
     unknownTurnus: 'Taková skupina neexistuje.',
     back: 'Zpět na výběr skupin',
   },
+  install: {
+    title: 'Přidej si aplikaci na plochu',
+    subtitle: 'Spustí se na celou obrazovku, naskočí rychleji a funguje i offline.',
+    installButton: 'Nainstalovat',
+    howToButton: 'Jak na to',
+    dialogTitle: 'Přidat na plochu',
+    nativeIntro: 'Prohlížeč nabídne instalaci — jen ji potvrď v okně, které vyskočí.',
+    ios: {
+      intro: 'V Safari to zvládneš v pár krocích:',
+      step1: 'Klepni vpravo dole na „•••“.',
+      step2: 'Vyber „Sdílet“.',
+      step3: 'Sjeď níž a vyber „Přidat na plochu“.',
+      step4: 'Vpravo nahoře potvrď „Přidat“.',
+      shareNote:
+        'Na iPadu a některých iPhonech je ikona Sdílet rovnou na liště, pak krok „•••“ přeskoč.',
+      notSafari:
+        'Otevři odkaz v Safari. V Chromu, Firefoxu ani v prohlížeči uvnitř jiné apliakce (Instagram, Messenger…) přidání na plochu nenajdeš.',
+    },
+    android: {
+      intro: 'Když se instalace nenabídne sama:',
+      step1: 'Otevři menu prohlížeče (⋮ vpravo nahoře).',
+      step2: 'Vyber „Nainstalovat aplikaci“ nebo „Přidat na plochu“.',
+      step3: 'Potvrď a aplikace přiskočí na plochu.',
+    },
+    other: {
+      intro: 'Na počítači apliakci přidáš takhle:',
+      step1: 'Otevři menu prohlížeče, nebo najdi ikonu instalace v adresním řádku.',
+      step2: 'Vyber „Nainstalovat“ a potvrď.',
+    },
+  },
   admin: {
     unlockTitle: 'Admin přístup',
     unlockHint: 'Admin kód skupiny.',

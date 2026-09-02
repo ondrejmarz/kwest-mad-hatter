@@ -173,6 +173,35 @@ describe('reads', () => {
   });
 });
 
+describe('coin ledger', () => {
+  const entry = {
+    kind: 'adjust',
+    day: 1,
+    delta: 10,
+    note: 'x',
+    seq: 0,
+    createdAt: serverTimestamp(),
+  };
+
+  it('lets the character owner read their own ledger', async () => {
+    await assertSucceeds(getDocs(collection(authed('alice'), path('players/p1/ledger'))));
+  });
+
+  it("denies reading another player's ledger", async () => {
+    await assertFails(getDocs(collection(authed('bob'), path('players/p1/ledger'))));
+    await assertFails(getDocs(collection(authed('stranger'), path('players/p1/ledger'))));
+  });
+
+  it('lets an admin read any ledger and append entries', async () => {
+    await assertSucceeds(getDocs(collection(authed('admin'), path('players/p1/ledger'))));
+    await assertSucceeds(setDoc(doc(authed('admin'), path('players/p1/ledger/e1')), entry));
+  });
+
+  it('forbids players from writing ledger entries, even their own', async () => {
+    await assertFails(setDoc(doc(authed('alice'), path('players/p1/ledger/e1')), entry));
+  });
+});
+
 describe('reservations are secret', () => {
   it("denies an uninvolved member reading someone else's reservation", async () => {
     await assertFails(getDoc(doc(authed('carol'), path('reservations/p1'))));

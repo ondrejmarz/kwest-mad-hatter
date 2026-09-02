@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { Day, PlayerId, RewardId, TaskId } from '../ids';
+import type { LedgerEntry } from '../ledger';
 import { resolveRollover } from '../rollover';
 import type { PlayerUpdate, RolloverResult } from '../rollover';
 import type { Player, Reservation, Reward, RewardBid, Task, TurnusSettings } from '../types';
@@ -404,8 +405,7 @@ describe('resolveRollover — reward auctions (step 2)', () => {
     expect(result.preview.auctions).toEqual([
       { rewardId: 'r1', rewardName: loc('Extra dessert'), winnerName: 'Jana', amount: 60 },
     ]);
-    expect(result.rollbackSnapshot.rewardBids).toHaveLength(1);
-    // The win becomes an owned-reward Purchase (price = what they paid); undo can find it by id.
+    // The win becomes an owned-reward Purchase (price = what they paid).
     expect(result.purchases).toEqual([
       {
         id: '1_r1',
@@ -422,13 +422,11 @@ describe('resolveRollover — reward auctions (step 2)', () => {
         refunded: false,
       },
     ]);
-    expect(result.rollbackSnapshot.purchaseIds).toEqual(['1_r1']);
   });
 
   it('creates no purchases when the auction has no winners', () => {
     const result = run({ turnus: { currentDay: Day(1), noPickPenalty: 0 } });
     expect(result.purchases).toEqual([]);
-    expect(result.rollbackSnapshot.purchaseIds).toEqual([]);
   });
 
   it('records the punishment targets on a won punish_someone purchase', () => {
@@ -464,7 +462,7 @@ describe('resolveRollover — reward auctions (step 2)', () => {
   });
 });
 
-describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
+describe('resolveRollover — advance the round (step 4)', () => {
   it('advances the day and applies tomorrow categories', () => {
     const result = run({
       turnus: {
@@ -482,7 +480,7 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
     });
   });
 
-  it('captures a rollback snapshot of the pre-evaluation state', () => {
+  it('settles a completed task and assigns the reserved task for tomorrow', () => {
     const p1 = makePlayer({
       id: PlayerId('p1'),
       coins: 100,
@@ -510,19 +508,75 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
       reservations: [reservation],
       completed: [PlayerId('p1')],
     });
-    const snap = result.rollbackSnapshot;
-    expect(snap.currentDay).toBe(1);
-    expect(snap.currentDayCategories).toEqual(['a']);
-    expect(snap.nextDayCategories).toEqual(['b']);
-    expect(snap.dayLocked).toBe(true);
-    expect(snap.players).toEqual([
-      { playerId: 'p1', coins: 100, activeTask: p1.activeTask, needsPick: false },
-    ]);
-    expect(snap.tasks).toEqual([{ taskId: 't1', usedByPlayerIds: [] }]);
-    expect(snap.reservations).toEqual([reservation]);
-    // the round genuinely moved on, so the snapshot is what makes undo meaningful.
     expect(result.nextDay).toBe(2);
     expect(pu(result, 'p1').coins).toBe(250);
     expect(pu(result, 'p1').activeTask?.taskId).toBe('t2');
+  });
+});
+
+describe('resolveRollover — coin-history ledger (spec 9.1)', () => {
+  it('appends a task entry per active player and a reward entry per auction win', () => {
+    const result = run({
+      turnus: { currentDay: Day(1) }, // fixture defaults: failPenalty 75, noPickPenalty 100
+      players: [
+        makePlayer({
+          id: PlayerId('p1'),
+          coins: 300,
+          activeTask: makeActiveTask({ taskId: TaskId('t1'), coinReward: 150 }),
+        }),
+        makePlayer({
+          id: PlayerId('p2'),
+          coins: 300,
+          activeTask: makeActiveTask({ taskId: TaskId('t2'), coinReward: 120 }),
+        }),
+        makePlayer({ id: PlayerId('p3'), coins: 300, needsPick: true, activeTask: null }),
+      ],
+      tasks: [makeTask({ id: TaskId('t1'), name: loc('Nádobí') }), makeTask({ id: TaskId('t2') })],
+      rewards: [makeReward({ id: RewardId('r1'), name: loc('Dezert'), price: 40 })],
+      rewardBids: [
+        makeRewardBid({
+          playerId: PlayerId('p1'),
+          rewardId: RewardId('r1'),
+          amount: 60,
+          day: Day(1),
+        }),
+      ],
+      completed: [PlayerId('p1')],
+    });
+
+    const entryFor = (playerId: string, kind: string): LedgerEntry | undefined =>
+      result.ledger.find((append) => append.playerId === playerId && append.entry.kind === kind)
+        ?.entry;
+
+    // The task name comes from the catalog task, not the player's activeTask snapshot.
+    expect(entryFor('p1', 'task')).toMatchObject({
+      delta: 150,
+      outcome: 'completed',
+      taskName: loc('Nádobí'),
+      day: 1,
+    });
+    expect(entryFor('p2', 'task')).toMatchObject({ delta: -75, outcome: 'failed' });
+    expect(entryFor('p3', 'task')).toMatchObject({
+      delta: -100,
+      outcome: 'no_task',
+      taskName: loc(''),
+    });
+    expect(entryFor('p1', 'reward')).toMatchObject({
+      delta: -60,
+      form: 'reward',
+      rewardName: loc('Dezert'),
+    });
+
+    // Task entries precede reward entries, so a sorted history reads earn-then-spend.
+    const kinds = result.ledger.map((append) => append.entry.kind);
+    expect(kinds.indexOf('task')).toBeLessThan(kinds.indexOf('reward'));
+  });
+
+  it('records no entry for a no-pick when the penalty is zero (nothing moved)', () => {
+    const result = run({
+      turnus: { currentDay: Day(1), noPickPenalty: 0 },
+      players: [makePlayer({ id: PlayerId('p1'), coins: 100, needsPick: true, activeTask: null })],
+    });
+    expect(result.ledger).toEqual([]);
   });
 });

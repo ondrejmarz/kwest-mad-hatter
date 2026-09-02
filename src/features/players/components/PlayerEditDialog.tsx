@@ -49,7 +49,7 @@ export function PlayerEditDialog({
     setError(null);
     if (trimmed !== player.name) void renamePlayer(db, turnusId, player.id, trimmed);
     if (hasChange) {
-      const result = await adjustCoins(db, turnusId, player.id, change);
+      const result = await adjustCoins(db, turnusId, player.id, change, note.trim());
       if (!result.ok) {
         setBusy(false);
         setError(t('entry.offline'));

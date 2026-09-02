@@ -176,11 +176,6 @@ service cloud.firestore {
         allow delete: if (signedIn() && uid() == u) || isAdmin(t);
       }
 
-      // One-shot full-undo snapshot — admins only, kept off the hot turnus doc.
-      match /admin/{doc} {
-        allow read, write: if isAdmin(t);
-      }
-
       match /players/{pid} {
         allow read: if isMember(t);
         allow create: if isMember(t)
@@ -207,6 +202,14 @@ service cloud.firestore {
           allow create: if isMember(t);
           allow update, delete: if isAdmin(t);
         }
+
+        // Coin history (spec 9.1): appended only by admin-run transactions (settlement, auction,
+        // manual adjust). Readable by the character's owner and admins — the private stats view;
+        // Phase 2 widens the read when public profiles are enabled.
+        match /ledger/{entryId} {
+          allow read: if isAdmin(t) || (hasPlayer(t) && pid == myPlayerId(t));
+          allow create, update, delete: if isAdmin(t);
+        }
       }
 
       match /tasks/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }
@@ -214,7 +217,7 @@ service cloud.firestore {
 
       // Reservations are secret: readable only by the initiator, the invited players and admins.
       // A locked day freezes them (players can't reserve, answer or cancel until evaluation);
-      // admins still write them — the undo transaction restoring the pre-evaluation snapshot (A4).
+      // admins still write them — day evaluation deletes them at rollover.
       match /reservations/{pid} {
         allow read: if isAdmin(t)
           || (hasPlayer(t) && (pid == myPlayerId(t) || myPlayerId(t) in resource.data.invitees));
@@ -233,7 +236,7 @@ service cloud.firestore {
 
       // Sealed auction bids are secret: readable only by the bidder and admins (spec 8). A bid is a
       // purchase, so placing or raising one is frozen while the day is locked; withdrawing stays
-      // open. Admins may write them too — evaluation deletes them, and undo restores them (A4).
+      // open. Admins may write them too — evaluation deletes them at rollover.
       match /rewardBids/{pid} {
         allow read: if isAdmin(t) || (hasPlayer(t) && pid == myPlayerId(t));
         allow create, update: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
@@ -274,7 +277,7 @@ service cloud.firestore {
               && onlyChanged(['accepted']) && request.resource.data.accepted == true);
       }
 
-      // Owned rewards: created by day evaluation and removed by undo — both run as admin. Members
+      // Owned rewards: created by day evaluation, which runs as admin. Members
       // read them for the "has a reward" chip (spec 8).
       match /purchases/{id} {
         allow read: if isMember(t);

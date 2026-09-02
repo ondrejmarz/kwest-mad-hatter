@@ -1,4 +1,5 @@
 import type { Day, PlayerId, RewardId, TaskId } from '../ids';
+import type { LedgerEntry } from '../ledger';
 import type {
   ActiveTask,
   LocalizedText,
@@ -56,27 +57,6 @@ export interface TaskUpdate {
   readonly usedByPlayerIds: readonly PlayerId[];
 }
 
-export interface PlayerSnapshot {
-  readonly playerId: PlayerId;
-  readonly coins: number;
-  readonly activeTask: ActiveTask | null;
-  readonly needsPick: boolean;
-}
-
-/** Everything evaluation mutated, captured for a one-shot full undo (spec, decision A4). */
-export interface RollbackSnapshot {
-  readonly currentDay: Day;
-  readonly currentDayCategories: readonly string[];
-  readonly nextDayCategories: readonly string[];
-  readonly dayLocked: boolean;
-  readonly players: readonly PlayerSnapshot[];
-  readonly tasks: readonly TaskUpdate[];
-  readonly reservations: readonly Reservation[];
-  readonly rewardBids: readonly RewardBid[];
-  /** Ids of the purchase docs evaluation created (auction wins), so undo can delete them. */
-  readonly purchaseIds: readonly string[];
-}
-
 export interface PreviewSettlement {
   readonly playerId: PlayerId;
   readonly playerName: string;
@@ -127,6 +107,12 @@ export interface TurnusUpdate {
   readonly dayLocked: boolean;
 }
 
+/** One coin-history entry evaluation appends, tagged with the player it belongs to (spec 9.1). */
+export interface LedgerAppend {
+  readonly playerId: PlayerId;
+  readonly entry: LedgerEntry;
+}
+
 export interface RolloverResult {
   readonly nextDay: Day;
   readonly turnus: TurnusUpdate;
@@ -134,6 +120,7 @@ export interface RolloverResult {
   readonly taskUpdates: readonly TaskUpdate[];
   /** Purchase docs to create for the auction winners (owned rewards, spec 8). */
   readonly purchases: readonly Purchase[];
-  readonly rollbackSnapshot: RollbackSnapshot;
+  /** Coin-history entries to append: one per settled player, one per auction winner. */
+  readonly ledger: readonly LedgerAppend[];
   readonly preview: RolloverPreview;
 }

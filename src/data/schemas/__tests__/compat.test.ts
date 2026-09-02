@@ -1,6 +1,7 @@
 import { expectTypeOf, it } from 'vitest';
 import type { z } from 'zod';
 
+import type { LedgerEntry } from '../../../domain/ledger';
 import type {
   ActiveTask,
   Player,
@@ -12,6 +13,7 @@ import type {
   TurnusSettings,
 } from '../../../domain/types';
 import { rewardSchema, taskSchema } from '../catalog';
+import { ledgerEntrySchema } from '../ledger';
 import { activeTaskSchema, playerSchema } from '../player';
 import { purchaseSchema } from '../purchase';
 import { reservationSchema } from '../reservation';
@@ -48,4 +50,5 @@ it('schemas stay compatible with the domain types', () => {
   expectTypeOf<z.infer<typeof taskSchema>>().toExtend<Task>();
   expectTypeOf<z.infer<typeof purchaseSchema>>().toExtend<Purchase>();
   expectTypeOf<z.infer<typeof turnusSchema>>().toExtend<TurnusSettings>();
+  expectTypeOf<z.infer<typeof ledgerEntrySchema>>().toExtend<LedgerEntry>();
 });

@@ -1,16 +1,24 @@
 import { readFileSync } from 'node:fs';
 
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, type Firestore, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  type Firestore,
+  getDoc,
+  getDocs,
+  setDoc,
+  Timestamp,
+} from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { adjustCoins } from '../../src/data/transactions/adjustCoins';
 import { approvePlayer } from '../../src/data/transactions/approvePlayer';
 import { bidReward } from '../../src/data/transactions/bidReward';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
 import { runRollover } from '../../src/data/transactions/runRollover';
-import { undoRollover } from '../../src/data/transactions/undoRollover';
 import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
 import type { ActiveTask, Player, Reward, Task } from '../../src/domain/types';
@@ -152,6 +160,15 @@ const readTurnus = async (): Promise<Record<string, unknown> | undefined> => {
   return data;
 };
 
+const readCollection = async (suffix: string): Promise<Record<string, unknown>[]> => {
+  let rows: Record<string, unknown>[] = [];
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDocs(collection(ctx.firestore(), `turnuses/${T}/${suffix}`));
+    rows = snap.docs.map((docSnap) => docSnap.data() as Record<string, unknown>);
+  });
+  return rows;
+};
+
 describe('joinTurnus', () => {
   it('joins with the correct player code and writes member + role', async () => {
     const result = await joinTurnus(asDb('newbie'), T, 'newbie', 'PLAY01');
@@ -235,7 +252,7 @@ describe('bidReward', () => {
   });
 });
 
-describe('runRollover and undoRollover', () => {
+describe('runRollover', () => {
   const player = (id: string, activeTask: ActiveTask): Player => ({
     id: PlayerId(id),
     name: id,
@@ -293,7 +310,7 @@ describe('runRollover and undoRollover', () => {
     active: true,
   };
 
-  it('settles the day, advances the round, then fully restores on undo', async () => {
+  it('settles the day and advances the round', async () => {
     const rolled = await runRollover(asDb('admin'), T, input());
     expect(rolled.ok).toBe(true);
 
@@ -302,17 +319,13 @@ describe('runRollover and undoRollover', () => {
     expect((await read('players/p1'))?.activeTask).toBeNull();
     expect((await read('players/p1'))?.needsPick).toBe(true);
     expect((await readTurnus())?.currentDay).toBe(2);
-    expect((await read('admin/rollback'))?.snapshot).toBeTruthy();
-
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('players/p2'))?.coins).toBe(100);
-    expect((await readTurnus())?.currentDay).toBe(1);
-    expect(await read('admin/rollback')).toBeUndefined();
+    // Coin history: p1's completed task is recorded (spec 9.1).
+    const p1Ledger = await readCollection('players/p1/ledger');
+    expect(p1Ledger).toHaveLength(1);
+    expect(p1Ledger[0]).toMatchObject({ kind: 'task', outcome: 'completed', delta: 150, day: 1 });
   });
 
-  it('resolves the reward auction: charges the winner, consumes the bid, restores on undo', async () => {
+  it('resolves the reward auction: charges the winner and consumes the bid', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1`), {
         day: 1,
@@ -346,11 +359,25 @@ describe('runRollover and undoRollover', () => {
     expect(purchase?.buyerId).toBe('p1');
     expect(purchase?.price).toBe(60);
     expect(purchase?.form).toBe('reward');
+    // Coin history records both the settled task and the won reward for p1 (spec 9.1).
+    const p1Ledger = await readCollection('players/p1/ledger');
+    expect(p1Ledger.some((entry) => entry.kind === 'task' && entry.delta === 150)).toBe(true);
+    expect(p1Ledger.some((entry) => entry.kind === 'reward' && entry.delta === -60)).toBe(true);
+  });
+});
 
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');
-    expect(await read('purchases/1_r1')).toBeUndefined();
+describe('adjustCoins', () => {
+  it('applies a manual change and records it with the note in the ledger', async () => {
+    const result = await adjustCoins(asDb('admin'), T, 'p1', -30, 'Raketa');
+    expect(result.ok).toBe(true);
+    expect((await read('players/p1'))?.coins).toBe(70); // 100 − 30
+    const ledger = await readCollection('players/p1/ledger');
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ kind: 'adjust', delta: -30, note: 'Raketa', day: 1 });
+  });
+
+  it('writes no ledger entry when the change nets to zero', async () => {
+    await adjustCoins(asDb('admin'), T, 'p1', 0, 'noop');
+    expect(await readCollection('players/p1/ledger')).toEqual([]);
   });
 });

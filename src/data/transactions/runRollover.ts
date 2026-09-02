@@ -1,4 +1,4 @@
-import { type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
 import { resolveRollover } from '../../domain/rollover';
@@ -8,6 +8,7 @@ import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import {
   playerDoc,
+  playerLedgerCol,
   punishTargetCountsDoc,
   purchaseDoc,
   reservationCountsDoc,
@@ -72,6 +73,15 @@ export async function runRollover(
       const { id, ...data } = purchase;
       tx.set(purchaseDoc(db, t, id), { ...data, createdAt: serverTimestamp() });
     }
+    // Coin-history entries (spec 9.1): auto-id docs, `seq` = append order so a player's task entry
+    // precedes the reward it paid for when the history is sorted by `createdAt` then `seq`.
+    result.ledger.forEach((append, index) => {
+      tx.set(doc(playerLedgerCol(db, t, append.playerId)), {
+        ...append.entry,
+        seq: index,
+        createdAt: serverTimestamp(),
+      });
+    });
     return ok(undefined);
   });
 }

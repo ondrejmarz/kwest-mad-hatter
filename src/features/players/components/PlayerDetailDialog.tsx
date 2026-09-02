@@ -1,6 +1,9 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 
 import { db } from '../../../data/firebase';
+import { subscribePlayerLedger } from '../../../data/repositories/ledger';
+import type { LedgerEntryDoc } from '../../../data/schemas/ledger';
+import type { Subscription } from '../../../data/subscriptions';
 import { claimPlayer } from '../../../data/transactions/claimPlayer';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
@@ -21,6 +24,7 @@ import {
 } from '../../session';
 
 import { PlayerFacts, selectPlayerFacts } from './PlayerFacts';
+import { PlayerLedgerView } from './PlayerLedgerView';
 
 /**
  * Player detail (spec 9.1). For every player it surfaces the useful public facts — coins and the
@@ -43,6 +47,14 @@ export function PlayerDetailDialog({
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The coin history is private to the owner (and admins); only subscribe on the own card.
+  const [ledger, setLedger] = useState<Subscription<readonly LedgerEntryDoc[]>>({
+    status: 'loading',
+  });
+  useEffect(() => {
+    if (!mine) return;
+    return subscribePlayerLedger(db, turnusId, player.id, setLedger);
+  }, [mine, turnusId, player.id]);
 
   // The reservation and bid are secret — these listeners hold *this device's* own, so they are only
   // meaningful (and only shown) on the player's own card.
@@ -129,6 +141,10 @@ export function PlayerDetailDialog({
             </div>
           )}
         </div>
+      )}
+
+      {mine && ledger.status === 'ready' && (
+        <PlayerLedgerView player={player} entries={ledger.data} />
       )}
 
       {!mine && (

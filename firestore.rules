@@ -202,6 +202,14 @@ service cloud.firestore {
           allow create: if isMember(t);
           allow update, delete: if isAdmin(t);
         }
+
+        // Coin history (spec 9.1): appended only by admin-run transactions (settlement, auction,
+        // manual adjust). Readable by the character's owner and admins — the private stats view;
+        // Phase 2 widens the read when public profiles are enabled.
+        match /ledger/{entryId} {
+          allow read: if isAdmin(t) || (hasPlayer(t) && pid == myPlayerId(t));
+          allow create, update, delete: if isAdmin(t);
+        }
       }
 
       match /tasks/{id} { allow read: if isMember(t); allow write: if isAdmin(t); }

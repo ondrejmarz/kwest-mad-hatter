@@ -39,6 +39,9 @@ export const playerDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'players', playerId);
 export const playerAuthDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'players', playerId, 'private', 'auth');
+// A player's coin history (spec 9.1): an append log, one entry per coin-moving event. Auto-id docs.
+export const playerLedgerCol = (db: Firestore, t: string, playerId: string) =>
+  collection(db, 'turnuses', t, 'players', playerId, 'ledger');
 export const tasksCol = (db: Firestore, t: string) => collection(db, 'turnuses', t, 'tasks');
 export const taskDoc = (db: Firestore, t: string, taskId: string) =>
   doc(db, 'turnuses', t, 'tasks', taskId);

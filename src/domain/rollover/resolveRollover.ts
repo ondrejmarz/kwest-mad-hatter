@@ -1,7 +1,7 @@
 import { unique } from '../../lib/arrays';
 import { invariant } from '../../lib/invariant';
 import { Day, type PlayerId, type TaskId } from '../ids';
-import type { Purchase } from '../types';
+import type { LocalizedText, Purchase } from '../types';
 
 import { assignPunishTargets, type PunishWin } from './assignPunishTargets';
 import { assignTasks } from './assignTasks';
@@ -10,6 +10,7 @@ import { resolveAuctions } from './resolveAuctions';
 import { settleDay } from './settleDay';
 import { sortClaims } from './sortClaims';
 import type {
+  LedgerAppend,
   PlayerUpdate,
   PreviewAuction,
   PreviewWithoutTask,
@@ -132,6 +133,39 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     amount: purchase.price,
   }));
 
+  // Coin-history entries (spec 9.1): a task entry for every player who moved coins or attempted a
+  // task, then a reward entry for each auction winner (they pay the winning bid). The transaction
+  // stamps each with a server `createdAt`; the opening balance is derived at read, never stored.
+  const emptyText: LocalizedText = { cs: '', en: '', de: '' };
+  const ledger: readonly LedgerAppend[] = [
+    ...settlements
+      .filter((settlement) => settlement.usedTaskId !== null || settlement.delta !== 0)
+      .map((settlement) => {
+        const task =
+          settlement.usedTaskId !== null ? tasksById.get(settlement.usedTaskId) : undefined;
+        return {
+          playerId: settlement.playerId,
+          entry: {
+            kind: 'task' as const,
+            day: currentDay,
+            delta: settlement.delta,
+            taskName: task?.name ?? emptyText,
+            outcome: settlement.outcome,
+          },
+        };
+      }),
+    ...purchases.map((purchase) => ({
+      playerId: purchase.buyerId,
+      entry: {
+        kind: 'reward' as const,
+        day: currentDay,
+        delta: -purchase.price,
+        rewardName: purchase.rewardName,
+        form: purchase.form,
+      },
+    })),
+  ];
+
   // Step 4 — advance the round: tomorrow's categories become today's, tomorrow resets to empty
   // (admins re-pick), and the day unlocks.
   return {
@@ -145,6 +179,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     playerUpdates,
     taskUpdates,
     purchases,
+    ledger,
     preview: {
       settlements: settlements.map((settlement) => ({
         playerId: settlement.playerId,

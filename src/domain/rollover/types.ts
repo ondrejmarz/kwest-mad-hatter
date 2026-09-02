@@ -1,4 +1,5 @@
 import type { Day, PlayerId, RewardId, TaskId } from '../ids';
+import type { LedgerEntry } from '../ledger';
 import type {
   ActiveTask,
   LocalizedText,
@@ -106,6 +107,12 @@ export interface TurnusUpdate {
   readonly dayLocked: boolean;
 }
 
+/** One coin-history entry evaluation appends, tagged with the player it belongs to (spec 9.1). */
+export interface LedgerAppend {
+  readonly playerId: PlayerId;
+  readonly entry: LedgerEntry;
+}
+
 export interface RolloverResult {
   readonly nextDay: Day;
   readonly turnus: TurnusUpdate;
@@ -113,5 +120,7 @@ export interface RolloverResult {
   readonly taskUpdates: readonly TaskUpdate[];
   /** Purchase docs to create for the auction winners (owned rewards, spec 8). */
   readonly purchases: readonly Purchase[];
+  /** Coin-history entries to append: one per settled player, one per auction winner. */
+  readonly ledger: readonly LedgerAppend[];
   readonly preview: RolloverPreview;
 }

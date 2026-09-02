@@ -61,7 +61,16 @@ export const router = createBrowserRouter([
                     // stranding the admin on the error screen until they leave and come back.
                     element: (
                       <AppErrorBoundary>
-                        <Suspense fallback={<Spinner />}>
+                        {/* Centre the chunk-loading spinner like every in-content loader
+                            (and the admin screen's own), so it matches instead of sitting
+                            top-left while the lazy admin bundle downloads. */}
+                        <Suspense
+                          fallback={
+                            <div className="flex justify-center py-10">
+                              <Spinner />
+                            </div>
+                          }
+                        >
                           <AdminScreen />
                         </Suspense>
                       </AppErrorBoundary>

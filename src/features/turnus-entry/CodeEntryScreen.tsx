@@ -34,7 +34,7 @@ export function CodeEntryScreen() {
   };
 
   return (
-    <EntryLayout title={t('entry.codeTitle')} subtitle={turnus?.slug}>
+    <EntryLayout title={t('entry.codeTitle')} subtitle={turnus?.name}>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <p className="text-center text-sm text-content-muted">{t('entry.codeHint')}</p>
         <TextInput

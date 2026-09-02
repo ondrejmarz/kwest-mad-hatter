@@ -1,56 +1,55 @@
 # Kwest
 
-A mobile-first Progressive Web App for a game that camp counselors play with kids:
-players pick a daily task, earn coins, and spend them on rewards — which are often
-small punishments for everyone else. Each evening one admin runs the "day evaluation",
-which settles the day and moves the game to the next round.
+A mobile-first Progressive Web App for groups of people spending a few days together —
+a trip, a retreat, a camp — who want to complete side quests and cause each other a bit of
+mischief. Installable on Android, iOS and desktop.
 
-> Status: **Phase 0 (skeleton).** The app shell, navigation and toolchain are in place;
-> game features land phase by phase (see the roadmap below).
+Everyone joins a shared group. Each day players pick a task, earn coins for finishing it, and
+spend those coins on rewards — many of which are small punishments aimed at everyone else.
+Who reserved which task and who bid on which reward stays secret during the day; every evening
+one admin runs a single day evaluation that settles the day, reveals who won what, and
+advances the game to the next round.
 
-No backend and no Cloud Functions: [Firestore](https://firebase.google.com/docs/firestore)
-with Anonymous Auth is the single source of truth, and all authorization lives in
-Firestore Security Rules. The design is meant to fit comfortably in the free tier.
+## No backend
+
+There is no server and no Cloud Functions to run, deploy or pay for.
+[Firestore](https://firebase.google.com/docs/firestore) with Anonymous Auth is the single
+source of truth, and every authorization decision lives in Firestore Security Rules, the
+app talks to the database directly, and the rules alone decide what each player may read or
+write. `onSnapshot` keeps every screen live, so there is no Redux/Zustand/query cache for
+server state. The whole design is meant to fit comfortably inside Firebase's free tier, and
+because it's a PWA it installs to the home screen and loads instantly from cache.
 
 ## Tech stack
 
-- **Vite + React + TypeScript** (strict), `react-router-dom`
-- **Tailwind CSS** with semantic design tokens
-- **Firebase**: Firestore + Anonymous Auth (modular SDK) — nothing else
-- **zod** for validating everything read from Firestore
+- **Vite + React 19 + TypeScript** (strict) with `react-router-dom`
+- **Tailwind CSS** with semantic design tokens (light + dark)
+- **Firebase** — Firestore + Anonymous Auth (modular SDK), nothing else
+- **zod** validates everything read from Firestore
 - **Vitest** + Testing Library + `@firebase/rules-unit-testing`
-- **ESLint** (with architecture boundaries), Prettier, husky
-- `vite-plugin-pwa` for the service worker and manifest
+- **ESLint** (with enforced architecture boundaries), Prettier, husky
+- **vite-plugin-pwa** for the service worker and installable manifest
 
 ## Run it
 
-Prerequisites: **Node ≥ 20** and a **JDK (21)** for the Firestore emulator.
+Prerequisites: Node ≥ 20, plus a JDK (21) for the Firestore emulator.
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` starts Vite, the Firestore/Auth emulators, and seeds demo data — one
-command, no configuration. To work against a real Firebase project instead, copy
-`.env.example` to `.env`, fill it in, and run `npm run dev:cloud`.
-
-## Scripts
-
-| Command                           | What it does                          |
-| --------------------------------- | ------------------------------------- |
-| `npm run dev`                     | Vite + emulators + seed               |
-| `npm run verify`                  | lint + typecheck + unit tests + build |
-| `npm run test:unit`               | Vitest unit and component tests       |
-| `npm run test:rules`              | Firestore rules tests in the emulator |
-| `npm run build`                   | Production build                      |
-| `npm run lint` / `npm run format` | ESLint / Prettier                     |
+`npm run dev` starts Vite, the Firestore/Auth emulators and demo seed data in one command — no
+configuration needed. To run against a real Firebase project instead, copy `.env.example` to
+`.env`, fill it in, and use `npm run dev:cloud`. Run `npm run verify` (lint + typecheck +
+tests + build) before committing.
 
 ## Architecture
 
-Game logic is a pure, framework-free layer with no idea that Firestore or React exist,
-so it is fully unit-testable. Each layer may import only from the ones below it; the rule
-is enforced by ESLint and CI fails on violations.
+The game logic is a pure, framework-free layer with no idea that Firestore or React exist, so
+it is fully unit-testable and holds every rule in one place. The app is split into layers, and
+each may import only from the ones below it — the boundary is enforced by ESLint, so CI fails
+on a violation rather than letting the layering rot.
 
 ```mermaid
 graph TD
@@ -79,45 +78,14 @@ graph TD
   domain --> lib
 ```
 
-## Roadmap
+A few rules give this teeth:
 
-0. **Skeleton** — done
-1. Domain (pure game logic + tests)
-2. Data + Security Rules
-3. Auth & turnuses
-4. Players
-5. Catalog (TSV import)
-6. Game loop (reservations, day evaluation, undo)
-7. Rewards
-8. PWA & polish
-9. Showcase (screenshots, ADRs, deploy)
-
-## License
-
-[MIT](./LICENSE)
-
----
-
-## Česky
-
-Progresivní webová aplikace (mobil na prvním místě) pro hru, kterou hrají vedoucí na
-dětském táboře: hráči si každý den vyberou úkol, vydělávají mince a kupují si za ně
-odměny — často trest pro ostatní. Každý večer spustí jeden admin „vyhodnocení dne", které
-den zúčtuje a posune hru do dalšího kola.
-
-Bez backendu a bez Cloud Functions: zdrojem pravdy je Firestore s anonymním přihlášením a
-veškerá autorizace je v Security Rules. Návrh cílí na free tier.
-
-**Spuštění:** je potřeba **Node ≥ 20** a **JDK (21)** pro Firestore emulátor.
-
-```bash
-npm install
-npm run dev
-```
-
-`npm run dev` spustí Vite, emulátory a naseeduje ukázková data — jeden příkaz, nulová
-konfigurace. Proti reálnému projektu: zkopíruj `.env.example` na `.env`, vyplň a spusť
-`npm run dev:cloud`.
-
-Postup je po fázích (viz roadmapa výše); herní logika (fáze 1) je čistá, plně testovatelná
-vrstva bez Firestore a Reactu.
+- `domain/` is pure — no `firebase`, no `react`, and no `Date.now()`, `Math.random()` or
+  `crypto.randomUUID()`. Time and randomness are passed in, so every outcome is deterministic
+  and testable.
+- All game rules are pure functions returning `Result<T, DomainError>` — an expected
+  failure is a value, not a thrown exception.
+- `runTransaction` lives only in `data/transactions/` — each transaction reads, calls a
+  pure domain function, then writes. No game logic hides inside a transaction.
+- All translatable text lives in `i18n/` — the domain returns error codes; the UI renders
+  them in Czech, English or German.

@@ -140,14 +140,6 @@ beforeEach(async () => {
       amount: 20,
       createdAt: serverTimestamp(),
     });
-    await put('events/e1', {
-      type: 'task_completed',
-      day: 1,
-      actorUid: 'admin',
-      actorLabel: 'Admin',
-      payload: {},
-      createdAt: serverTimestamp(),
-    });
   });
 });
 
@@ -471,23 +463,5 @@ describe('turnus entry', () => {
     const db = authed('newbie');
     await assertSucceeds(setDoc(doc(db, path('joinAttempts/newbie')), { code: 'PLAY01' }));
     await assertFails(setDoc(doc(db, path('members/newbie')), { role: 'admin' }));
-  });
-});
-
-describe('the audit log is append-only', () => {
-  it('lets a member append an event but never edit or delete one', async () => {
-    const db = authed('alice');
-    await assertSucceeds(
-      setDoc(doc(db, path('events/e2')), {
-        type: 'note',
-        day: 1,
-        actorUid: 'alice',
-        actorLabel: 'Alice',
-        payload: {},
-        createdAt: serverTimestamp(),
-      }),
-    );
-    await assertFails(updateDoc(doc(db, path('events/e1')), { day: 2 }));
-    await assertFails(deleteDoc(doc(db, path('events/e1'))));
   });
 });

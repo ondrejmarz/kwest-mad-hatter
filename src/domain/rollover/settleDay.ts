@@ -1,5 +1,4 @@
 import { applyFloor } from '../coins';
-import { gameEvent } from '../events';
 import type { PlayerId } from '../ids';
 import type { Player, TurnusSettings } from '../types';
 
@@ -29,7 +28,6 @@ export function settleDay(
         delta,
         outcome: 'no_task',
         usedTaskId: null,
-        event: gameEvent.noTaskPenalty(turnus.currentDay, player.id, delta),
       };
     }
 
@@ -44,9 +42,6 @@ export function settleDay(
       delta,
       outcome: completed ? 'completed' : 'failed',
       usedTaskId: task.taskId,
-      event: completed
-        ? gameEvent.taskCompleted(turnus.currentDay, player.id, task.taskId, delta)
-        : gameEvent.taskFailed(turnus.currentDay, player.id, task.taskId, delta),
     };
   });
 }

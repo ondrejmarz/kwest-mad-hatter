@@ -2,7 +2,6 @@ import {
   arrayRemove,
   arrayUnion,
   deleteDoc,
-  doc,
   type Firestore,
   getDoc,
   setDoc,
@@ -13,10 +12,8 @@ import type { DomainError } from '../../domain/errors';
 import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { claimAttemptDoc, eventsCol, ownerIndexDoc, playerDoc } from '../paths';
+import { claimAttemptDoc, ownerIndexDoc, playerDoc } from '../paths';
 import { parsePlayer } from '../schemas/player';
-
-import { actionEvent } from './shared';
 
 /**
  * A device claims a character (spec 3b). Every claim needs the 4-digit PIN set at character
@@ -30,8 +27,6 @@ export async function claimPlayer(
   t: string,
   playerId: string,
   uid: string,
-  actorLabel: string,
-  day: number,
   pin: string,
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
@@ -54,10 +49,6 @@ export async function claimPlayer(
   }
   batch.update(playerDoc(db, t, playerId), { ownerUids: arrayUnion(uid) });
   batch.set(ownerIndexDoc(db, t, uid), { playerId });
-  batch.set(
-    doc(eventsCol(db, t)),
-    actionEvent('player_claimed', day, { playerId }, { actorUid: uid, actorLabel }),
-  );
 
   try {
     await batch.commit();

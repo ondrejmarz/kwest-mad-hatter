@@ -3,9 +3,7 @@ import { doc, type Firestore, writeBatch } from 'firebase/firestore';
 import type { DomainError } from '../../domain/errors';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { eventsCol, playerAuthDoc, playersCol } from '../paths';
-
-import { actionEvent, type EventMeta } from './shared';
+import { playerAuthDoc, playersCol } from '../paths';
 
 /**
  * "Add player" (spec 9.1): anyone in the turnus creates a pending character with a recovery
@@ -16,8 +14,7 @@ export async function createPlayer(
   t: string,
   name: string,
   pin: string,
-  day: number,
-  meta: EventMeta,
+  createdByUid: string,
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   const ref = doc(playersCol(db, t));
@@ -29,13 +26,9 @@ export async function createPlayer(
     ownerUids: [],
     needsPick: false,
     activeTask: null,
-    createdByUid: meta.actorUid,
+    createdByUid,
   });
   batch.set(playerAuthDoc(db, t, ref.id), { recoveryPin: pin });
-  batch.set(
-    doc(eventsCol(db, t)),
-    actionEvent('player_created', day, { playerId: ref.id, name }, meta),
-  );
   await batch.commit();
   return ok(undefined);
 }

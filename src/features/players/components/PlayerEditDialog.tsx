@@ -3,7 +3,6 @@ import { type FormEvent, useState } from 'react';
 import { db } from '../../../data/firebase';
 import { renamePlayer } from '../../../data/playerAdmin';
 import { adjustCoins } from '../../../data/transactions/adjustCoins';
-import { type EventMeta } from '../../../data/transactions/shared';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
@@ -12,20 +11,18 @@ import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
 
 /**
- * Admin edit of a player (spec 9.4): rename, and a coin adjustment that needs a note for
- * the audit log (the `adjustCoins` transaction floors the balance and records the reason).
- * Renaming is a plain write; a coin change requires being online.
+ * Admin edit of a player (spec 9.4): rename, and a coin adjustment that requires a note as a
+ * justification (the `adjustCoins` transaction floors the balance). Renaming is a plain write;
+ * a coin change requires being online.
  */
 export function PlayerEditDialog({
   player,
   onClose,
   turnusId,
-  meta,
 }: {
   player: Player;
   onClose: () => void;
   turnusId: string;
-  meta: EventMeta;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(player.name);
@@ -52,7 +49,7 @@ export function PlayerEditDialog({
     setError(null);
     if (trimmed !== player.name) void renamePlayer(db, turnusId, player.id, trimmed);
     if (hasChange) {
-      const result = await adjustCoins(db, turnusId, player.id, change, note.trim(), meta);
+      const result = await adjustCoins(db, turnusId, player.id, change);
       if (!result.ok) {
         setBusy(false);
         setError(t('entry.offline'));

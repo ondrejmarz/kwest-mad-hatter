@@ -43,3 +43,14 @@ export type RewardBidCounts = z.infer<typeof rewardBidCountsSchema>;
 
 export const parseRewardBidCounts = (id: string, data: DocumentData): RewardBidCounts | null =>
   parseDoc(rewardBidCountsSchema, 'rewardBidCounts', id, data);
+
+/** Public live tally of how many current bids aim at each player — a count only, no bidders (spec 8). */
+export const punishTargetCountsSchema = z.object({
+  counts: z.record(z.string(), z.number()),
+});
+export type PunishTargetCounts = z.infer<typeof punishTargetCountsSchema>;
+
+export const parsePunishTargetCounts = (
+  id: string,
+  data: DocumentData,
+): PunishTargetCounts | null => parseDoc(punishTargetCountsSchema, 'punishTargetCounts', id, data);

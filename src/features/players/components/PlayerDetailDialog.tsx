@@ -32,12 +32,10 @@ export function PlayerDetailDialog({
   player,
   onClose,
   turnusId,
-  day,
 }: {
   player: Player;
   onClose: () => void;
   turnusId: string;
-  day: number;
 }) {
   const { t, locale } = useTranslation();
   const { uid } = useSession();
@@ -78,7 +76,7 @@ export function PlayerDetailDialog({
     if (uid === null || busy || !/^\d{4}$/.test(pin)) return;
     setBusy(true);
     setError(null);
-    const result = await claimPlayer(db, turnusId, player.id, uid, player.name, day, pin);
+    const result = await claimPlayer(db, turnusId, player.id, uid, pin);
     setBusy(false);
     if (result.ok) onClose();
     else if (result.error.code === 'REQUIRES_ONLINE') setError(t('entry.offline'));

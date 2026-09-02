@@ -1,4 +1,4 @@
-import { doc, type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
 import { resolveRollover } from '../../domain/rollover';
@@ -7,8 +7,8 @@ import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import {
-  eventsCol,
   playerDoc,
+  punishTargetCountsDoc,
   purchaseDoc,
   reservationCountsDoc,
   reservationDoc,
@@ -18,8 +18,6 @@ import {
   taskDoc,
   turnusDoc,
 } from '../paths';
-
-import { domainEvent, type EventMeta } from './shared';
 
 /**
  * Day evaluation (spec 6) — the thin shell over `resolveRollover`, with no game rule of its
@@ -33,7 +31,6 @@ export async function runRollover(
   db: Firestore,
   t: string,
   input: RolloverInput,
-  meta: EventMeta,
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
@@ -71,13 +68,11 @@ export async function runRollover(
       tx.delete(rewardBidDoc(db, t, bid.playerId));
     }
     tx.set(rewardBidCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
+    tx.set(punishTargetCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
     // Owned rewards: the winners' purchase docs (id is the doc key; `createdAt` is server-stamped).
     for (const purchase of result.purchases) {
       const { id, ...data } = purchase;
       tx.set(purchaseDoc(db, t, id), { ...data, createdAt: serverTimestamp() });
-    }
-    for (const event of result.events) {
-      tx.set(doc(eventsCol(db, t)), domainEvent(event, meta));
     }
     return ok(undefined);
   });

@@ -8,10 +8,10 @@ import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
 import { useSession } from '../../session';
 
-const LONG_PRESS_MS = 600;
+const LONG_PRESS_MS = 3000;
 
 /**
- * The hidden admin unlock (spec 3c): a long press on the header title opens a sheet for the
+ * The hidden admin unlock: a long press on the header title opens a sheet for the
  * admin code. Entering it upgrades this device to admin (joinTurnus re-runs with the admin
  * code); the role listener then reveals the Admin nav item.
  */

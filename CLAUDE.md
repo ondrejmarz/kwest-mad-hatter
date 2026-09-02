@@ -4,12 +4,16 @@ Working notes for AI coding assistants. Humans: see `README.md`.
 
 ## What this is
 
-A mobile-first PWA for a game camp counselors play with kids. Players pick a daily
-task, earn coins, and buy rewards (often punishments for others). One admin action
-per evening ("day evaluation") settles the day and advances the round.
+A mobile-first PWA for a game played by a group of people spending a few days together (a
+trip, a camp, a retreat). Players join a shared **turnus** (the code's word for one group /
+session), pick a daily task, earn coins, and buy rewards — often small punishments for the
+others. One admin action per evening ("day evaluation") settles the day and advances the round.
 
-No backend, no Cloud Functions. Firestore (+ Anonymous Auth) is the single source of
-truth; all authorization lives in Firestore Security Rules. Designed to fit the free tier.
+No backend, no Cloud Functions. Firestore (+ Anonymous Auth) is the single source of truth;
+all authorization lives in Firestore Security Rules. Designed to fit the free tier.
+
+The app is feature-complete and in real use — there is no active build phase. Remaining ideas
+live in "Not yet built" below and as GitHub issues; the durable design lives in this file.
 
 ## Commands
 
@@ -63,187 +67,144 @@ Hard rules:
 - Conventional commits. **Propose commits; the human runs them.**
 - Keep the repo looking hand-written. `CLAUDE.md` is fine; avoid other "AI wrote this" traces.
 
-## Locked decisions (some extend/adjust the original spec)
+## Locked decisions (game rules & data model)
 
-- **React 19 + Vite 8 + TS 6 + Tailwind 3.** Spec said React 18; we use the current
-  create-vite default. Tailwind stays v3 for the typed `tailwind.config.ts` tokens.
-- **Trilingual UI (cs/en/de)** via a small typed dictionary layer + `LocaleProvider`.
-  No i18next. Names still sort with `Intl.Collator('cs')`.
-- **Coin formula:** one fixed rule, `coinReward = 80 + 20 * difficulty` (100 easiest … 200 hardest),
-  in `deriveReward` — no per-turnus coefficient, overridable per task via `manualCoins`. Failing a
-  task costs a flat, turnus-wide `failPenalty` — the same for everyone, independent of the task (no
-  per-task penalty, no ratio); not picking one at all costs `noPickPenalty`. Both applied at
-  settlement. Will be balanced later; keep it in one place.
+- **React 19 + Vite 8 + TS 6 + Tailwind 3.** Tailwind stays v3 for the typed
+  `tailwind.config.ts` tokens.
+- **Trilingual UI (cs/en/de)** via a small typed dictionary layer + `LocaleProvider` (no
+  i18next). Names still sort with `Intl.Collator('cs')`.
+- **Coin formula:** one fixed rule, `coinReward = 80 + 20 * difficulty` (100 easiest … 200
+  hardest) in `deriveReward` — no per-turnus coefficient, overridable per task via
+  `manualCoins`. Failing a task costs a flat, turnus-wide `failPenalty` (same for everyone,
+  independent of the task); not picking one at all costs `noPickPenalty`. Both applied at
+  settlement. Kept in one place so it can be rebalanced.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
   rules, freezes task selection AND reward purchases for the day; reservations stay editable
-  until evaluation. (There is no clock-based lock — an earlier `lockTime` reminder was removed.)
+  until evaluation.
 - **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
-  (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, counts, categories,
-  dayLocked, currentDay), stored in an admin-only doc, not on the hot turnus doc.
-- **Reservations are secret.** Reservation/group-invite actions are not written to the public
-  `events` log during the day; reservation events only appear at evaluation.
-- **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2 pair,
-  e.g. 2/4 range), counting the initiator. The initiator's reservation carries `invitees: PlayerId[]`
-  - `responses: {playerId → accepted|declined}` (invitees toggle until evaluation, rules let them
-    touch only their own key). At evaluation the members are the initiator + accepted invitees; the
-    group competes only if it reaches `minPlayers` (else it expires), balance = poorest member.
-- **Task types are synthetic categories.** The three types (solo/pair/group, derived from the size
-  interval by `lib/group.taskType`) double as reserved category keys `@type:{solo,pair,group}`
-  (`TYPE_KEYS`). The admin's open-day set (`currentDay`/`nextDayCategories`) and the list's one
-  category filter carry these keys alongside real tags; eligibility (`isCategoryOpen`) matches a task
-  if any real tag OR its type key is open (a UNION — opening "pairs" opens every pair). No new field,
-  no rules change — the type keys just live in the existing category arrays.
-- **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the 4-digit
-  PIN** — even the first on an empty character — so nobody grabs the wrong one (updated from the
-  original "first claim is free"). **One device owns one character:** claiming a new one releases
-  the old (removes this uid via `releasesOwnership`); a character may still have several devices.
-  A character can be claimed only after admin approval. (5-try/15-min lockout still deferred.)
-- **Purchase coins deduct atomically** in one transaction (instant balance, no overdraft),
-  with rules linking the coin decrease to a matching `purchase` (preferred over deferred deduction).
+  (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, bids, counts,
+  categories, dayLocked, currentDay, purchaseIds), stored in an admin-only doc, not on the hot
+  turnus doc.
+- **Reservations and bids are secret.** During the day only the public interest count is
+  visible; who won a contested task or reward is revealed at evaluation.
+- **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
+  pair, e.g. 2/4 range), counting the initiator. The initiator's reservation carries
+  `invitees: PlayerId[]` + `responses: {playerId → accepted|declined}` (invitees toggle until
+  evaluation, rules let them touch only their own key). At evaluation the members are the
+  initiator + accepted invitees; the group competes only if it reaches `minPlayers` (else it
+  expires), balance = poorest member.
+- **Task types are synthetic categories.** The three types (solo/pair/group, derived from the
+  size interval by `lib/group.taskType`) double as reserved category keys
+  `@type:{solo,pair,group}` (`TYPE_KEYS`). The admin's open-day set
+  (`currentDay`/`nextDayCategories`) and the list's one category filter carry these keys
+  alongside real tags; eligibility (`isCategoryOpen`) matches a task if any real tag OR its
+  type key is open (a UNION — opening "pairs" opens every pair). No new field, no rules change.
+- **Same-day pick (`pickTaskNow`).** First-come via a create-only marker
+  `taskClaims/{day}_{taskId}` (contention on that one doc picks the winner). Domain builds the
+  solo `ActiveTask`; the transaction reads the marker → domain check → creates the marker +
+  sets the player's `activeTask` + `needsPick=false`. The rule lets a player write ONLY their
+  own `activeTask`+`needsPick` and validates the stored coins against the catalog task (no
+  self-inflation); `taskClaims` is create-only for players. UI: "Vzít teď" in
+  `TaskActionDialog` when the player `needsPick` and the task is open today.
+- **Rewards are a sealed-bid auction.** Min price = starting bid, players may bid higher, only
+  the interest _count_ is public. One sealed bid per player (`rewardBids/{playerId}`, secret
+  like a reservation). Resolved at evaluation by pure `resolveAuctions` (folded into
+  `resolveRollover`): rewards in catalog order, highest bid wins, ties → earlier bid; the
+  winner must afford it on the post-settle balance (else it forfeits to the next, or goes
+  unsold — **no escrow**). Winners get a `Purchase` doc (id `${day}_${rewardId}`); undo
+  restores bids from the snapshot.
+- **Punishment targeting.** A `punish_someone` reward carries a `minTargets`/`maxTargets`
+  range; targets are picked at BID time (`RewardBid.targetIds`). A live public per-day tally
+  `punishTargetCounts/{day}` guards bidding — a target is locked only while
+  `maxActivePunishesPerPlayer` current bids aim at it, freed the moment one changes (counts
+  only, no bidder → secret-safe); `createBid` refuses a newly-added target already at the cap.
+  The real, capped assignment happens at evaluation via pure `assignPunishTargets`
+  (highest-bid-first; over-cap picks dropped and the shortfall auto-filled to `minTargets` from
+  the least-targeted free players, tie-broken by a `seed`-shuffle of the day so it rotates
+  fairly — still deterministic). Final targets land on `Purchase.targetIds`/`targetNames`.
+  `punish_all` targets everyone except the buyer (no explicit `targetIds`), not subject to the
+  punish cap. Effect is record-only (counsellors enact off-app).
 - **Purchase limits:** `maxActiveRewardsPerPlayer` counts all of a buyer's active purchases
   (rewards and punishments). `maxActivePunishesPerPlayer` caps how many times a player is a
-  target of others' `punish_someone` (does not apply to `punish_all`).
-- **`punish_all`** targets everyone except the buyer (no explicit `targetIds`).
+  target of others' `punish_someone`.
+- **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the
+  4-digit PIN** — even the first on an empty character — so nobody grabs the wrong one. **One
+  device owns one character:** claiming a new one releases the old (removes this uid via
+  `releasesOwnership`); a character may still have several devices. A character can be claimed
+  only after admin approval. (5-try/15-min lockout still deferred.)
+- **Purchase coins deduct atomically** in one transaction (instant balance, no overdraft),
+  with rules linking the coin decrease to a matching `purchase`.
+- **Turnus settings** are admin-editable (`startingCoins`, `failPenalty`, `noPickPenalty`,
+  `allowNegativeBalance`, `maxActiveRewardsPerPlayer`, `maxActivePunishesPerPlayer`) via
+  `updateTurnusSettings` (plain `updateDoc`; rules already allow `isAdmin` to update the turnus
+  doc). Turnus **creation** is still gated off (`turnuses` create is `if false`) pending a
+  decision on who may create groups — see "Not yet built".
+- **Admin self-downgrade (`leaveAdmin`).** An admin can drop back to player (a batch removes
+  their `members`+`roles` admin→player), allowed by a dedicated self-downgrade rule.
 - **Rules can't run queries** — a `uid -> playerId` index doc backs "my player" checks.
-- **Events** store `type` + structured `payload` (+ `actorLabel`); the message is rendered in the UI.
+- **No audit-event log.** An earlier write-only `turnuses/{t}/events` collection (nothing read
+  it, it flooded the DB) was removed entirely — paths, schema, repo, rules match, and the
+  domain event generation. `adjustCoins`' note now has no store — `PlayerEditDialog` still
+  requires it, but it is discarded until the per-player ledger lands (see "Not yet built").
+  Coin history will be a fresh per-player structure built over `Settlement` data.
 
-## Implementation phases
+## Platform & build notes
 
-One phase per session; finish it (incl. tests) green before the next. Domain (phase 1)
-comes before data/rules (phase 2) on purpose.
+- **PWA:** `vite-plugin-pwa` (generateSW/Workbox, `registerType: 'autoUpdate'`) precaches the
+  app shell + serves an installable manifest (standalone, portrait). Icons are a designed brand
+  mark committed directly under `public/` (no build-time rasterization) — re-export from
+  IconKitchen and drop the files in to update. SW registration only runs on a real
+  browser/HTTPS; the sandboxed in-app preview browser blocks it.
+- **Install prompt / add to home screen:** a dismissible `InstallBanner` on the entry screen
+  (`EntryLayout`), hidden once running standalone (`display-mode: standalone` + iOS
+  `navigator.standalone`; iPadOS-as-Mac disambiguated by touch points). Chrome/Chromium's
+  `beforeinstallprompt` is captured at module load by a React-free store
+  (`platform/install/beforeInstallPrompt`), so it survives firing before React mounts; Chrome no
+  longer auto-prompts, so the Install button replays that captured event to raise the real OS
+  dialog. iOS has no such event — there the button opens `InstallInstructionsDialog`, a
+  platform-aware how-to (Safari Share → Add to Home Screen, with a warning when opened outside
+  Safari, and a browser-menu fallback for Android/desktop). The empty `theme_color` (below) makes
+  vite-plugin-pwa warn the app "will not be able to be installed" — a false alarm: Chrome ignores
+  an invalid `theme_color`, and the manifest still carries every field install actually needs
+  (name, `start_url`, `standalone`, 192/512 + maskable icons, SW with a fetch handler).
+- **Android status bar:** manifest `theme_color: ''` (empty) so an installed WebAPK falls back
+  to the **system-themed** bar. A WebAPK freezes `theme_color` at install time and ignores
+  runtime `<meta theme-color>` changes, so a fixed colour can't be darkened for dark mode;
+  changing this needs a reinstall / WebAPK refetch. (`display: standalone` can't do a
+  transparent status bar on Android — that's an iOS-only feature.)
+- **iOS input-zoom fix:** a `@media (pointer: coarse)` rule pins form controls to 16px
+  `!important` so focusing a `text-sm` field no longer zooms the page.
+- **Dark mode** swaps the CSS token values under `@media (prefers-color-scheme: dark)` in
+  `index.css` (everything reads tokens, so it just works); palette is a cool grey. A themed
+  `.select-caret` replaces the native `<select>` arrow (which stayed invisible on iOS dark).
+- **App version** is a build timestamp: `vite.config.ts` computes `YYYY.MM.DD.HHmm` at
+  config-eval and injects it as the `__APP_VERSION__` global (declared in
+  `src/vite-env.d.ts`), shown on the entry screen's top bar — a quick "which build am I
+  running" check.
+- **Layout:** the shell is one viewport tall (`h-full`) with a static header/nav flex row and
+  only `main` scrolling (`overflow-y-auto`) — avoids the iOS rubber-band on a sticky header.
+- **Admin route** is hardened: the lazy admin chunk import retries a few times (a rejected
+  `React.lazy` is cached forever) and sits under a recoverable `AppErrorBoundary`.
+- **Subscription race:** per-turnus listeners can attach before the just-joined `members/{uid}`
+  is visible to rules → permission-denied, which Firestore never retries. Subscriptions are
+  gated on confirmed membership and wrapped in `withRetry` for transient denials.
 
-0. Skeleton — **done.**
-1. Domain — pure game logic incl. `resolveRollover`, full unit tests. **Done** (100% domain coverage).
-2. Data + rules — **done.** zod schemas + converters, repositories/subscriptions,
-   `data/transactions/` (the only `runTransaction` sites), `firestore.rules` with adversarial
-   rules + transaction-integration tests, seed. `pickTaskNow`/`purchaseReward`/`refundPurchase`
-   and their rule extensions land with feature phases 6/7.
-3. Auth & turnuses — **done.** anonymous auth + session (`features/session`: uid/turnus/role),
-   turnus entry (picker, code entry via `joinTurnus`, `/t/{slug}`), remember/switch turnus,
-   hidden admin long-press gesture, `RequireTurnus`/`RequireAdmin` guards. `npm run dev` runs
-   Vite in `--mode emulator` (loads `.env.emulator`).
-4. Players — **done.** main screen (own card, roster, pending), create player, admin approve/reject,
-   claim character + PIN recovery, player detail. (The 5-try/15-min PIN lockout guard is deferred
-   hardening — the PIN itself is rule-enforced.)
-5. Catalog — **done.** TSV import (`data/importCatalog.ts`: parse + preview + apply, preserves
-   usedByPlayerIds/active/manualCoins). Players/Tasks/Rewards share one `ui/ListCard` layout with
-   a sort control + filters; admins edit any row in place via a pencil dialog and add tasks/rewards
-   directly. Admin screen is just import + a task-category picker (`setCategories`).
-6. Game loop — **done.** Task-click reservations + group invites (`ReservationProvider`,
-   `TaskActionDialog`: reserve / invite others / cancel; app-wide `InviteBanner` with the tally),
-   day evaluation (`EvaluationPanel`: mark completed → live `resolveRollover` preview → `runRollover`
-   → full `undoRollover`), day-lock toggle. Post-phase feedback landed as Steps A–B: A = fixes/polish
-   (reload route, persisted filters, unified padding, admin quick-coins, split day categories,
-   PIN-first claim + one-character-per-device); B = group tasks (min/max players + invite counter).
-   The group model/domain/rules are done + tested, but the live invite negotiation (banner counter,
-   cross-device sync) is flaky in a PWA and is **parked until the native/installed phase**. Catalog
-   editors put name/description/each tag in one `cs|en|de` field (keeps the create form usable on a
-   phone); `Dialog` locks background scroll and scrolls internally. Still to do: same-day manual
-   `pickTaskNow` (needs a player-writes-`activeTask` rule + rule tests).
-7. Rewards — **done.** Hidden auction (min price = starting bid, players may bid higher, only the
-   interest _count_ is public). Tap a reward → `RewardBidDialog` (bid ≥ price / raise / withdraw);
-   one sealed bid per player (`rewardBids/{playerId}`, secret like a reservation, `useMyBid`).
-   Resolved at day evaluation by pure `resolveAuctions` (folded into `resolveRollover`): rewards in
-   catalog order, highest bid wins, ties → earlier bid; the winner must afford it on the post-settle
-   balance (else it forfeits to the next, or goes unsold — **no escrow**). Winners pay via the coin
-   updates + a `reward_won` event; the eval preview lists auctions; undo restores the bids from the
-   snapshot. **Rule fix:** undo runs as admin over the client SDK, so `reservations`/`rewardBids`
-   create+update now also allow `isAdmin` (the only admin writer is the snapshot restore) — this
-   closes a latent reservation-undo gap too. Deferred: persistent "owned reward" (`Purchase` doc +
-   "má odměnu" chip); punish-target selection/effects (handled off-app for now).
-8. PWA + polish — **done.** `vite-plugin-pwa` (generateSW/Workbox, `registerType: 'autoUpdate'`,
-   `injectRegister: 'auto'`) precaches the app shell + serves an installable manifest (standalone,
-   portrait, `theme_color`/`background_color` #f8fafc). Icons rasterized from `public/favicon.svg`
-   by `scripts/generate-icons.mjs` (uses `sharp`, a build-time devDep) → `public/pwa-192`, `pwa-512`,
-   `pwa-maskable-512`, `apple-touch-icon` (glyph on white; maskable gets a bigger safe zone).
-   `index.html` carries the apple-touch-icon + `apple-mobile-web-app-*` meta. **iOS input-zoom fix:**
-   an unlayered `@media (pointer: coarse)` rule pins form controls to 16px `!important` so focusing a
-   `text-sm` field no longer zooms the page. SW registration only runs on a real browser/HTTPS (the
-   sandboxed in-app preview browser blocks it — build artifacts verified by curl instead).
+## Not yet built (backlog)
 
-## Remaining roadmap (steps E–K, confirmed with the user)
+Planned rework, confirmed with the user, not yet scheduled. The rules/manual page (item 3)
+stays LAST, after every mechanic is frozen.
 
-Ordered by risk/dependency. "RULES" marks a step that touches `firestore.rules`; per the
-token-saving agreement those are validated on the deployed app (not the emulator) — I can't run
-`test:rules` here, so rules steps carry more risk and the human tests them. No browser/emulator runs.
-
-E. **Stability & quick UI fixes** — no rules.
-
-- Fix: per-turnus listeners (`CatalogProvider`, players, reservations) can attach before the
-  just-joined `members/{uid}` is visible to rules → permission-denied → Firestore never retries →
-  tasks stay blank until you leave+return. Gate the subscriptions on confirmed membership
-  (`role != null`) and/or retry a transient denial.
-- Admin coin steps → `-50 / -10 / +10 / +50`.
-- Shrink `LanguageSwitcher` ~20%, list toolbar (sort/filter/"+") ~10%; add vertical breathing room
-  around the "Jen dostupné" checkbox.
-- Redesign `PlayerDetailDialog` to actually show useful info (coins, active task, needsPick; for
-  self also my reservation/bid). Player card + detail get a slot for the WON reward — layout now,
-  data in step I.
-  F. **Dark mode — done.** Dark palette swaps the CSS token values under
-  `@media (prefers-color-scheme: dark)` in `index.css` (everything reads tokens, so it just works);
-  per-scheme `theme-color` metas in `index.html`. Palette is a cool grey (not slate) per feedback.
-  A themed `.select-caret` (custom chevron, coloured per theme) replaces the native `<select>` arrow,
-  which stayed black/invisible on iOS in dark mode.
-  G. **Same-day task pick `pickTaskNow` — done (RULES, deploy `firestore:rules`).** First-come via a
-  create-only marker `taskClaims/{day}_{taskId}` (id encodes both; contention on that one doc picks
-  the winner). Domain `pickTaskNow` (builds the solo `ActiveTask`, reuses `canPickTaskNow`); the
-  transaction reads the marker → domain check → creates the marker + sets the player's activeTask +
-  needsPick=false. Rule `picksTaskNow` lets a player write ONLY their own activeTask+needsPick and
-  validates the stored coins against the catalog task (no self-inflation); `taskClaims` is
-  create-only for players. UI: "Vzít teď" in `TaskActionDialog` when the player `needsPick` and the
-  task is open today; `TasksScreen` derives `takenBy` from live players (no extra listener). Rules
-  NOT emulator-verified this session (no-emulator agreement) — rules tests written for later.
-  H. **Group tasks, reliable (#6b) — done (client-only; needs real-device testing).** No rules/model
-  change — the parked bugs (invite not arriving, counter stuck, decline-after-accept) were the same
-  subscription race fixed in step E's `withRetry`, so this was a UI rebuild on the now-reliable data.
-  `InviteBanner` is now card-styled (matches `ListCard`) and moved into the scroll area; it shows an
-  **initiator card** for the player's own group (confirmed tally + Cancel-for-everyone via
-  `cancelReservation`) and an **invite card** per invite with a Confirm/Decline **toggle** (current
-  answer highlighted, flip freely until evaluation, via `respondToInvite`). Real-device multi-user
-  testing is the human's part. **Also fixed here (a J item):** iOS sticky-header bounce — the shell is
-  now one viewport tall (`h-full`) with the header/nav as a static flex row and only `main`
-  scrolling (`overflow-y-auto`), instead of a document-scroll + `position: sticky` header that rode
-  the iOS rubber-band. **Post-feedback tweaks:** the banner cards now hide as soon as every invitee
-  has answered (`tally.pending === 0`) — the negotiation is settled, and the accepted members compete
-  at evaluation; the already-chosen Confirm/Decline button shows disabled. `theme-color` was moved to
-  the surface-raised colour (`#ffffff` / `#24272c`) so the status bar blends into the header on
-  Android + Safari (iOS _standalone_ can't take an arbitrary status-bar colour — platform limit).
-  **New: "Odhlásit z admina"** at the bottom of the admin screen (`leaveAdmin` batch drops
-  members+roles from admin→player; a new rule allows that self-downgrade with no code — RULES,
-  redeploy `firestore:rules`).
-  I. **Owned rewards + punishment targeting** — RULES.
-- **I-a owned rewards — done (RULES, redeploy `firestore:rules`).** Auction winners get a `Purchase`
-  doc at evaluation (`resolveRollover` builds them, id `${day}_${rewardId}`, price = amount paid,
-  `targetIds` empty for now; `runRollover` writes them with `serverTimestamp`, `undoRollover` deletes
-  them via `rollbackSnapshot.purchaseIds`). Rules: `purchases` write is now `isAdmin` (the rollover is
-  the only writer). `PurchasesProvider`/`usePurchases` (`subscribeAllPurchases`, member-readable);
-  "má odměnu" chip on every player card (form `reward`, not refunded) + a "Získané odměny" list in
-  `PlayerDetailDialog`.
-- **I-b punishment targeting — done (no rules change — the bid rule already lets a bidder write their
-  own doc's fields, and purchase writes are admin from I-a).** Targets are picked at BID time: the
-  `punish_someone` reward carries a `minTargets`/`maxTargets` range (editable in `RewardEditDialog`,
-  shown only for that form; import still defaults 1/1). `RewardBid` gained `targetIds`; `createBid`
-  validates them (de-dup, not self, count in range; other forms carry none). `RewardBidDialog` shows a
-  target checklist for `punish_someone`. At evaluation, pure `assignPunishTargets` resolves them
-  highest-bid-first: a person is targeted at most `maxActivePunishesPerPlayer` times/day (cap enforced
-  among WINNERS only — losing bids' targets are ignored, so nobody can bid-to-lose to "protect" a
-  friend); a buyer's over-capped picks are dropped and the shortfall auto-filled to `minTargets` from
-  the least-targeted free players, tie-broken by a `seed`-shuffle (the day) so the auto-fill rotates
-  fairly instead of always hitting the lowest ids — still pure/deterministic, no `Math.random`. Final
-  targets land on the
-  `Purchase.targetIds`/`targetNames`. Display: "Je terčem" chip on every player + a "Je terčem"
-  (targetedBy) list in `PlayerDetailDialog`. Effect stays record-only (counsellors enact off-app).
-  J. **Turnus settings & creation** — RULES for creation.
-- **J-1 settings form — done (no rules change).** `TurnusSettingsDialog` (features/admin/settings) +
-  `data/turnusAdmin.updateTurnusSettings` (plain `updateDoc`, rules already allow `isAdmin(t)` to
-  update the turnus doc) edit `startingCoins`, `failPenalty`, `noPickPenalty`,
-  `allowNegativeBalance`, `maxActiveRewardsPerPlayer`, `maxActivePunishesPerPlayer`. Opened
-  from a "Nastavení turnusu" button on `AdminScreen`; new `turnusSettings.*` i18n block.
-- **J-2 gated turnus CREATION — pending a gating decision** (not every user may create a group):
-  needs a mechanism (global super-admin / creation code) + a rules change (`turnuses` create is
-  currently `if false`). The user is rethinking invites/targets to avoid repeated rule rewrites, so
-  hold J-2 (and its rules) until that lands, to batch the rule changes.
-  K. **Showcase + README + player rules page (LAST).** Representative seed, README refresh (still says
-  "Phase 0"), final visual pass, optional 5-try/15-min PIN lockout. Then a simple trilingual
-  "how to play" page — only once every mechanic above is frozen.
+1. **Coin history + per-player ledger.** A per-player ledger written next to each player
+   (start 0, +coins for which task, −coins for which reward, manual edits with their note) plus
+   totals (tasks completed, rewards won, earned/spent). The rollover already computes the
+   per-player deltas (`Settlement`/preview); the settlement/purchase/adjust transactions would
+   each append an entry, and `adjustCoins` regains a stored `note` (with a matching rule).
+2. **Gated turnus creation.** Only the owner may create a group; mechanism undecided
+   (super-admin flag, creation code, or hand-editing the DB). Needs the `turnuses` create rule
+   (currently `if false`). Decide the gate before building.
+3. **Rules tab + full manuals (LAST).** Short in-app rules with a `?` per section opening the
+   full detail; a complete player rules page and organizer manual. Only once mechanics freeze.
+4. **Secret achievements.** Hidden achievements earned by in-app actions, with a turnus setting
+   "achievements are public" (default OFF). Obscure name + emoji + configurable coin award.
+   Design the concrete list (what is technically detectable) before implementing.

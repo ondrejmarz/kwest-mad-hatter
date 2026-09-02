@@ -1,17 +1,11 @@
 import { taskType } from '../../lib/group';
 import { invariant } from '../../lib/invariant';
-import { gameEvent, type GameEvent } from '../events';
 import type { Day, PlayerId, TaskId } from '../ids';
 import { reservationMembers } from '../reservation';
 import type { LocalizedText, Reservation } from '../types';
 
 import { compareClaims } from './sortClaims';
 import type { Claim } from './types';
-
-export interface BuildClaimsResult {
-  readonly claims: readonly Claim[];
-  readonly expiredEvents: readonly GameEvent[];
-}
 
 interface Reserver {
   readonly playerId: PlayerId;
@@ -39,9 +33,8 @@ export function buildClaims(
   reservations: readonly Reservation[],
   coinsById: ReadonlyMap<PlayerId, number>,
   nextDay: Day,
-): BuildClaimsResult {
+): readonly Claim[] {
   const claims: Claim[] = [];
-  const expiredEvents: GameEvent[] = [];
   const pools = new Map<TaskId, GroupPool>();
 
   for (const reservation of reservations) {
@@ -66,9 +59,7 @@ export function buildClaims(
 
     const members = reservationMembers(reservation);
     if (members.length < reservation.minPlayers) {
-      for (const playerId of members) {
-        expiredEvents.push(gameEvent.reservationExpired(nextDay, playerId, reservation.taskId));
-      }
+      // A pair/group short of its lower bound expires — nobody in it gets the task.
       continue;
     }
     const balance = Math.min(...members.map((playerId) => balanceOf(coinsById, playerId)));
@@ -85,15 +76,11 @@ export function buildClaims(
   for (const [taskId, pool] of pools) {
     const ordered = [...pool.reservers].sort(compareClaims);
     if (ordered.length < pool.minPlayers) {
-      for (const reserver of ordered) {
-        expiredEvents.push(gameEvent.reservationExpired(nextDay, reserver.playerId, taskId));
-      }
+      // The whole pool is below the task's lower bound — it expires for everyone.
       continue;
     }
+    // Over the upper bound the richest reservers are dropped so the poorest fill the seats.
     const survivors = ordered.slice(0, pool.maxPlayers);
-    for (const dropped of ordered.slice(pool.maxPlayers)) {
-      expiredEvents.push(gameEvent.reservationExpired(nextDay, dropped.playerId, taskId));
-    }
     claims.push({
       taskId,
       taskName: pool.taskName,
@@ -104,7 +91,7 @@ export function buildClaims(
     });
   }
 
-  return { claims, expiredEvents };
+  return claims;
 }
 
 function balanceOf(coinsById: ReadonlyMap<PlayerId, number>, playerId: PlayerId): number {

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { db } from '../../data/firebase';
-import { subscribeRewardBidCounts } from '../../data/repositories/rewardBids';
-import type { RewardBidCounts } from '../../data/schemas/rewardBid';
+import {
+  subscribePunishTargetCounts,
+  subscribeRewardBidCounts,
+} from '../../data/repositories/rewardBids';
+import type { PunishTargetCounts, RewardBidCounts } from '../../data/schemas/rewardBid';
 import { toTurnusSettings } from '../../data/schemas/turnus';
 import type { Subscription } from '../../data/subscriptions';
 import type { Reward, RewardForm } from '../../domain/types';
@@ -70,17 +73,27 @@ export function RewardsScreen() {
   const [editing, setEditing] = useState<Reward | null | undefined>(undefined);
   const [acting, setActing] = useState<Reward | null>(null);
   const [counts, setCounts] = useState<Subscription<RewardBidCounts | null>>({ status: 'loading' });
+  const [targetCounts, setTargetCounts] = useState<Subscription<PunishTargetCounts | null>>({
+    status: 'loading',
+  });
 
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const settings = turnus !== null ? toTurnusSettings(turnus) : null;
   const myBid = bidState.status === 'ready' ? bidState.data : null;
   const countMap = counts.status === 'ready' && counts.data !== null ? counts.data.counts : {};
+  const targetCountMap =
+    targetCounts.status === 'ready' && targetCounts.data !== null ? targetCounts.data.counts : {};
 
   const turnusId = turnus?.id ?? null;
   const currentDay = turnus?.currentDay ?? null;
   useEffect(() => {
     if (turnusId === null || currentDay === null) return;
-    return subscribeRewardBidCounts(db, turnusId, currentDay, setCounts);
+    const unsubCounts = subscribeRewardBidCounts(db, turnusId, currentDay, setCounts);
+    const unsubTargets = subscribePunishTargetCounts(db, turnusId, currentDay, setTargetCounts);
+    return () => {
+      unsubCounts();
+      unsubTargets();
+    };
   }, [turnusId, currentDay]);
 
   const rewards = useMemo(() => {
@@ -177,6 +190,7 @@ export function RewardsScreen() {
           settings={settings}
           bid={myBid}
           count={countMap[acting.id] ?? 0}
+          targetCounts={targetCountMap}
           candidates={candidates}
           turnusId={turnus.id}
           onClose={() => setActing(null)}

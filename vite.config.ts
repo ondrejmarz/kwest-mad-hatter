@@ -2,8 +2,18 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Build stamp used as the app version (shown on the entry screen so we can tell which build loaded).
+// Computed once when the config is evaluated — i.e. at build time (or dev-server start) — in local
+// time, formatted `YYYY.MM.DD.HHmm`, e.g. `2026.09.01.1454`.
+const now = new Date();
+const pad = (value: number): string => String(value).padStart(2, '0');
+const appVersion = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}`;
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     // Installable PWA (phase 8): a Workbox service worker precaches the app shell so it opens
@@ -12,7 +22,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Kwest',
         short_name: 'Kwest',
@@ -23,9 +33,13 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#f8fafc',
-        theme_color: '#f8fafc',
+        // An installed Android WebAPK freezes `theme_color` at install time and paints the status
+        // bar with it, ignoring runtime `<meta theme-color>` changes — which is why a light value
+        // left the bar white in dark mode. Force it empty (vite-plugin-pwa would otherwise inject
+        // its `#42b883` default) so the WebAPK falls back to the system-themed status bar, which
+        // follows the OS light/dark preference on its own.
+        theme_color: '',
         icons: [
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           {

@@ -404,8 +404,7 @@ describe('resolveRollover — reward auctions (step 2)', () => {
     expect(result.preview.auctions).toEqual([
       { rewardId: 'r1', rewardName: loc('Extra dessert'), winnerName: 'Jana', amount: 60 },
     ]);
-    expect(result.rollbackSnapshot.rewardBids).toHaveLength(1);
-    // The win becomes an owned-reward Purchase (price = what they paid); undo can find it by id.
+    // The win becomes an owned-reward Purchase (price = what they paid).
     expect(result.purchases).toEqual([
       {
         id: '1_r1',
@@ -422,13 +421,11 @@ describe('resolveRollover — reward auctions (step 2)', () => {
         refunded: false,
       },
     ]);
-    expect(result.rollbackSnapshot.purchaseIds).toEqual(['1_r1']);
   });
 
   it('creates no purchases when the auction has no winners', () => {
     const result = run({ turnus: { currentDay: Day(1), noPickPenalty: 0 } });
     expect(result.purchases).toEqual([]);
-    expect(result.rollbackSnapshot.purchaseIds).toEqual([]);
   });
 
   it('records the punishment targets on a won punish_someone purchase', () => {
@@ -464,7 +461,7 @@ describe('resolveRollover — reward auctions (step 2)', () => {
   });
 });
 
-describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
+describe('resolveRollover — advance the round (step 4)', () => {
   it('advances the day and applies tomorrow categories', () => {
     const result = run({
       turnus: {
@@ -482,7 +479,7 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
     });
   });
 
-  it('captures a rollback snapshot of the pre-evaluation state', () => {
+  it('settles a completed task and assigns the reserved task for tomorrow', () => {
     const p1 = makePlayer({
       id: PlayerId('p1'),
       coins: 100,
@@ -510,17 +507,6 @@ describe('resolveRollover — advance and snapshot (steps 4–5)', () => {
       reservations: [reservation],
       completed: [PlayerId('p1')],
     });
-    const snap = result.rollbackSnapshot;
-    expect(snap.currentDay).toBe(1);
-    expect(snap.currentDayCategories).toEqual(['a']);
-    expect(snap.nextDayCategories).toEqual(['b']);
-    expect(snap.dayLocked).toBe(true);
-    expect(snap.players).toEqual([
-      { playerId: 'p1', coins: 100, activeTask: p1.activeTask, needsPick: false },
-    ]);
-    expect(snap.tasks).toEqual([{ taskId: 't1', usedByPlayerIds: [] }]);
-    expect(snap.reservations).toEqual([reservation]);
-    // the round genuinely moved on, so the snapshot is what makes undo meaningful.
     expect(result.nextDay).toBe(2);
     expect(pu(result, 'p1').coins).toBe(250);
     expect(pu(result, 'p1').activeTask?.taskId).toBe('t2');

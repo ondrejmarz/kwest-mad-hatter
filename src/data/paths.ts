@@ -5,7 +5,7 @@ import { collection, doc, type Firestore } from 'firebase/firestore';
  * anywhere else. `db` is a parameter so tests can pass an emulator instance.
  *
  * Layout (spec 4, plus decisions): a turnus owns its game state; `private/**`,
- * `members/**`, `admin/**`, `ownerIndex` and `claimGuards` are read by rules only
+ * `members/**`, `ownerIndex` and `claimGuards` are read by rules only
  * (or admins), never by ordinary clients.
  */
 
@@ -32,9 +32,6 @@ export const ownerIndexDoc = (db: Firestore, t: string, uid: string) =>
 // PIN-claim throttle guard, keyed by playerId (5 tries then a 15-minute lockout).
 export const claimGuardDoc = (db: Firestore, t: string, playerId: string) =>
   doc(db, 'turnuses', t, 'claimGuards', playerId);
-// One-shot full-undo snapshot, readable by admins only (kept off the hot turnus doc).
-export const rollbackDoc = (db: Firestore, t: string) =>
-  doc(db, 'turnuses', t, 'admin', 'rollback');
 
 // Public game state within a turnus.
 export const playersCol = (db: Firestore, t: string) => collection(db, 'turnuses', t, 'players');

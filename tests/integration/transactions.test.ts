@@ -10,7 +10,6 @@ import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
 import { runRollover } from '../../src/data/transactions/runRollover';
-import { undoRollover } from '../../src/data/transactions/undoRollover';
 import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
 import type { ActiveTask, Player, Reward, Task } from '../../src/domain/types';
@@ -235,7 +234,7 @@ describe('bidReward', () => {
   });
 });
 
-describe('runRollover and undoRollover', () => {
+describe('runRollover', () => {
   const player = (id: string, activeTask: ActiveTask): Player => ({
     id: PlayerId(id),
     name: id,
@@ -293,7 +292,7 @@ describe('runRollover and undoRollover', () => {
     active: true,
   };
 
-  it('settles the day, advances the round, then fully restores on undo', async () => {
+  it('settles the day and advances the round', async () => {
     const rolled = await runRollover(asDb('admin'), T, input());
     expect(rolled.ok).toBe(true);
 
@@ -302,17 +301,9 @@ describe('runRollover and undoRollover', () => {
     expect((await read('players/p1'))?.activeTask).toBeNull();
     expect((await read('players/p1'))?.needsPick).toBe(true);
     expect((await readTurnus())?.currentDay).toBe(2);
-    expect((await read('admin/rollback'))?.snapshot).toBeTruthy();
-
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('players/p2'))?.coins).toBe(100);
-    expect((await readTurnus())?.currentDay).toBe(1);
-    expect(await read('admin/rollback')).toBeUndefined();
   });
 
-  it('resolves the reward auction: charges the winner, consumes the bid, restores on undo', async () => {
+  it('resolves the reward auction: charges the winner and consumes the bid', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1`), {
         day: 1,
@@ -346,11 +337,5 @@ describe('runRollover and undoRollover', () => {
     expect(purchase?.buyerId).toBe('p1');
     expect(purchase?.price).toBe(60);
     expect(purchase?.form).toBe('reward');
-
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');
-    expect(await read('purchases/1_r1')).toBeUndefined();
   });
 });

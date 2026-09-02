@@ -14,7 +14,6 @@ import {
   reservationDoc,
   rewardBidCountsDoc,
   rewardBidDoc,
-  rollbackDoc,
   taskDoc,
   turnusDoc,
 } from '../paths';
@@ -58,7 +57,6 @@ export async function runRollover(
       nextDayCategories: result.turnus.nextDayCategories,
       dayLocked: result.turnus.dayLocked,
     });
-    tx.set(rollbackDoc(db, t), { snapshot: result.rollbackSnapshot, savedAt: serverTimestamp() });
     for (const reservation of input.reservations) {
       tx.delete(reservationDoc(db, t, reservation.playerId));
     }

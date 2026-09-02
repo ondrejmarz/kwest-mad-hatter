@@ -270,7 +270,6 @@ export const cs = {
     lockHint: 'Nejdřív zamkni den, pak můžeš vyhodnocovat.',
     noActiveTasks: 'Nikdo nemá aktivní úkol.',
     evaluate: 'Vyhodnotit den',
-    undo: 'Vrátit poslední vyhodnocení',
     settlements: 'Zúčtování',
     assignments: 'Přiděleno na zítra',
     auctions: 'Dražba odměn',

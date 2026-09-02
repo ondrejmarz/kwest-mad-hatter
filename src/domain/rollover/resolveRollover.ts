@@ -13,7 +13,6 @@ import type {
   PlayerUpdate,
   PreviewAuction,
   PreviewWithoutTask,
-  RollbackSnapshot,
   RolloverInput,
   RolloverResult,
   TaskUpdate,
@@ -52,7 +51,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
 
   // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance and get a
   // Purchase doc (their owned reward, spec 8). Targets stay empty here — punishment targeting fills
-  // them in a later step; the id is deterministic so undo can delete exactly these docs.
+  // them in a later step; the purchase id is deterministic (`${day}_${rewardId}`).
   const auction = resolveAuctions(rewards, rewardBids, settledCoins);
   const coinsById = auction.coinsAfter;
   const bidsByPlayer = new Map(rewardBids.map((bid) => [bid.playerId, bid] as const));
@@ -122,27 +121,6 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     return { taskId, usedByPlayerIds: unique([...task.usedByPlayerIds, ...added]) };
   });
 
-  // Step 5 — snapshot the pre-evaluation state of everything we mutate (full undo).
-  const changedTaskIds = new Set(taskUpdates.map((update) => update.taskId));
-  const rollbackSnapshot: RollbackSnapshot = {
-    currentDay,
-    currentDayCategories: turnus.currentDayCategories,
-    nextDayCategories: turnus.nextDayCategories,
-    dayLocked: turnus.dayLocked,
-    players: approved.map((player) => ({
-      playerId: player.id,
-      coins: player.coins,
-      activeTask: player.activeTask,
-      needsPick: player.needsPick,
-    })),
-    tasks: tasks
-      .filter((task) => changedTaskIds.has(task.id))
-      .map((task) => ({ taskId: task.id, usedByPlayerIds: task.usedByPlayerIds })),
-    reservations,
-    rewardBids,
-    purchaseIds: purchases.map((purchase) => purchase.id),
-  };
-
   const withoutTask: readonly PreviewWithoutTask[] = playerUpdates
     .filter((update) => update.activeTask === null)
     .map((update) => ({ playerId: update.playerId, playerName: nameOf(update.playerId) }));
@@ -167,7 +145,6 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     playerUpdates,
     taskUpdates,
     purchases,
-    rollbackSnapshot,
     preview: {
       settlements: settlements.map((settlement) => ({
         playerId: settlement.playerId,

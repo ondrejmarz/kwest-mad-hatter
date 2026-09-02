@@ -269,7 +269,6 @@ export const de: Dictionary = {
     lockHint: 'Sperre zuerst den Tag, dann kannst du abschließen.',
     noActiveTasks: 'Niemand hat eine aktive Aufgabe.',
     evaluate: 'Tag abschließen',
-    undo: 'Letzten Abschluss rückgängig',
     settlements: 'Abrechnung',
     assignments: 'Für morgen zugeteilt',
     auctions: 'Belohnungs-Auktion',

@@ -268,7 +268,6 @@ export const en: Dictionary = {
     lockHint: 'Lock the day first, then you can evaluate.',
     noActiveTasks: 'No one has an active task.',
     evaluate: 'Evaluate the day',
-    undo: 'Undo last evaluation',
     settlements: 'Settlement',
     assignments: 'Assigned for tomorrow',
     auctions: 'Reward auction',

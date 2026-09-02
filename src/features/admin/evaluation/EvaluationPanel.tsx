@@ -3,12 +3,10 @@ import { useEffect, useState } from 'react';
 import { db } from '../../../data/firebase';
 import { subscribeAllReservations } from '../../../data/repositories/reservations';
 import { subscribeAllBids } from '../../../data/repositories/rewardBids';
-import { subscribeRollbackPresence } from '../../../data/repositories/rollback';
 import { toTurnusSettings, type Turnus } from '../../../data/schemas/turnus';
 import type { Subscription } from '../../../data/subscriptions';
 import { runRollover } from '../../../data/transactions/runRollover';
 import { setDayLock } from '../../../data/transactions/setDayLock';
-import { undoRollover } from '../../../data/transactions/undoRollover';
 import type { PlayerId } from '../../../domain/ids';
 import { resolveRollover } from '../../../domain/rollover';
 import type { RolloverInput, RolloverPreview } from '../../../domain/rollover';
@@ -32,8 +30,8 @@ function safePreview(input: RolloverInput): RolloverPreview | null {
 /**
  * Day evaluation (spec 6). The admin ticks who finished their active task; the panel runs the
  * exact pure `resolveRollover` for a live preview of the settlement and tomorrow's assignments,
- * then commits it in one transaction. A one-shot full undo stays available afterwards. Every
- * approved player is settled: an unticked player who had a task counts as failed.
+ * then commits it in one transaction. Every approved player is settled: an unticked player who
+ * had a task counts as failed.
  */
 export function EvaluationPanel({
   turnus,
@@ -52,12 +50,10 @@ export function EvaluationPanel({
     status: 'loading',
   });
   const [bids, setBids] = useState<Subscription<readonly RewardBid[]>>({ status: 'loading' });
-  const [rollback, setRollback] = useState<Subscription<true | null>>({ status: 'loading' });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => subscribeAllReservations(db, turnus.id, setReservations), [turnus.id]);
   useEffect(() => subscribeAllBids(db, turnus.id, setBids), [turnus.id]);
-  useEffect(() => subscribeRollbackPresence(db, turnus.id, setRollback), [turnus.id]);
 
   const approved = players
     .filter((player) => player.status === 'approved')
@@ -85,7 +81,6 @@ export function EvaluationPanel({
   };
   const ready = reservations.status === 'ready' && bids.status === 'ready';
   const preview = ready ? safePreview(input) : null;
-  const undoable = rollback.status === 'ready' && rollback.data === true;
   // Locking the day gates the whole evaluation: no ticking completions, no evaluating, until
   // the admin deliberately freezes the day (spec 6, decision).
   const locked = turnus.dayLocked;
@@ -150,11 +145,6 @@ export function EvaluationPanel({
         <Button disabled={busy || !ready || !locked} onClick={() => void evaluate()}>
           {t('eval.evaluate')}
         </Button>
-        {undoable && (
-          <Button variant="danger" disabled={busy} onClick={() => void undoRollover(db, turnus.id)}>
-            {t('eval.undo')}
-          </Button>
-        )}
       </div>
     </div>
   );

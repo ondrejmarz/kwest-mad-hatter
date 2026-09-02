@@ -82,10 +82,6 @@ Hard rules:
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
   rules, freezes task selection AND reward purchases for the day; reservations stay editable
   until evaluation.
-- **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
-  (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, bids, counts,
-  categories, dayLocked, currentDay, purchaseIds), stored in an admin-only doc, not on the hot
-  turnus doc.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
@@ -112,8 +108,7 @@ Hard rules:
   like a reservation). Resolved at evaluation by pure `resolveAuctions` (folded into
   `resolveRollover`): rewards in catalog order, highest bid wins, ties → earlier bid; the
   winner must afford it on the post-settle balance (else it forfeits to the next, or goes
-  unsold — **no escrow**). Winners get a `Purchase` doc (id `${day}_${rewardId}`); undo
-  restores bids from the snapshot.
+  unsold — **no escrow**). Winners get a `Purchase` doc (id `${day}_${rewardId}`).
 - **Punishment targeting.** A `punish_someone` reward carries a `minTargets`/`maxTargets`
   range; targets are picked at BID time (`RewardBid.targetIds`). A live public per-day tally
   `punishTargetCounts/{day}` guards bidding — a target is locked only while

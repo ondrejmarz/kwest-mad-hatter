@@ -202,6 +202,7 @@ export const cs = {
     reasonClosed: 'Tahle kategorie není zítra otevřená.',
     reasonUsed: 'Tenhle úkol už si měl.',
     reasonInactive: 'Úkol není aktivní.',
+    dayLocked: 'Den je zamčený, teď to měnit nejde.',
   },
   pair: {
     inviteChip: 'Pozvánka',

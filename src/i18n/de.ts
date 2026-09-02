@@ -201,6 +201,7 @@ export const de: Dictionary = {
     reasonClosed: 'Diese Kategorie ist morgen nicht offen.',
     reasonUsed: 'Diese Aufgabe hattest du schon.',
     reasonInactive: 'Diese Aufgabe ist nicht aktiv.',
+    dayLocked: 'Der Tag ist gesperrt, Änderungen sind geschlossen.',
   },
   pair: {
     inviteChip: 'Einladung',

@@ -1,15 +1,17 @@
 import { type Firestore, increment, runTransaction } from 'firebase/firestore';
 
+import { hasUsedTask } from '../../domain/eligibility';
 import type { DomainError } from '../../domain/errors';
 import type { PlayerId } from '../../domain/ids';
 import { withResponse } from '../../domain/reservation';
 import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
-import { reservationCountsDoc, reservationDoc } from '../paths';
+import { reservationCountsDoc, reservationDoc, taskDoc } from '../paths';
+import { parseTask } from '../schemas/catalog';
 import { parseReservation } from '../schemas/reservation';
 
-import { readTurnus } from './shared';
+import { readPlayer, readTurnus } from './shared';
 
 /**
  * An invited player accepts or declines a group invite (spec 7), toggleable until evaluation. It
@@ -36,6 +38,17 @@ export async function respondToInvite(
       'this player was invited to the reservation',
     );
     const mineSnap = await tx.get(reservationDoc(db, t, myPlayerId));
+
+    // An invitee who has meanwhile taken or completed this very task can't accept — a task is done
+    // at most once per player, so joining the group would do it twice (spec 7). Declining stays open.
+    if (accept) {
+      const me = await readPlayer(tx, db, t, myPlayerId);
+      const taskSnap = await tx.get(taskDoc(db, t, invitation.taskId));
+      const task = parseTask(taskSnap.id, taskSnap.data() ?? {});
+      if (task !== null && hasUsedTask(me, task)) {
+        return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });
+      }
+    }
 
     const next = withResponse(invitation, myPlayerId, accept);
     tx.update(reservationDoc(db, t, initiatorPlayerId), { responses: next.responses });

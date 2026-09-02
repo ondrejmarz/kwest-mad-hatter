@@ -80,8 +80,10 @@ Hard rules:
   settlement. Kept in one place so it can be rebalanced.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
-  rules, freezes task selection AND reward purchases for the day; reservations stay editable
-  until evaluation.
+  rules, freezes every task and reward action for the day until evaluation: task selection,
+  reward purchases, and reservation changes alike — reserving, answering an invite, and
+  cancelling a reservation are all blocked. The UI hides the frozen actions rather than
+  offering ones the rules would reject.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2

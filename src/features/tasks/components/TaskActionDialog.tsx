@@ -6,7 +6,12 @@ import { initiatePairPick } from '../../../data/transactions/initiatePairPick';
 import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
 import { respondToInvite } from '../../../data/transactions/respondToInvite';
-import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../../../domain/eligibility';
+import {
+  canInitiatePairPick,
+  canPickTaskNow,
+  canReserveTask,
+  hasUsedTask,
+} from '../../../domain/eligibility';
 import type { PlayerId, TaskId } from '../../../domain/ids';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
@@ -69,6 +74,9 @@ export function TaskActionDialog({
   // A pair can be taken for today too, but the chosen partner has to accept first (spec 7).
   const canPairToday =
     isPair && !isMyTaskToday && canInitiatePairPick(myPlayer, task, settings, takenBy).ok;
+  // A partner can't be someone who has already had this task — doing it now or on a past day — so
+  // the same player can never end up doing it twice (spec 7). Filtered per task, so they never show.
+  const partnerCandidates = candidates.filter((candidate) => !hasUsedTask(candidate, task));
 
   const initiateToday = (): void => {
     const partner = invitees[0];
@@ -149,74 +157,85 @@ export function TaskActionDialog({
       />
 
       <div className="mt-4 border-t border-border pt-4">
-        {canPickToday && (
-          <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
-            <p className="text-sm text-content-muted">
-              {myPlayer.activeTask !== null ? t('tasks.switchNowHint') : t('tasks.takeNowHint')}
-            </p>
-            <Button disabled={busy} onClick={() => void takeNow()}>
-              {myPlayer.activeTask !== null ? t('tasks.switchNow') : t('tasks.takeNow')}
-            </Button>
+        {settings.dayLocked ? (
+          // A locked day allows no task action — not a reservation, a pick, or even a cancel (spec
+          // 7). Show only the state and why nothing can be done, never a button that would fail.
+          <div className="flex flex-col gap-2">
+            {mine && <p className="text-sm text-content">{t('tasks.reserved')}</p>}
+            <p className="text-sm text-content-muted">{t('tasks.dayLocked')}</p>
           </div>
-        )}
-        {mine && reservation !== null ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-content">{t('tasks.reserved')}</p>
-            <Button
-              variant="danger"
-              disabled={busy}
-              onClick={() => void run(cancelReservation(db, turnusId, myPlayer.id))}
-            >
-              {t('tasks.cancelReservation')}
-            </Button>
-          </div>
-        ) : eligible.ok || canPairToday ? (
-          <form onSubmit={reserve} className="flex flex-col gap-3">
-            {reservation !== null && eligible.ok && (
-              <p className="text-sm text-content-muted">
-                {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
-              </p>
-            )}
-            {isPair &&
-              (candidates.length === 0 ? (
-                <p className="text-sm text-content-muted">{t('tasks.noPartners')}</p>
-              ) : (
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-content-muted">
-                    {t('tasks.choosePartner')}
-                  </span>
-                  <Select
-                    value={invitees[0] ?? ''}
-                    onChange={(event) =>
-                      setInvitees(event.target.value ? [event.target.value as PlayerId] : [])
-                    }
-                  >
-                    <option value="">{t('tasks.choosePartner')}</option>
-                    {candidates.map((player) => (
-                      <option key={player.id} value={player.id}>
-                        {player.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              ))}
-            {canPairToday && candidates.length > 0 && (
-              <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
-                {t('tasks.takePairToday')}
-              </Button>
-            )}
-            {eligible.ok && (
-              <Button
-                type="submit"
-                variant={canPairToday ? 'secondary' : 'primary'}
-                disabled={busy || !countOk || (isPair && candidates.length === 0)}
-              >
-                {t('tasks.reserve')}
-              </Button>
-            )}
-          </form>
         ) : (
-          <p className="text-sm text-content-muted">{t(reasonKey)}</p>
+          <>
+            {canPickToday && (
+              <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
+                <p className="text-sm text-content-muted">
+                  {myPlayer.activeTask !== null ? t('tasks.switchNowHint') : t('tasks.takeNowHint')}
+                </p>
+                <Button disabled={busy} onClick={() => void takeNow()}>
+                  {myPlayer.activeTask !== null ? t('tasks.switchNow') : t('tasks.takeNow')}
+                </Button>
+              </div>
+            )}
+            {mine && reservation !== null ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-content">{t('tasks.reserved')}</p>
+                <Button
+                  variant="danger"
+                  disabled={busy}
+                  onClick={() => void run(cancelReservation(db, turnusId, myPlayer.id))}
+                >
+                  {t('tasks.cancelReservation')}
+                </Button>
+              </div>
+            ) : eligible.ok || canPairToday ? (
+              <form onSubmit={reserve} className="flex flex-col gap-3">
+                {reservation !== null && eligible.ok && (
+                  <p className="text-sm text-content-muted">
+                    {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
+                  </p>
+                )}
+                {isPair &&
+                  (partnerCandidates.length === 0 ? (
+                    <p className="text-sm text-content-muted">{t('tasks.noPartners')}</p>
+                  ) : (
+                    <label className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-content-muted">
+                        {t('tasks.choosePartner')}
+                      </span>
+                      <Select
+                        value={invitees[0] ?? ''}
+                        onChange={(event) =>
+                          setInvitees(event.target.value ? [event.target.value as PlayerId] : [])
+                        }
+                      >
+                        <option value="">{t('tasks.choosePartner')}</option>
+                        {partnerCandidates.map((player) => (
+                          <option key={player.id} value={player.id}>
+                            {player.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  ))}
+                {canPairToday && partnerCandidates.length > 0 && (
+                  <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
+                    {t('tasks.takePairToday')}
+                  </Button>
+                )}
+                {eligible.ok && (
+                  <Button
+                    type="submit"
+                    variant={canPairToday ? 'secondary' : 'primary'}
+                    disabled={busy || !countOk || (isPair && partnerCandidates.length === 0)}
+                  >
+                    {t('tasks.reserve')}
+                  </Button>
+                )}
+              </form>
+            ) : (
+              <p className="text-sm text-content-muted">{t(reasonKey)}</p>
+            )}
+          </>
         )}
 
         {error !== null && <p className="mt-3 text-sm text-danger">{error}</p>}

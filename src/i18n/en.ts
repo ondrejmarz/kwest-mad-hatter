@@ -200,6 +200,7 @@ export const en: Dictionary = {
     reasonClosed: 'This category is not open tomorrow.',
     reasonUsed: 'You have already had this task.',
     reasonInactive: 'This task is not active.',
+    dayLocked: 'The day is locked, task changes are closed.',
   },
   pair: {
     inviteChip: 'Invite',

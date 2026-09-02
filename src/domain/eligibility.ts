@@ -10,6 +10,15 @@ import type { Player, Task, TurnusSettings } from './types';
  * base checks; the manual pick adds the daily lock and first-come exclusivity.
  */
 
+/**
+ * Whether the player has already had this task — doing it right now or completed on an earlier day
+ * (spec 7). A task is done at most once per player, so such a player can neither reserve it again
+ * nor be invited into it as a pair partner.
+ */
+export function hasUsedTask(player: Player, task: Task): boolean {
+  return player.activeTask?.taskId === task.id || task.usedByPlayerIds.includes(player.id);
+}
+
 export function canReserveTask(
   player: Player,
   task: Task,
@@ -21,11 +30,8 @@ export function canReserveTask(
   if (!isCategoryOpen(task, turnus.nextDayCategories)) {
     return err({ code: 'TASK_CATEGORY_CLOSED' });
   }
-  // No point reserving the task you are already doing today.
-  if (player.activeTask?.taskId === task.id) {
-    return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });
-  }
-  if (task.usedByPlayerIds.includes(player.id)) {
+  // A task is done once per player — not the one they hold now, nor one from a past day.
+  if (hasUsedTask(player, task)) {
     return err({ code: 'TASK_ALREADY_USED_BY_PLAYER' });
   }
   return ok(undefined);

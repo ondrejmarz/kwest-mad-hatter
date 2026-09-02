@@ -18,6 +18,7 @@ import { bidReward } from '../../src/data/transactions/bidReward';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
+import { respondToInvite } from '../../src/data/transactions/respondToInvite';
 import { runRollover } from '../../src/data/transactions/runRollover';
 import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
@@ -231,6 +232,38 @@ describe('reserveTask', () => {
     expect(reservation?.day).toBe(2);
     const counts = await read('reservationCounts/2');
     expect((counts?.counts as Record<string, number>).t3).toBe(1);
+  });
+});
+
+describe('respondToInvite', () => {
+  // p1 (owned by alice) is already doing task t1; an invite to t1 must not let them join it again.
+  const inviteP1ToTask1 = (): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `turnuses/${T}/reservations/p2`), {
+        playerId: 'p2',
+        day: 2,
+        taskId: 't1',
+        taskName: L('Task 1'),
+        minPlayers: 2,
+        maxPlayers: 2,
+        invitees: ['p1'],
+        responses: {},
+        createdAt: Timestamp.now(),
+      }),
+    );
+
+  it('refuses to accept an invite to a task the invitee is already doing', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), true);
+    expect(result).toEqual({ ok: false, error: { code: 'TASK_ALREADY_USED_BY_PLAYER' } });
+    expect((await read('reservations/p2'))?.responses).toEqual({});
+  });
+
+  it('still lets the invitee decline that invite', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), false);
+    expect(result.ok).toBe(true);
+    expect((await read('reservations/p2'))?.responses).toEqual({ p1: 'declined' });
   });
 });
 

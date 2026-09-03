@@ -27,7 +27,8 @@ const LAYER_POLICIES = [
 }));
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', '.firebase'] },
+  // `.claude` holds agent worktrees — each a full checkout with its own built `dist/`; never lint them.
+  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', '.firebase', '.claude'] },
 
   js.configs.recommended,
   ...tseslint.configs.strict,

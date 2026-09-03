@@ -14,6 +14,7 @@ import { Checkbox } from '../../../ui/Checkbox';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
 
@@ -237,7 +238,7 @@ export function RewardBidDialog({
           </Button>
         )}
 
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <FormError message={error} />
       </div>
     </Dialog>
   );

@@ -5,6 +5,7 @@ import type { PlayerId } from '../../../domain/ids';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
+import { SectionLabel } from '../../../ui/SectionLabel';
 
 /**
  * The rewards a player has won and the punishments they are a target of, split out of the public
@@ -102,7 +103,7 @@ export function PlayerFacts({
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase text-content-muted">{label}</p>
+      <SectionLabel>{label}</SectionLabel>
       <div className="mt-1">{children}</div>
     </div>
   );

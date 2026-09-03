@@ -8,6 +8,7 @@ import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { TextInput } from '../../../ui/TextInput';
 
 /**
@@ -115,7 +116,7 @@ export function PlayerEditDialog({
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <FormError message={error} />
         <Button type="submit" disabled={busy}>
           {t('players.save')}
         </Button>

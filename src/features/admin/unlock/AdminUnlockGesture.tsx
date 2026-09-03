@@ -5,6 +5,7 @@ import { joinTurnus } from '../../../data/transactions/joinTurnus';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { TextInput } from '../../../ui/TextInput';
 import { useSession } from '../../session';
 
@@ -70,7 +71,7 @@ export function AdminUnlockGesture({ children }: { children: ReactNode }) {
             autoComplete="off"
             autoFocus
           />
-          {error !== null && <p className="text-sm text-danger">{error}</p>}
+          <FormError message={error} />
           <Button type="submit" disabled={busy || code.trim().length === 0}>
             {t('admin.unlockSubmit')}
           </Button>

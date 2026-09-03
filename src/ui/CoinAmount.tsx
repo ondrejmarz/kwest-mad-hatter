@@ -3,8 +3,9 @@ import { formatCoins } from '../i18n/plurals';
 import { cx } from '../lib/cx';
 
 /**
- * A coin amount with the correct per-locale plural (spec 15.9). `signed` shows a +/- delta
- * in success/danger colors (for the balance breakdown); otherwise it uses the neutral coin color.
+ * A coin amount with the correct per-locale plural (spec 15.9). `signed` shows a +/- delta —
+ * a gain in `success` and a loss in `warning` (for the balance breakdown); otherwise it uses the
+ * neutral `coin` colour. `danger` is intentionally reserved for status, not for spending coins.
  */
 export function CoinAmount({
   amount,
@@ -23,7 +24,7 @@ export function CoinAmount({
     : amount > 0
       ? 'text-success'
       : amount < 0
-        ? 'text-danger'
+        ? 'text-warning'
         : 'text-content-muted';
   return <span className={cx('font-semibold tabular-nums', color, className)}>{text}</span>;
 }

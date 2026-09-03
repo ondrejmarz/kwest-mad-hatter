@@ -89,3 +89,9 @@ A few rules give this teeth:
   pure domain function, then writes. No game logic hides inside a transaction.
 - All translatable text lives in `i18n/` — the domain returns error codes; the UI renders
   them in Czech, English or German.
+
+## Branding
+
+The colour system — a cobalt-to-magenta spectrum with a turquoise accent, defined once as
+semantic tokens and themed for light and dark — is documented in [BRANDING.md](BRANDING.md),
+with a full styled sheet at [`docs/brand.html`](docs/brand.html).

@@ -14,6 +14,7 @@ import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
 
@@ -159,7 +160,7 @@ export function TaskEditDialog({
             <CoinAmount amount={autoReward} signed />
           </p>
         )}
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <FormError message={error} />
         <Button type="submit">{t('tasks.save')}</Button>
       </form>
     </Dialog>

@@ -18,6 +18,7 @@ import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
+import { SectionLabel } from '../../../ui/SectionLabel';
 
 function safePreview(input: RolloverInput): RolloverPreview | null {
   try {
@@ -161,9 +162,9 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-3 text-sm">
       <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+        <SectionLabel as="h3" className="mb-1">
           {t('eval.settlements')}
-        </h3>
+        </SectionLabel>
         <ul className="flex flex-col gap-1">
           {preview.settlements.map((settlement) => (
             <li key={settlement.playerId} className="flex items-center justify-between gap-2">
@@ -180,9 +181,9 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
       </section>
 
       <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+        <SectionLabel as="h3" className="mb-1">
           {t('eval.assignments')}
-        </h3>
+        </SectionLabel>
         {preview.assignments.length === 0 ? (
           <p className="text-content-muted">{t('eval.none')}</p>
         ) : (
@@ -203,9 +204,9 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
 
       {preview.auctions.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+          <SectionLabel as="h3" className="mb-1">
             {t('eval.auctions')}
-          </h3>
+          </SectionLabel>
           <ul className="flex flex-col gap-1">
             {preview.auctions.map((auction) => (
               <li key={auction.rewardId} className="flex items-center justify-between gap-2">
@@ -225,9 +226,9 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
 
       {preview.losses.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+          <SectionLabel as="h3" className="mb-1">
             {t('eval.losses')}
-          </h3>
+          </SectionLabel>
           <ul className="flex flex-col gap-1 text-content-muted">
             {preview.losses.map((loss) => (
               <li key={`${loss.playerId}-${loss.taskName.cs}`}>
@@ -243,9 +244,9 @@ function EvaluationPreview({ preview }: { preview: RolloverPreview }) {
 
       {preview.withoutTask.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase text-content-muted">
+          <SectionLabel as="h3" className="mb-1">
             {t('eval.withoutTask')}
-          </h3>
+          </SectionLabel>
           <p className="text-content-muted">
             {preview.withoutTask.map((player) => player.playerName).join(', ')}
           </p>

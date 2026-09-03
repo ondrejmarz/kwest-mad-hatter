@@ -12,6 +12,7 @@ import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { Select } from '../../../ui/Select';
 import { TextInput } from '../../../ui/TextInput';
 
@@ -146,7 +147,7 @@ export function RewardEditDialog({
         )}
         <Checkbox label={t('rewards.exclusiveLabel')} checked={exclusive} onChange={setExclusive} />
         <Checkbox label={t('rewards.activeLabel')} checked={active} onChange={setActive} />
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <FormError message={error} />
         <Button type="submit">{t('rewards.save')}</Button>
       </form>
     </Dialog>

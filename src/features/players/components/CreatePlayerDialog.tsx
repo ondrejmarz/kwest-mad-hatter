@@ -5,6 +5,7 @@ import { createPlayer } from '../../../data/transactions/createPlayer';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
 import { TextInput } from '../../../ui/TextInput';
 import { useSession } from '../../session';
 
@@ -66,7 +67,7 @@ export function CreatePlayerDialog({
           maxLength={4}
           autoComplete="off"
         />
-        {error !== null && <p className="text-sm text-danger">{error}</p>}
+        <FormError message={error} />
         <Button type="submit" disabled={busy}>
           {t('players.createSubmit')}
         </Button>

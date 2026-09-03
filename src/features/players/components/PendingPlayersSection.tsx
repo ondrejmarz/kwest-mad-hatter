@@ -6,6 +6,7 @@ import { rejectPlayer } from '../../../data/transactions/rejectPlayer';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { Button } from '../../../ui/Button';
+import { SectionLabel } from '../../../ui/SectionLabel';
 
 /** Pending characters, greyed out; admins approve or reject them (spec 9.1, 9.4). */
 export function PendingPlayersSection({
@@ -21,9 +22,9 @@ export function PendingPlayersSection({
   if (pending.length === 0) return null;
   return (
     <section className="mt-8">
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-muted">
+      <SectionLabel as="h2" className="mb-2">
         {t('players.pending')}
-      </h2>
+      </SectionLabel>
       <ul className="flex flex-col gap-2">
         {pending.map((player) => (
           <li

@@ -160,6 +160,7 @@ export function PlayersScreen() {
           player={selected}
           onClose={() => setSelected(null)}
           turnusId={turnusId}
+          hasReservation={reservedPlayers[selected.id] === true}
         />
       )}
       {editing !== null && (

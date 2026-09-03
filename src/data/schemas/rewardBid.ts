@@ -13,9 +13,10 @@ import {
 } from './shared';
 
 /**
- * A sealed auction bid, keyed by its bidder's playerId (the doc id) — a player bids on at most one
- * reward at a time, exactly like a reservation, so the bidder's id is the natural key. Bids are
- * secret: rules expose one only to its bidder and admins, never the amount to anyone else (spec 8).
+ * A sealed auction bid — one doc per (player, reward), so a player may bid on several rewards a day
+ * (up to `maxActiveRewardsPerPlayer`). The doc id is `${playerId}_${rewardId}`; both ids are stored
+ * as fields, so the parser reads them from the data. Bids are secret: rules expose one only to its
+ * bidder and admins, never the amount to anyone else (spec 8).
  */
 export const rewardBidSchema = z.object({
   playerId: zPlayerId,
@@ -27,7 +28,7 @@ export const rewardBidSchema = z.object({
 });
 
 export const parseRewardBid = (id: string, data: DocumentData): RewardBid | null => {
-  const parsed = rewardBidSchema.safeParse({ playerId: id, ...data });
+  const parsed = rewardBidSchema.safeParse(data);
   if (!parsed.success) {
     reportSchemaError('rewardBid', id, parsed.error);
     return null;

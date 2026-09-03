@@ -20,13 +20,18 @@ export interface AuctionResult {
  * afford it on the balance left after any earlier wins that evening — otherwise it passes to the
  * next-highest affordable bidder, and stays unsold if nobody can pay. There is no escrow: bids never
  * hold coins, so a losing (or outbid) player keeps everything.
+ *
+ * A player may bid on several rewards a day but wins at most `maxPerPlayer` of them (the turnus
+ * setting): once a player has won that many, their bids on later rewards pass to the next contender.
  */
 export function resolveAuctions(
   rewards: readonly Reward[],
   bids: readonly RewardBid[],
   coins: ReadonlyMap<PlayerId, number>,
+  maxPerPlayer: number,
 ): AuctionResult {
   const balances = new Map(coins);
+  const winsByPlayer = new Map<PlayerId, number>();
   const bidsByReward = new Map<RewardId, RewardBid[]>();
   for (const bid of bids) {
     const list = bidsByReward.get(bid.rewardId) ?? [];
@@ -42,9 +47,12 @@ export function resolveAuctions(
       (a, b) => b.amount - a.amount || a.createdAt - b.createdAt,
     );
     for (const bid of contenders) {
+      // A player already at their daily win cap can't take another — the reward falls to the next.
+      if ((winsByPlayer.get(bid.playerId) ?? 0) >= maxPerPlayer) continue;
       const balance = balances.get(bid.playerId);
       if (balance !== undefined && balance >= bid.amount) {
         balances.set(bid.playerId, balance - bid.amount);
+        winsByPlayer.set(bid.playerId, (winsByPlayer.get(bid.playerId) ?? 0) + 1);
         wins.push({ rewardId: reward.id, playerId: bid.playerId, amount: bid.amount });
         break;
       }

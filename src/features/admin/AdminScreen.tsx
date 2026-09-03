@@ -78,16 +78,6 @@ export function AdminScreen() {
   return (
     <section className="flex flex-col gap-3">
       <EvaluationPanel turnus={settings} players={players} tasks={tasks} rewards={rewards} />
-      <Button variant="secondary" onClick={() => setSettingsOpen(true)}>
-        {t('admin.settings')}
-      </Button>
-      {settingsOpen && (
-        <TurnusSettingsDialog
-          turnus={settings}
-          turnusId={turnus.id}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
       <CatalogImport
         turnusId={turnus.id}
         taskNames={new Set(tasks.map((task) => task.name.cs))}
@@ -111,6 +101,16 @@ export function AdminScreen() {
           selected={settings.nextDayCategories}
         />
       </div>
+      <Button variant="secondary" className="mt-2" onClick={() => setSettingsOpen(true)}>
+        {t('admin.settings')}
+      </Button>
+      {settingsOpen && (
+        <TurnusSettingsDialog
+          turnus={settings}
+          turnusId={turnus.id}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       <LeaveAdminButton turnusId={turnus.id} uid={uid ?? ''} />
     </section>
   );

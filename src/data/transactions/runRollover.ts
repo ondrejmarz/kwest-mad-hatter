@@ -64,7 +64,7 @@ export async function runRollover(
     tx.set(reservationCountsDoc(db, t, result.nextDay), { counts: {} });
     // Consume the sealed bids: winners already paid via the coin updates above (spec 8).
     for (const bid of input.rewardBids) {
-      tx.delete(rewardBidDoc(db, t, bid.playerId));
+      tx.delete(rewardBidDoc(db, t, bid.playerId, bid.rewardId));
     }
     tx.set(rewardBidCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
     tx.set(punishTargetCountsDoc(db, t, input.turnus.currentDay), { counts: {} });

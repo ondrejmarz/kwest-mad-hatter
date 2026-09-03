@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { toTurnusSettings } from '../../data/schemas/turnus';
-import { canPickTaskNow, canReserveTask } from '../../domain/eligibility';
+import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../../domain/eligibility';
 import type { TaskId } from '../../domain/ids';
 import type { LocalizedText, Task } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
@@ -77,7 +77,9 @@ export function TasksScreen() {
   // categories share the one dropdown (spec 9.2).
   const [category, setCategory] = usePersistentState('kwest.tasks.category', '');
   // Two independent availability filters (spec 9.2): reservable tomorrow (`canReserveTask`) and
-  // pickable today (`canPickTaskNow`). Checked together, a task must pass both.
+  // pickable today. "Today" covers both same-day paths — a solo grab (`canPickTaskNow`) and a pair
+  // invite (`canInitiatePairPick`) — so pairs aren't wrongly hidden; groups stay reservation-only.
+  // Checked together, a task must pass both.
   const [availToday, setAvailToday] = usePersistentState('kwest.tasks.availToday', false);
   const [availTomorrow, setAvailTomorrow] = usePersistentState('kwest.tasks.availTomorrow', false);
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
@@ -142,7 +144,13 @@ export function TasksScreen() {
       .filter((task) => {
         if (settings === null || myPlayer === null) return true;
         if (availTomorrow && !canReserveTask(myPlayer, task, settings).ok) return false;
-        if (availToday && !canPickTaskNow(myPlayer, task, settings, takenBy).ok) return false;
+        if (
+          availToday &&
+          !canPickTaskNow(myPlayer, task, settings, takenBy).ok &&
+          !canInitiatePairPick(myPlayer, task, settings, takenBy).ok
+        ) {
+          return false;
+        }
         return true;
       })
       .sort(

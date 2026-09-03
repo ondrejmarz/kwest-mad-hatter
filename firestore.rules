@@ -234,13 +234,23 @@ service cloud.firestore {
         allow write: if isMember(t);
       }
 
-      // Sealed auction bids are secret: readable only by the bidder and admins (spec 8). A bid is a
-      // purchase, so placing or raising one is frozen while the day is locked; withdrawing stays
-      // open. Admins may write them too — evaluation deletes them at rollover.
-      match /rewardBids/{pid} {
-        allow read: if isAdmin(t) || (hasPlayer(t) && pid == myPlayerId(t));
-        allow create, update: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
-        allow delete: if (hasPlayer(t) && pid == myPlayerId(t)) || isAdmin(t);
+      // Sealed auction bids are secret: readable only by the bidder and admins (spec 8). One doc per
+      // (player, reward), id `${playerId}_${rewardId}`, so a player may bid on several rewards a day.
+      // A single-doc `get`/`delete` gates on the id's player prefix (`id.split('_')[0]`) — the doc's
+      // own id, so it stays null-safe when a transaction reads a bid that does not exist yet and never
+      // leaks whether someone else's exists. A `list` gates on the stored `playerId` per returned doc
+      // (the client only ever queries its own with `where playerId == me`); the id wildcard is not
+      // bound during a collection list. A write binds the stored `playerId`/`rewardId` to the id.
+      // Placing or raising a bid is frozen while the day is locked; withdrawing stays open. Admins may
+      // write them — evaluation deletes them at rollover.
+      match /rewardBids/{id} {
+        allow get: if isAdmin(t) || (hasPlayer(t) && id.split('_')[0] == myPlayerId(t));
+        allow list: if isAdmin(t) || (hasPlayer(t) && resource.data.playerId == myPlayerId(t));
+        allow create, update: if isAdmin(t)
+          || (hasPlayer(t) && dayUnlocked(t)
+              && request.resource.data.playerId == myPlayerId(t)
+              && id == request.resource.data.playerId + '_' + request.resource.data.rewardId);
+        allow delete: if isAdmin(t) || (hasPlayer(t) && id.split('_')[0] == myPlayerId(t));
       }
 
       // Public aggregate interest per reward — a count only, no bidders or amounts (spec 8).

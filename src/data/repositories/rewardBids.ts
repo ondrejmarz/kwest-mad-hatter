@@ -1,7 +1,7 @@
-import { type Firestore } from 'firebase/firestore';
+import { type Firestore, query, where } from 'firebase/firestore';
 
 import type { RewardBid } from '../../domain/types';
-import { punishTargetCountsDoc, rewardBidCountsDoc, rewardBidDoc, rewardBidsCol } from '../paths';
+import { punishTargetCountsDoc, rewardBidCountsDoc, rewardBidsCol } from '../paths';
 import {
   parsePunishTargetCounts,
   parseRewardBid,
@@ -11,13 +11,18 @@ import {
 } from '../schemas/rewardBid';
 import { subscribeDoc, subscribeQuery, type Subscription } from '../subscriptions';
 
-/** My own sealed bid for today's auction (spec 8). */
-export const subscribeMyBid = (
+/** My own sealed bids for today's auction — one per reward I have bid on (spec 8). */
+export const subscribeMyBids = (
   db: Firestore,
   t: string,
   playerId: string,
-  onState: (state: Subscription<RewardBid | null>) => void,
-): (() => void) => subscribeDoc(rewardBidDoc(db, t, playerId), parseRewardBid, onState);
+  onState: (state: Subscription<readonly RewardBid[]>) => void,
+): (() => void) =>
+  subscribeQuery(
+    query(rewardBidsCol(db, t), where('playerId', '==', playerId)),
+    parseRewardBid,
+    onState,
+  );
 
 /** Every bid — admin only (rules deny a plain member this whole set), read for evaluation. */
 export const subscribeAllBids = (

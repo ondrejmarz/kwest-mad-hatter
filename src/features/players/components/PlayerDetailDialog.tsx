@@ -16,7 +16,7 @@ import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
 import {
   useCatalogRewards,
-  useMyBid,
+  useMyBids,
   useMyInvites,
   useMyReservation,
   usePurchases,
@@ -60,7 +60,7 @@ export function PlayerDetailDialog({
   // meaningful (and only shown) on the player's own card.
   const reservationState = useMyReservation();
   const invitesState = useMyInvites();
-  const bidState = useMyBid();
+  const bidsState = useMyBids();
   const rewardsState = useCatalogRewards();
   const purchasesState = usePurchases();
   // Won rewards and incoming punishments are public — shown for every player, split the same way as
@@ -77,11 +77,13 @@ export function PlayerDetailDialog({
       ? (invitesState.data.find((invite) => invite.responses[player.id] === 'accepted') ?? null)
       : null;
   const myReservation = ownReservation ?? acceptedInvite;
-  const myBid = mine && bidState.status === 'ready' ? bidState.data : null;
-  const bidReward =
-    myBid !== null && rewardsState.status === 'ready'
-      ? (rewardsState.data.find((reward) => reward.id === myBid.rewardId) ?? null)
-      : null;
+  // A player may hold several sealed bids at once — show each with its reward name (spec 8).
+  const myBids = mine && bidsState.status === 'ready' ? bidsState.data : [];
+  const rewardName = (rewardId: string): string | null => {
+    if (rewardsState.status !== 'ready') return null;
+    const reward = rewardsState.data.find((candidate) => candidate.id === rewardId);
+    return reward !== undefined ? localize(reward.name, locale) : null;
+  };
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
@@ -131,13 +133,20 @@ export function PlayerDetailDialog({
                 : t('players.noReservation')}
             </p>
           </div>
-          {myBid !== null && (
+          {myBids.length > 0 && (
             <div>
               {label(t('players.myBid'))}
-              <p className="mt-1 flex items-center gap-2 text-content">
-                {bidReward !== null && <span>{localize(bidReward.name, locale)}</span>}
-                <CoinAmount amount={myBid.amount} />
-              </p>
+              <div className="mt-1 flex flex-col gap-1">
+                {myBids.map((bid) => {
+                  const name = rewardName(bid.rewardId);
+                  return (
+                    <p key={bid.rewardId} className="flex items-center gap-2 text-content">
+                      {name !== null && <span>{name}</span>}
+                      <CoinAmount amount={bid.amount} />
+                    </p>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

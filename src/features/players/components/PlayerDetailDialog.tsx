@@ -10,9 +10,10 @@ import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { Button } from '../../../ui/Button';
 import { CardLayout } from '../../../ui/CardLayout';
-import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
+import { FormError } from '../../../ui/FormError';
+import { SectionLabel } from '../../../ui/SectionLabel';
 import { TextInput } from '../../../ui/TextInput';
 import {
   useCatalogRewards,
@@ -23,6 +24,7 @@ import {
   useSession,
 } from '../../session';
 
+import { PlayerChips } from './PlayerChips';
 import { PlayerFacts, selectPlayerFacts } from './PlayerFacts';
 import { PlayerLedgerView } from './PlayerLedgerView';
 
@@ -36,10 +38,12 @@ export function PlayerDetailDialog({
   player,
   onClose,
   turnusId,
+  hasReservation,
 }: {
   player: Player;
   onClose: () => void;
   turnusId: string;
+  hasReservation: boolean;
 }) {
   const { t, locale } = useTranslation();
   const { uid } = useSession();
@@ -97,20 +101,14 @@ export function PlayerDetailDialog({
     else setError(t('players.wrongPin'));
   };
 
-  const hasTask = player.activeTask !== null;
   const chips = (
-    <>
-      {mine && <Chip tone="accent">{t('players.you')}</Chip>}
-      <Chip tone={hasTask ? 'muted' : 'warning'}>
-        {hasTask ? t('players.hasTask') : t('players.needsPick')}
-      </Chip>
-      {won.length > 0 && <Chip tone="success">{t('players.hasReward')}</Chip>}
-      {targetedBy.length > 0 && <Chip tone="danger">{t('players.isTargeted')}</Chip>}
-    </>
-  );
-
-  const label = (text: string) => (
-    <p className="text-xs font-semibold uppercase text-content-muted">{text}</p>
+    <PlayerChips
+      player={player}
+      mine={mine}
+      won={won}
+      targetedBy={targetedBy}
+      hasReservation={hasReservation}
+    />
   );
 
   return (
@@ -126,7 +124,7 @@ export function PlayerDetailDialog({
       {mine && (
         <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
           <div>
-            {label(t('players.myReservation'))}
+            <SectionLabel>{t('players.myReservation')}</SectionLabel>
             <p className="mt-1 text-content">
               {myReservation !== null
                 ? localize(myReservation.taskName, locale)
@@ -135,7 +133,7 @@ export function PlayerDetailDialog({
           </div>
           {myBids.length > 0 && (
             <div>
-              {label(t('players.myBid'))}
+              <SectionLabel>{t('players.myBid')}</SectionLabel>
               <div className="mt-1 flex flex-col gap-1">
                 {myBids.map((bid) => {
                   const name = rewardName(bid.rewardId);
@@ -170,7 +168,7 @@ export function PlayerDetailDialog({
             autoComplete="off"
             autoFocus
           />
-          {error !== null && <p className="text-sm text-danger">{error}</p>}
+          <FormError message={error} />
           <Button type="submit" disabled={busy || !/^\d{4}$/.test(pin)}>
             {t('players.claimConfirm')}
           </Button>

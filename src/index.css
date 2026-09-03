@@ -5,8 +5,14 @@
 /*
  * Semantic tokens as CSS custom properties (spec 15.8). Values are space-separated
  * RGB channels so Tailwind's `<alpha-value>` opacity modifier works.
- * A dark theme is intentionally deferred (spec 15.8): the variables exist so it can
- * be added later without touching components.
+ *
+ * The status colours belong to the brand mark's cool spectrum rather than the usual
+ * green/amber/red, so the whole UI reads as one family with the logo. `accent` (and `coin`, which
+ * shares it) is the brand blue; `warning` the magenta from the spectrum's far end; `danger` a
+ * warm rose derived just past it ("Rose Kiss") that reads like an error; and `success` a
+ * complementary turquoise sitting off the spectrum — used only on chips, so it can be its own hue.
+ * Only the neutral greys stay slate. Every value clears (or beats the previous palette on) WCAG AA
+ * as small text on the surface, and where filled, for white text on it.
  */
 :root {
   --color-surface: 248 250 252;
@@ -14,11 +20,11 @@
   --color-border: 226 232 240;
   --color-text: 15 23 42;
   --color-text-muted: 100 116 139;
-  --color-accent: 37 99 235;
-  --color-danger: 220 38 38;
-  --color-warning: 217 119 6;
-  --color-success: 22 163 74;
-  --color-coin: 202 138 4;
+  --color-accent: 37 99 235; /* #2563EB Cobalt */
+  --color-danger: 219 39 119; /* #DB2777 Rose Kiss */
+  --color-warning: 162 28 175; /* #A21CAF Ultraviolet */
+  --color-success: 14 140 130; /* #0E8C82 Lagoon */
+  --color-coin: 37 99 235; /* #2563EB Cobalt (same as accent) */
 }
 
 /*
@@ -34,11 +40,11 @@
     --color-border: 55 59 66;
     --color-text: 229 231 235;
     --color-text-muted: 152 156 163;
-    --color-accent: 96 165 250;
-    --color-danger: 248 113 113;
-    --color-warning: 251 191 36;
-    --color-success: 74 222 128;
-    --color-coin: 250 204 21;
+    --color-accent: 96 165 250; /* #60A5FA Cobalt */
+    --color-danger: 244 114 182; /* #F472B6 Rose Kiss */
+    --color-warning: 232 121 249; /* #E879F9 Ultraviolet */
+    --color-success: 45 212 191; /* #2DD4BF Lagoon */
+    --color-coin: 96 165 250; /* #60A5FA Cobalt (same as accent) */
   }
 }
 

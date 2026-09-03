@@ -56,8 +56,10 @@ export const reservationCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'reservationCounts', String(day));
 export const rewardBidsCol = (db: Firestore, t: string) =>
   collection(db, 'turnuses', t, 'rewardBids');
-export const rewardBidDoc = (db: Firestore, t: string, playerId: string) =>
-  doc(db, 'turnuses', t, 'rewardBids', playerId);
+// One sealed bid per (player, reward), so a player may bid on several rewards a day (up to
+// `maxActiveRewardsPerPlayer`). The composite id keeps exactly one doc per pair (spec 8).
+export const rewardBidDoc = (db: Firestore, t: string, playerId: string, rewardId: string) =>
+  doc(db, 'turnuses', t, 'rewardBids', `${playerId}_${rewardId}`);
 export const rewardBidCountsDoc = (db: Firestore, t: string, day: number) =>
   doc(db, 'turnuses', t, 'rewardBidCounts', String(day));
 // Public live tally of how many current bids aim a punishment at each player, keyed by the day and

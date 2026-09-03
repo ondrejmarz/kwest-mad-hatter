@@ -56,9 +56,9 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'admin',
-                    // A recoverable boundary (with a working retry) rather than the bare route
-                    // error, so a transient first-load hiccup can be dismissed in place instead of
-                    // stranding the admin on the error screen until they leave and come back.
+                    // A boundary in-shell (nav stays put) rather than letting a failed admin chunk
+                    // bubble up and blank the whole app to the route error — same recover-by-reload
+                    // screen either way, but here a first-load hiccup stays contained to this pane.
                     element: (
                       <AppErrorBoundary>
                         {/* Centre the chunk-loading spinner like every in-content loader

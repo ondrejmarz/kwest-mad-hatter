@@ -53,9 +53,17 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
   // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance and get a
   // Purchase doc (their owned reward, spec 8). Targets stay empty here — punishment targeting fills
   // them in a later step; the purchase id is deterministic (`${day}_${rewardId}`).
-  const auction = resolveAuctions(rewards, rewardBids, settledCoins);
+  const auction = resolveAuctions(
+    rewards,
+    rewardBids,
+    settledCoins,
+    turnus.maxActiveRewardsPerPlayer,
+  );
   const coinsById = auction.coinsAfter;
-  const bidsByPlayer = new Map(rewardBids.map((bid) => [bid.playerId, bid] as const));
+  // A player can win several rewards now, so a winning bid is keyed by (reward, player), not player.
+  const bidByRewardPlayer = new Map(
+    rewardBids.map((bid) => [`${bid.rewardId}_${bid.playerId}`, bid] as const),
+  );
   const winInfo = auction.wins.map((win) => {
     const reward = rewardsById.get(win.rewardId);
     invariant(reward !== undefined, 'a won reward exists in the catalog');
@@ -64,7 +72,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
   const punishWins: readonly PunishWin[] = winInfo
     .filter(({ reward }) => reward.form === 'punish_someone')
     .map(({ win, reward }) => {
-      const bid = bidsByPlayer.get(win.playerId);
+      const bid = bidByRewardPlayer.get(`${win.rewardId}_${win.playerId}`);
       invariant(bid !== undefined, 'a winner has a bid');
       return {
         rewardId: win.rewardId,

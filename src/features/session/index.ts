@@ -5,7 +5,7 @@ export { CatalogProvider, useCatalogRewards, useCatalogTasks } from './CatalogPr
 export { PurchasesProvider, usePurchases } from './PurchasesProvider';
 export {
   ReservationProvider,
-  useMyBid,
+  useMyBids,
   useMyInvites,
   useMyReservation,
   useReservationCounts,

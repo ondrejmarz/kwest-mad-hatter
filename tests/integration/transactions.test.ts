@@ -18,6 +18,7 @@ import { bidReward } from '../../src/data/transactions/bidReward';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
+import { respondToInvite } from '../../src/data/transactions/respondToInvite';
 import { runRollover } from '../../src/data/transactions/runRollover';
 import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
@@ -139,6 +140,7 @@ beforeEach(async () => {
       ...over,
     });
     await put('rewards/r1', reward({ name: L('Reward 1') }));
+    await put('rewards/r2', reward({ name: L('Reward 2') }));
   });
 });
 
@@ -234,21 +236,64 @@ describe('reserveTask', () => {
   });
 });
 
+describe('respondToInvite', () => {
+  // p1 (owned by alice) is already doing task t1; an invite to t1 must not let them join it again.
+  const inviteP1ToTask1 = (): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `turnuses/${T}/reservations/p2`), {
+        playerId: 'p2',
+        day: 2,
+        taskId: 't1',
+        taskName: L('Task 1'),
+        minPlayers: 2,
+        maxPlayers: 2,
+        invitees: ['p1'],
+        responses: {},
+        createdAt: Timestamp.now(),
+      }),
+    );
+
+  it('refuses to accept an invite to a task the invitee is already doing', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), true);
+    expect(result).toEqual({ ok: false, error: { code: 'TASK_ALREADY_USED_BY_PLAYER' } });
+    expect((await read('reservations/p2'))?.responses).toEqual({});
+  });
+
+  it('still lets the invitee decline that invite', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), false);
+    expect(result.ok).toBe(true);
+    expect((await read('reservations/p2'))?.responses).toEqual({ p1: 'declined' });
+  });
+});
+
 describe('bidReward', () => {
   it('places a sealed bid for the current day and bumps the interest count', async () => {
     const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 70);
     expect(result.ok).toBe(true);
-    const bid = await read('rewardBids/p1');
+    const bid = await read('rewardBids/p1_r1');
+    expect(bid?.playerId).toBe('p1');
     expect(bid?.rewardId).toBe('r1');
     expect(bid?.amount).toBe(70);
     const counts = await read('rewardBidCounts/1');
     expect((counts?.counts as Record<string, number>).r1).toBe(1);
   });
 
+  it('lets a player hold a separate bid on each reward', async () => {
+    expect((await bidReward(asDb('alice'), T, 'p1', 'r1', 70)).ok).toBe(true);
+    expect((await bidReward(asDb('alice'), T, 'p1', 'r2', 50)).ok).toBe(true);
+    expect((await read('rewardBids/p1_r1'))?.amount).toBe(70);
+    expect((await read('rewardBids/p1_r2'))?.amount).toBe(50);
+    const counts = (await read('rewardBidCounts/1'))?.counts as Record<string, number>;
+    expect(counts.r1).toBe(1);
+    expect(counts.r2).toBe(1);
+  });
+
   it('refuses a bid below the reward price', async () => {
     const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 10);
     expect(result).toEqual({ ok: false, error: { code: 'BID_BELOW_MINIMUM', min: 40 } });
-    expect(await read('rewardBids/p1')).toBeUndefined();
+    expect(await read('rewardBids/p1_r1')).toBeUndefined();
   });
 });
 
@@ -327,7 +372,8 @@ describe('runRollover', () => {
 
   it('resolves the reward auction: charges the winner and consumes the bid', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1`), {
+      await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1_r1`), {
+        playerId: 'p1',
         day: 1,
         rewardId: 'r1',
         amount: 60,
@@ -353,7 +399,7 @@ describe('runRollover', () => {
     expect(rolled.ok).toBe(true);
     // p1 completes t1 (+150 => 250), then wins r1 (−60 => 190).
     expect((await read('players/p1'))?.coins).toBe(190);
-    expect(await read('rewardBids/p1')).toBeUndefined();
+    expect(await read('rewardBids/p1_r1')).toBeUndefined();
     // The win is recorded as an owned-reward purchase (id = `${day}_${rewardId}`).
     const purchase = await read('purchases/1_r1');
     expect(purchase?.buyerId).toBe('p1');

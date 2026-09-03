@@ -6,7 +6,7 @@ import {
   subscribeMyReservation,
   subscribeReservationCounts,
 } from '../../data/repositories/reservations';
-import { subscribeMyBid } from '../../data/repositories/rewardBids';
+import { subscribeMyBids } from '../../data/repositories/rewardBids';
 import { subscribeTaskClaims } from '../../data/repositories/taskClaims';
 import type { ReservationCounts } from '../../data/schemas/reservation';
 import type { TaskClaim } from '../../data/schemas/taskClaim';
@@ -19,14 +19,14 @@ import { useMyPlayer } from './useMyPlayer';
 
 /**
  * The claimed player's secret daily state (spec 7, 8): their own task reservation for tomorrow,
- * any group invites still awaiting their answer, and their sealed reward bid. Every listener is
- * scoped to the player's id (rules expose these only to the player themselves), so they run only
- * once a character is claimed on this device.
+ * any group invites still awaiting their answer, and their sealed reward bids (one per reward they
+ * bid on). Every listener is scoped to the player's id (rules expose these only to the player
+ * themselves), so they run only once a character is claimed on this device.
  */
 interface ReservationValue {
   readonly mine: Subscription<Reservation | null>;
   readonly invites: Subscription<readonly Reservation[]>;
-  readonly bid: Subscription<RewardBid | null>;
+  readonly bids: Subscription<readonly RewardBid[]>;
   /** Public aggregates for tomorrow's reservations — per-task interest and who holds one. */
   readonly counts: Subscription<ReservationCounts | null>;
   /** Same-day claim markers, incl. pending pair picks (member-readable). */
@@ -50,7 +50,7 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
   const [invites, setInvites] = useState<Subscription<readonly Reservation[]>>({
     status: 'loading',
   });
-  const [bid, setBid] = useState<Subscription<RewardBid | null>>({ status: 'loading' });
+  const [bids, setBids] = useState<Subscription<readonly RewardBid[]>>({ status: 'loading' });
   const [counts, setCounts] = useState<Subscription<ReservationCounts | null>>({
     status: 'loading',
   });
@@ -76,11 +76,11 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (turnus === null || playerId === null) {
-      setBid(empty(null));
+      setBids(empty([]));
       return;
     }
-    setBid({ status: 'loading' });
-    return subscribeMyBid(db, turnus.id, playerId, setBid);
+    setBids({ status: 'loading' });
+    return subscribeMyBids(db, turnus.id, playerId, setBids);
   }, [turnus, playerId]);
 
   useEffect(() => {
@@ -102,8 +102,8 @@ export function ReservationProvider({ children }: { children: ReactNode }) {
   }, [turnus]);
 
   const value = useMemo<ReservationValue>(
-    () => ({ mine, invites, bid, counts, claims }),
-    [mine, invites, bid, counts, claims],
+    () => ({ mine, invites, bids, counts, claims }),
+    [mine, invites, bids, counts, claims],
   );
   return <ReservationContext.Provider value={value}>{children}</ReservationContext.Provider>;
 }
@@ -118,7 +118,7 @@ function useReservation(): ReservationValue {
 
 export const useMyReservation = (): Subscription<Reservation | null> => useReservation().mine;
 export const useMyInvites = (): Subscription<readonly Reservation[]> => useReservation().invites;
-export const useMyBid = (): Subscription<RewardBid | null> => useReservation().bid;
+export const useMyBids = (): Subscription<readonly RewardBid[]> => useReservation().bids;
 export const useReservationCounts = (): Subscription<ReservationCounts | null> =>
   useReservation().counts;
 export const useTaskClaims = (): Subscription<readonly TaskClaim[]> => useReservation().claims;

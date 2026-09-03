@@ -80,8 +80,10 @@ Hard rules:
   settlement. Kept in one place so it can be rebalanced.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
-  rules, freezes task selection AND reward purchases for the day; reservations stay editable
-  until evaluation.
+  rules, freezes every task and reward action for the day until evaluation: task selection,
+  reward purchases, and reservation changes alike — reserving, answering an invite, and
+  cancelling a reservation are all blocked. The UI hides the frozen actions rather than
+  offering ones the rules would reject.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
@@ -104,11 +106,15 @@ Hard rules:
   self-inflation); `taskClaims` is create-only for players. UI: "Vzít teď" in
   `TaskActionDialog` when the player `needsPick` and the task is open today.
 - **Rewards are a sealed-bid auction.** Min price = starting bid, players may bid higher, only
-  the interest _count_ is public. One sealed bid per player (`rewardBids/{playerId}`, secret
-  like a reservation). Resolved at evaluation by pure `resolveAuctions` (folded into
-  `resolveRollover`): rewards in catalog order, highest bid wins, ties → earlier bid; the
-  winner must afford it on the post-settle balance (else it forfeits to the next, or goes
-  unsold — **no escrow**). Winners get a `Purchase` doc (id `${day}_${rewardId}`).
+  the interest _count_ is public. One sealed bid per (player, reward), keyed
+  `rewardBids/{playerId}_{rewardId}` (secret like a reservation), so a player may bid on several
+  rewards a day — up to `maxActiveRewardsPerPlayer`, enforced as a UI guard on placing a bid and
+  authoritatively at evaluation as a per-player win cap. Resolved at evaluation by pure
+  `resolveAuctions` (folded into `resolveRollover`): rewards in catalog order, highest bid wins,
+  ties → earlier bid; the winner must afford it on the post-settle balance (else it forfeits to
+  the next, or goes unsold — **no escrow**), and a player who already won `maxActiveRewardsPerPlayer`
+  that evening is skipped so a further reward falls to the next bidder. Winners get a `Purchase` doc
+  (id `${day}_${rewardId}`).
 - **Punishment targeting.** A `punish_someone` reward carries a `minTargets`/`maxTargets`
   range; targets are picked at BID time (`RewardBid.targetIds`). A live public per-day tally
   `punishTargetCounts/{day}` guards bidding — a target is locked only while
@@ -120,9 +126,11 @@ Hard rules:
   fairly — still deterministic). Final targets land on `Purchase.targetIds`/`targetNames`.
   `punish_all` targets everyone except the buyer (no explicit `targetIds`), not subject to the
   punish cap. Effect is record-only (counsellors enact off-app).
-- **Purchase limits:** `maxActiveRewardsPerPlayer` counts all of a buyer's active purchases
-  (rewards and punishments). `maxActivePunishesPerPlayer` caps how many times a player is a
-  target of others' `punish_someone`.
+- **Purchase limits:** `maxActiveRewardsPerPlayer` caps how many rewards one player can bid on
+  (UI guard) and win (evaluation) in a day — all forms count. `maxActivePunishesPerPlayer` caps
+  how many times a player is a target of others' `punish_someone`. (An earlier instant-purchase
+  path, `domain/purchase.validatePurchase`, still encodes the old per-round limit but is unused by
+  the auction flow.)
 - **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the
   4-digit PIN** — even the first on an empty character — so nobody grabs the wrong one. **One
   device owns one character:** claiming a new one releases the old (removes this uid via

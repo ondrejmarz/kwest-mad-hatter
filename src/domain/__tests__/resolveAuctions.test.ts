@@ -14,6 +14,7 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 40 })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r1'), amount: 60 })],
       coins({ p1: 100 }),
+      1,
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'p1', amount: 60 }]);
     expect(result.coinsAfter.get(PlayerId('p1'))).toBe(40);
@@ -27,6 +28,7 @@ describe('resolveAuctions', () => {
         makeRewardBid({ playerId: PlayerId('p2'), rewardId: RewardId('r1'), amount: 50 }),
       ],
       coins({ p1: 100, p2: 100 }),
+      1,
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'p2', amount: 50 }]);
     expect(result.coinsAfter.get(PlayerId('p2'))).toBe(50);
@@ -51,6 +53,7 @@ describe('resolveAuctions', () => {
         }),
       ],
       coins({ late: 100, early: 100 }),
+      1,
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'early', amount: 40 }]);
   });
@@ -63,6 +66,7 @@ describe('resolveAuctions', () => {
         makeRewardBid({ playerId: PlayerId('payer'), rewardId: RewardId('r1'), amount: 50 }),
       ],
       coins({ bold: 20, payer: 100 }),
+      1,
     );
     expect(result.wins).toEqual([{ rewardId: 'r1', playerId: 'payer', amount: 50 }]);
     expect(result.coinsAfter.get(PlayerId('payer'))).toBe(50);
@@ -74,6 +78,7 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 10 })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r1'), amount: 90 })],
       coins({ p1: 20 }),
+      1,
     );
     expect(result.wins).toEqual([]);
     expect(result.coinsAfter.get(PlayerId('p1'))).toBe(20);
@@ -84,6 +89,7 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1') }), makeReward({ id: RewardId('r2') })],
       [makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r2'), amount: 50 })],
       coins({ p1: 100 }),
+      1,
     );
     expect(result.wins).toEqual([{ rewardId: 'r2', playerId: 'p1', amount: 50 }]);
   });
@@ -93,7 +99,51 @@ describe('resolveAuctions', () => {
       [makeReward({ id: RewardId('r1'), price: 10 })],
       [makeRewardBid({ playerId: PlayerId('ghost'), rewardId: RewardId('r1'), amount: 20 })],
       coins({}),
+      1,
     );
     expect(result.wins).toEqual([]);
+  });
+
+  it('lets a player win several rewards up to the per-player cap', () => {
+    const result = resolveAuctions(
+      [
+        makeReward({ id: RewardId('r1'), price: 10 }),
+        makeReward({ id: RewardId('r2'), price: 10 }),
+      ],
+      [
+        makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r1'), amount: 30 }),
+        makeRewardBid({ playerId: PlayerId('p1'), rewardId: RewardId('r2'), amount: 40 }),
+      ],
+      coins({ p1: 100 }),
+      2,
+    );
+    expect(result.wins).toEqual([
+      { rewardId: 'r1', playerId: 'p1', amount: 30 },
+      { rewardId: 'r2', playerId: 'p1', amount: 40 },
+    ]);
+    expect(result.coinsAfter.get(PlayerId('p1'))).toBe(30); // 100 − 30 − 40
+  });
+
+  it('caps a player at the daily win limit and passes further rewards to the next bidder', () => {
+    const result = resolveAuctions(
+      [
+        makeReward({ id: RewardId('r1'), price: 10 }),
+        makeReward({ id: RewardId('r2'), price: 10 }),
+      ],
+      [
+        makeRewardBid({ playerId: PlayerId('greedy'), rewardId: RewardId('r1'), amount: 90 }),
+        makeRewardBid({ playerId: PlayerId('greedy'), rewardId: RewardId('r2'), amount: 90 }),
+        makeRewardBid({ playerId: PlayerId('other'), rewardId: RewardId('r2'), amount: 20 }),
+      ],
+      coins({ greedy: 300, other: 100 }),
+      1,
+    );
+    // greedy hits their cap of 1 on r1, so r2 falls to `other` despite greedy's higher bid.
+    expect(result.wins).toEqual([
+      { rewardId: 'r1', playerId: 'greedy', amount: 90 },
+      { rewardId: 'r2', playerId: 'other', amount: 20 },
+    ]);
+    expect(result.coinsAfter.get(PlayerId('greedy'))).toBe(210); // 300 − 90 (only r1)
+    expect(result.coinsAfter.get(PlayerId('other'))).toBe(80);
   });
 });

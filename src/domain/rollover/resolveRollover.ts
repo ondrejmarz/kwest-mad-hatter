@@ -1,7 +1,7 @@
 import { unique } from '../../lib/arrays';
 import { invariant } from '../../lib/invariant';
 import { Day, type PlayerId, type TaskId } from '../ids';
-import type { Purchase } from '../types';
+import type { LocalizedText, Purchase } from '../types';
 
 import { assignPunishTargets, type PunishWin } from './assignPunishTargets';
 import { assignTasks } from './assignTasks';
@@ -10,10 +10,10 @@ import { resolveAuctions } from './resolveAuctions';
 import { settleDay } from './settleDay';
 import { sortClaims } from './sortClaims';
 import type {
+  LedgerAppend,
   PlayerUpdate,
   PreviewAuction,
   PreviewWithoutTask,
-  RollbackSnapshot,
   RolloverInput,
   RolloverResult,
   TaskUpdate,
@@ -52,10 +52,18 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
 
   // Step 2 — resolve the reward auctions; winners pay out of their post-settle balance and get a
   // Purchase doc (their owned reward, spec 8). Targets stay empty here — punishment targeting fills
-  // them in a later step; the id is deterministic so undo can delete exactly these docs.
-  const auction = resolveAuctions(rewards, rewardBids, settledCoins);
+  // them in a later step; the purchase id is deterministic (`${day}_${rewardId}`).
+  const auction = resolveAuctions(
+    rewards,
+    rewardBids,
+    settledCoins,
+    turnus.maxActiveRewardsPerPlayer,
+  );
   const coinsById = auction.coinsAfter;
-  const bidsByPlayer = new Map(rewardBids.map((bid) => [bid.playerId, bid] as const));
+  // A player can win several rewards now, so a winning bid is keyed by (reward, player), not player.
+  const bidByRewardPlayer = new Map(
+    rewardBids.map((bid) => [`${bid.rewardId}_${bid.playerId}`, bid] as const),
+  );
   const winInfo = auction.wins.map((win) => {
     const reward = rewardsById.get(win.rewardId);
     invariant(reward !== undefined, 'a won reward exists in the catalog');
@@ -64,7 +72,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
   const punishWins: readonly PunishWin[] = winInfo
     .filter(({ reward }) => reward.form === 'punish_someone')
     .map(({ win, reward }) => {
-      const bid = bidsByPlayer.get(win.playerId);
+      const bid = bidByRewardPlayer.get(`${win.rewardId}_${win.playerId}`);
       invariant(bid !== undefined, 'a winner has a bid');
       return {
         rewardId: win.rewardId,
@@ -122,27 +130,6 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     return { taskId, usedByPlayerIds: unique([...task.usedByPlayerIds, ...added]) };
   });
 
-  // Step 5 — snapshot the pre-evaluation state of everything we mutate (full undo).
-  const changedTaskIds = new Set(taskUpdates.map((update) => update.taskId));
-  const rollbackSnapshot: RollbackSnapshot = {
-    currentDay,
-    currentDayCategories: turnus.currentDayCategories,
-    nextDayCategories: turnus.nextDayCategories,
-    dayLocked: turnus.dayLocked,
-    players: approved.map((player) => ({
-      playerId: player.id,
-      coins: player.coins,
-      activeTask: player.activeTask,
-      needsPick: player.needsPick,
-    })),
-    tasks: tasks
-      .filter((task) => changedTaskIds.has(task.id))
-      .map((task) => ({ taskId: task.id, usedByPlayerIds: task.usedByPlayerIds })),
-    reservations,
-    rewardBids,
-    purchaseIds: purchases.map((purchase) => purchase.id),
-  };
-
   const withoutTask: readonly PreviewWithoutTask[] = playerUpdates
     .filter((update) => update.activeTask === null)
     .map((update) => ({ playerId: update.playerId, playerName: nameOf(update.playerId) }));
@@ -153,6 +140,39 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     winnerName: purchase.buyerName,
     amount: purchase.price,
   }));
+
+  // Coin-history entries (spec 9.1): a task entry for every player who moved coins or attempted a
+  // task, then a reward entry for each auction winner (they pay the winning bid). The transaction
+  // stamps each with a server `createdAt`; the opening balance is derived at read, never stored.
+  const emptyText: LocalizedText = { cs: '', en: '', de: '' };
+  const ledger: readonly LedgerAppend[] = [
+    ...settlements
+      .filter((settlement) => settlement.usedTaskId !== null || settlement.delta !== 0)
+      .map((settlement) => {
+        const task =
+          settlement.usedTaskId !== null ? tasksById.get(settlement.usedTaskId) : undefined;
+        return {
+          playerId: settlement.playerId,
+          entry: {
+            kind: 'task' as const,
+            day: currentDay,
+            delta: settlement.delta,
+            taskName: task?.name ?? emptyText,
+            outcome: settlement.outcome,
+          },
+        };
+      }),
+    ...purchases.map((purchase) => ({
+      playerId: purchase.buyerId,
+      entry: {
+        kind: 'reward' as const,
+        day: currentDay,
+        delta: -purchase.price,
+        rewardName: purchase.rewardName,
+        form: purchase.form,
+      },
+    })),
+  ];
 
   // Step 4 — advance the round: tomorrow's categories become today's, tomorrow resets to empty
   // (admins re-pick), and the day unlocks.
@@ -167,7 +187,7 @@ export function resolveRollover(input: RolloverInput): RolloverResult {
     playerUpdates,
     taskUpdates,
     purchases,
-    rollbackSnapshot,
+    ledger,
     preview: {
       settlements: settlements.map((settlement) => ({
         playerId: settlement.playerId,

@@ -12,12 +12,14 @@ import { readPlayer, readTurnus } from './shared';
 
 /**
  * Place or change a sealed bid in a reward's hidden auction (spec 8). Eligibility and the bid
- * object are decided by the pure domain; the transaction only reads state, writes the bid and
- * moves the public interest count (one per player, so switching rewards moves the count). Bids are
- * secret: only the interest count is public during the day — the win appears only at
- * evaluation (decision A3). Punishment targets ride along on the bid and stay editable all day; the
- * transaction moves a live per-target tally by the delta so a target locks once it reaches the cap,
- * yet who is actually punished is settled only at evaluation.
+ * object are decided by the pure domain; the transaction only reads state, writes the bid and, for
+ * a fresh bid on this reward, bumps its public interest count. A player holds one bid per reward and
+ * may bid on several rewards a day, so each reward's count is independent (the per-day cap is a UI
+ * guard, and evaluation lets a player win at most `maxActiveRewardsPerPlayer`). Bids are secret:
+ * only the interest count is public during the day — the win appears only at evaluation (decision
+ * A3). Punishment targets ride along on the bid and stay editable all day; the transaction moves a
+ * live per-target tally by the delta so a target locks once it reaches the cap, yet who is actually
+ * punished is settled only at evaluation.
  */
 export async function bidReward(
   db: Firestore,
@@ -35,10 +37,10 @@ export async function bidReward(
     const reward = parseReward(rewardSnap.id, rewardSnap.data() ?? {});
     if (reward === null) return err({ code: 'REWARD_INACTIVE' });
 
-    const previous = await tx.get(rewardBidDoc(db, t, playerId));
-    const previousRewardId = previous.exists() ? (previous.data().rewardId as string) : null;
-    const previousTargets = previous.exists()
-      ? ((previous.data().targetIds as PlayerId[] | undefined) ?? [])
+    const previous = await tx.get(rewardBidDoc(db, t, playerId, rewardId));
+    const hadBid = previous.exists();
+    const previousTargets = hadBid
+      ? ((previous.data()?.targetIds as PlayerId[] | undefined) ?? [])
       : [];
 
     // The live per-target tally: how many current bids aim at each player. A newly-chosen target
@@ -63,7 +65,7 @@ export async function bidReward(
     if (!built.ok) return built;
 
     const { createdAt: _placeholder, ...fields } = built.value;
-    tx.set(rewardBidDoc(db, t, playerId), { ...fields, createdAt: serverTimestamp() });
+    tx.set(rewardBidDoc(db, t, playerId, rewardId), { ...fields, createdAt: serverTimestamp() });
 
     // Move the live target tally by the delta between the old and new picks (dropped ones free up).
     const newTargets = built.value.targetIds;
@@ -74,16 +76,12 @@ export async function bidReward(
       tx.set(targetCountsRef, { counts: targetDelta }, { merge: true });
     }
 
-    // Move the public reward-interest count (one per player, so switching rewards moves it).
-    const interestRef = rewardBidCountsDoc(db, t, built.value.day);
-    if (previousRewardId === rewardId) {
-      // Same reward — count unchanged.
-    } else if (previousRewardId === null) {
-      tx.set(interestRef, { counts: { [rewardId]: increment(1) } }, { merge: true });
-    } else {
+    // Bump this reward's public interest count only for a fresh bid — raising a bid or re-picking
+    // its targets leaves the count untouched (one bid per player per reward, spec 8).
+    if (!hadBid) {
       tx.set(
-        interestRef,
-        { counts: { [previousRewardId]: increment(-1), [rewardId]: increment(1) } },
+        rewardBidCountsDoc(db, t, built.value.day),
+        { counts: { [rewardId]: increment(1) } },
         { merge: true },
       );
     }

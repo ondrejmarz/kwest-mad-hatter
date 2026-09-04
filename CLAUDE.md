@@ -80,12 +80,10 @@ Hard rules:
   settlement. Kept in one place so it can be rebalanced.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
-  rules, freezes task selection AND reward purchases for the day; reservations stay editable
-  until evaluation.
-- **Undo = full restore.** The rollback snapshot captures everything the evaluation mutated
-  (coins, activeTask, needsPick, tasks' usedByPlayerIds, reservations, bids, counts,
-  categories, dayLocked, currentDay, purchaseIds), stored in an admin-only doc, not on the hot
-  turnus doc.
+  rules, freezes every task and reward action for the day until evaluation: task selection,
+  reward purchases, and reservation changes alike — reserving, answering an invite, and
+  cancelling a reservation are all blocked. The UI hides the frozen actions rather than
+  offering ones the rules would reject.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
@@ -108,12 +106,15 @@ Hard rules:
   self-inflation); `taskClaims` is create-only for players. UI: "Vzít teď" in
   `TaskActionDialog` when the player `needsPick` and the task is open today.
 - **Rewards are a sealed-bid auction.** Min price = starting bid, players may bid higher, only
-  the interest _count_ is public. One sealed bid per player (`rewardBids/{playerId}`, secret
-  like a reservation). Resolved at evaluation by pure `resolveAuctions` (folded into
-  `resolveRollover`): rewards in catalog order, highest bid wins, ties → earlier bid; the
-  winner must afford it on the post-settle balance (else it forfeits to the next, or goes
-  unsold — **no escrow**). Winners get a `Purchase` doc (id `${day}_${rewardId}`); undo
-  restores bids from the snapshot.
+  the interest _count_ is public. One sealed bid per (player, reward), keyed
+  `rewardBids/{playerId}_{rewardId}` (secret like a reservation), so a player may bid on several
+  rewards a day — up to `maxActiveRewardsPerPlayer`, enforced as a UI guard on placing a bid and
+  authoritatively at evaluation as a per-player win cap. Resolved at evaluation by pure
+  `resolveAuctions` (folded into `resolveRollover`): rewards in catalog order, highest bid wins,
+  ties → earlier bid; the winner must afford it on the post-settle balance (else it forfeits to
+  the next, or goes unsold — **no escrow**), and a player who already won `maxActiveRewardsPerPlayer`
+  that evening is skipped so a further reward falls to the next bidder. Winners get a `Purchase` doc
+  (id `${day}_${rewardId}`).
 - **Punishment targeting.** A `punish_someone` reward carries a `minTargets`/`maxTargets`
   range; targets are picked at BID time (`RewardBid.targetIds`). A live public per-day tally
   `punishTargetCounts/{day}` guards bidding — a target is locked only while
@@ -125,9 +126,11 @@ Hard rules:
   fairly — still deterministic). Final targets land on `Purchase.targetIds`/`targetNames`.
   `punish_all` targets everyone except the buyer (no explicit `targetIds`), not subject to the
   punish cap. Effect is record-only (counsellors enact off-app).
-- **Purchase limits:** `maxActiveRewardsPerPlayer` counts all of a buyer's active purchases
-  (rewards and punishments). `maxActivePunishesPerPlayer` caps how many times a player is a
-  target of others' `punish_someone`.
+- **Purchase limits:** `maxActiveRewardsPerPlayer` caps how many rewards one player can bid on
+  (UI guard) and win (evaluation) in a day — all forms count. `maxActivePunishesPerPlayer` caps
+  how many times a player is a target of others' `punish_someone`. (An earlier instant-purchase
+  path, `domain/purchase.validatePurchase`, still encodes the old per-round limit but is unused by
+  the auction flow.)
 - **Character ownership is multi-device:** `ownerUids: string[]`. **Every claim needs the
   4-digit PIN** — even the first on an empty character — so nobody grabs the wrong one. **One
   device owns one character:** claiming a new one releases the old (removes this uid via
@@ -145,9 +148,19 @@ Hard rules:
 - **Rules can't run queries** — a `uid -> playerId` index doc backs "my player" checks.
 - **No audit-event log.** An earlier write-only `turnuses/{t}/events` collection (nothing read
   it, it flooded the DB) was removed entirely — paths, schema, repo, rules match, and the
-  domain event generation. `adjustCoins`' note now has no store — `PlayerEditDialog` still
-  requires it, but it is discarded until the per-player ledger lands (see "Not yet built").
-  Coin history will be a fresh per-player structure built over `Settlement` data.
+  domain event generation. The per-player coin ledger (below) is now the one place coin history
+  lives; `adjustCoins`' note is stored there.
+- **Coin history = a per-player ledger (spec 9.1, Phase 1).** Every coin-moving event is one
+  signed entry in `players/{pid}/ledger` (append log, auto-id): a `task` settlement (delta +
+  outcome + task name), a won `reward` (−paid bid + reward name + form), or an admin `adjust`
+  (± the applied post-floor change + the note). Written only by admin-run transactions
+  (`runRollover` builds them in `resolveRollover`'s `ledger`; `adjustCoins` appends its own).
+  **The opening balance is never stored** — it is derived as `coins − Σ delta`
+  (`domain/ledger.deriveOpeningBalance`), so the history always reconciles to the live balance and
+  a player who predates the ledger needs no migration. `seq` (append index) breaks `createdAt`
+  ties so a settlement sorts before the reward it paid for. The own-card detail shows a 2×2 stats
+  grid (`derivePlayerStats`: tasks completed, rewards won, coins earned, coins spent) then the
+  history. Rules let only the character's owner (and admins) read the ledger — Phase 2 widens it.
 
 ## Platform & build notes
 
@@ -195,11 +208,12 @@ Hard rules:
 Planned rework, confirmed with the user, not yet scheduled. The rules/manual page (item 3)
 stays LAST, after every mechanic is frozen.
 
-1. **Coin history + per-player ledger.** A per-player ledger written next to each player
-   (start 0, +coins for which task, −coins for which reward, manual edits with their note) plus
-   totals (tasks completed, rewards won, earned/spent). The rollover already computes the
-   per-player deltas (`Settlement`/preview); the settlement/purchase/adjust transactions would
-   each append an entry, and `adjustCoins` regains a stored `note` (with a matching rule).
+1. **Shared stats / public profiles (ledger Phase 2).** Phase 1 (the per-player ledger + the
+   own-card stats grid and history) shipped — see the locked decision above. Phase 2 adds a
+   turnus setting `publicProfiles` (default OFF) that, when on, reveals every player's stats and
+   history to the group — surfaced as a standings/leaderboard entry point (top earners, most
+   rewards, most-targeted…), each row drilling into the same read-only ledger view. The ledger
+   read rule then widens with `|| publicProfiles(t)`. Achievements (item 4) slot into that surface.
 2. **Gated turnus creation.** Only the owner may create a group; mechanism undecided
    (super-admin flag, creation code, or hand-editing the DB). Needs the `turnuses` create rule
    (currently `if false`). Decide the gate before building.

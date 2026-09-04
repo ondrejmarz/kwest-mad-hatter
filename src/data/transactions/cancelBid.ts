@@ -15,14 +15,15 @@ export async function cancelBid(
   db: Firestore,
   t: string,
   playerId: string,
+  rewardId: string,
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
-    const snap = await tx.get(rewardBidDoc(db, t, playerId));
+    const snap = await tx.get(rewardBidDoc(db, t, playerId, rewardId));
     if (!snap.exists()) return ok(undefined);
     const bid = parseRewardBid(snap.id, snap.data() ?? {});
 
-    tx.delete(rewardBidDoc(db, t, playerId));
+    tx.delete(rewardBidDoc(db, t, playerId, rewardId));
     if (bid !== null) {
       tx.set(
         rewardBidCountsDoc(db, t, bid.day),

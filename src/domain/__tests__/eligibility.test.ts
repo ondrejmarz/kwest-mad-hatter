@@ -1,10 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
 import { TYPE_KEYS } from '../../lib/group';
-import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../eligibility';
-import type { TaskId } from '../ids';
+import { canInitiatePairPick, canPickTaskNow, canReserveTask, hasUsedTask } from '../eligibility';
+import { TaskId } from '../ids';
 
 import { loc, makeActiveTask, makePlayer, makeTask, makeTurnus } from './fixtures';
+
+describe('hasUsedTask', () => {
+  it('is false for a task the player has never had', () => {
+    expect(hasUsedTask(makePlayer(), makeTask())).toBe(false);
+  });
+
+  it('is true for the task the player is doing right now', () => {
+    const player = makePlayer({ activeTask: makeActiveTask({ taskId: makeTask().id }) });
+    expect(hasUsedTask(player, makeTask())).toBe(true);
+  });
+
+  it('is true for a task the player completed on a past day', () => {
+    const player = makePlayer();
+    expect(hasUsedTask(player, makeTask({ usedByPlayerIds: [player.id] }))).toBe(true);
+  });
+
+  it('is false when the player is busy with a different task', () => {
+    const player = makePlayer({ activeTask: makeActiveTask({ taskId: TaskId('other') }) });
+    expect(hasUsedTask(player, makeTask())).toBe(false);
+  });
+});
 
 describe('canReserveTask', () => {
   const turnus = makeTurnus({ nextDayCategories: ['chores'] });

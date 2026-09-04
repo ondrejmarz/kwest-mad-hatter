@@ -1,16 +1,25 @@
 import { readFileSync } from 'node:fs';
 
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, type Firestore, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  type Firestore,
+  getDoc,
+  getDocs,
+  setDoc,
+  Timestamp,
+} from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { adjustCoins } from '../../src/data/transactions/adjustCoins';
 import { approvePlayer } from '../../src/data/transactions/approvePlayer';
 import { bidReward } from '../../src/data/transactions/bidReward';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
+import { respondToInvite } from '../../src/data/transactions/respondToInvite';
 import { runRollover } from '../../src/data/transactions/runRollover';
-import { undoRollover } from '../../src/data/transactions/undoRollover';
 import { Day, PlayerId, RewardId, TaskId } from '../../src/domain/ids';
 import type { RolloverInput } from '../../src/domain/rollover/types';
 import type { ActiveTask, Player, Reward, Task } from '../../src/domain/types';
@@ -131,6 +140,7 @@ beforeEach(async () => {
       ...over,
     });
     await put('rewards/r1', reward({ name: L('Reward 1') }));
+    await put('rewards/r2', reward({ name: L('Reward 2') }));
   });
 });
 
@@ -150,6 +160,15 @@ const readTurnus = async (): Promise<Record<string, unknown> | undefined> => {
     data = snap.data() as Record<string, unknown> | undefined;
   });
   return data;
+};
+
+const readCollection = async (suffix: string): Promise<Record<string, unknown>[]> => {
+  let rows: Record<string, unknown>[] = [];
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDocs(collection(ctx.firestore(), `turnuses/${T}/${suffix}`));
+    rows = snap.docs.map((docSnap) => docSnap.data() as Record<string, unknown>);
+  });
+  return rows;
 };
 
 describe('joinTurnus', () => {
@@ -217,25 +236,68 @@ describe('reserveTask', () => {
   });
 });
 
+describe('respondToInvite', () => {
+  // p1 (owned by alice) is already doing task t1; an invite to t1 must not let them join it again.
+  const inviteP1ToTask1 = (): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `turnuses/${T}/reservations/p2`), {
+        playerId: 'p2',
+        day: 2,
+        taskId: 't1',
+        taskName: L('Task 1'),
+        minPlayers: 2,
+        maxPlayers: 2,
+        invitees: ['p1'],
+        responses: {},
+        createdAt: Timestamp.now(),
+      }),
+    );
+
+  it('refuses to accept an invite to a task the invitee is already doing', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), true);
+    expect(result).toEqual({ ok: false, error: { code: 'TASK_ALREADY_USED_BY_PLAYER' } });
+    expect((await read('reservations/p2'))?.responses).toEqual({});
+  });
+
+  it('still lets the invitee decline that invite', async () => {
+    await inviteP1ToTask1();
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), false);
+    expect(result.ok).toBe(true);
+    expect((await read('reservations/p2'))?.responses).toEqual({ p1: 'declined' });
+  });
+});
+
 describe('bidReward', () => {
   it('places a sealed bid for the current day and bumps the interest count', async () => {
     const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 70);
     expect(result.ok).toBe(true);
-    const bid = await read('rewardBids/p1');
+    const bid = await read('rewardBids/p1_r1');
+    expect(bid?.playerId).toBe('p1');
     expect(bid?.rewardId).toBe('r1');
     expect(bid?.amount).toBe(70);
     const counts = await read('rewardBidCounts/1');
     expect((counts?.counts as Record<string, number>).r1).toBe(1);
   });
 
+  it('lets a player hold a separate bid on each reward', async () => {
+    expect((await bidReward(asDb('alice'), T, 'p1', 'r1', 70)).ok).toBe(true);
+    expect((await bidReward(asDb('alice'), T, 'p1', 'r2', 50)).ok).toBe(true);
+    expect((await read('rewardBids/p1_r1'))?.amount).toBe(70);
+    expect((await read('rewardBids/p1_r2'))?.amount).toBe(50);
+    const counts = (await read('rewardBidCounts/1'))?.counts as Record<string, number>;
+    expect(counts.r1).toBe(1);
+    expect(counts.r2).toBe(1);
+  });
+
   it('refuses a bid below the reward price', async () => {
     const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 10);
     expect(result).toEqual({ ok: false, error: { code: 'BID_BELOW_MINIMUM', min: 40 } });
-    expect(await read('rewardBids/p1')).toBeUndefined();
+    expect(await read('rewardBids/p1_r1')).toBeUndefined();
   });
 });
 
-describe('runRollover and undoRollover', () => {
+describe('runRollover', () => {
   const player = (id: string, activeTask: ActiveTask): Player => ({
     id: PlayerId(id),
     name: id,
@@ -293,7 +355,7 @@ describe('runRollover and undoRollover', () => {
     active: true,
   };
 
-  it('settles the day, advances the round, then fully restores on undo', async () => {
+  it('settles the day and advances the round', async () => {
     const rolled = await runRollover(asDb('admin'), T, input());
     expect(rolled.ok).toBe(true);
 
@@ -302,19 +364,16 @@ describe('runRollover and undoRollover', () => {
     expect((await read('players/p1'))?.activeTask).toBeNull();
     expect((await read('players/p1'))?.needsPick).toBe(true);
     expect((await readTurnus())?.currentDay).toBe(2);
-    expect((await read('admin/rollback'))?.snapshot).toBeTruthy();
-
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('players/p2'))?.coins).toBe(100);
-    expect((await readTurnus())?.currentDay).toBe(1);
-    expect(await read('admin/rollback')).toBeUndefined();
+    // Coin history: p1's completed task is recorded (spec 9.1).
+    const p1Ledger = await readCollection('players/p1/ledger');
+    expect(p1Ledger).toHaveLength(1);
+    expect(p1Ledger[0]).toMatchObject({ kind: 'task', outcome: 'completed', delta: 150, day: 1 });
   });
 
-  it('resolves the reward auction: charges the winner, consumes the bid, restores on undo', async () => {
+  it('resolves the reward auction: charges the winner and consumes the bid', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1`), {
+      await setDoc(doc(ctx.firestore(), `turnuses/${T}/rewardBids/p1_r1`), {
+        playerId: 'p1',
         day: 1,
         rewardId: 'r1',
         amount: 60,
@@ -340,17 +399,31 @@ describe('runRollover and undoRollover', () => {
     expect(rolled.ok).toBe(true);
     // p1 completes t1 (+150 => 250), then wins r1 (−60 => 190).
     expect((await read('players/p1'))?.coins).toBe(190);
-    expect(await read('rewardBids/p1')).toBeUndefined();
+    expect(await read('rewardBids/p1_r1')).toBeUndefined();
     // The win is recorded as an owned-reward purchase (id = `${day}_${rewardId}`).
     const purchase = await read('purchases/1_r1');
     expect(purchase?.buyerId).toBe('p1');
     expect(purchase?.price).toBe(60);
     expect(purchase?.form).toBe('reward');
+    // Coin history records both the settled task and the won reward for p1 (spec 9.1).
+    const p1Ledger = await readCollection('players/p1/ledger');
+    expect(p1Ledger.some((entry) => entry.kind === 'task' && entry.delta === 150)).toBe(true);
+    expect(p1Ledger.some((entry) => entry.kind === 'reward' && entry.delta === -60)).toBe(true);
+  });
+});
 
-    const undone = await undoRollover(asDb('admin'), T);
-    expect(undone.ok).toBe(true);
-    expect((await read('players/p1'))?.coins).toBe(100);
-    expect((await read('rewardBids/p1'))?.rewardId).toBe('r1');
-    expect(await read('purchases/1_r1')).toBeUndefined();
+describe('adjustCoins', () => {
+  it('applies a manual change and records it with the note in the ledger', async () => {
+    const result = await adjustCoins(asDb('admin'), T, 'p1', -30, 'Raketa');
+    expect(result.ok).toBe(true);
+    expect((await read('players/p1'))?.coins).toBe(70); // 100 − 30
+    const ledger = await readCollection('players/p1/ledger');
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ kind: 'adjust', delta: -30, note: 'Raketa', day: 1 });
+  });
+
+  it('writes no ledger entry when the change nets to zero', async () => {
+    await adjustCoins(asDb('admin'), T, 'p1', 0, 'noop');
+    expect(await readCollection('players/p1/ledger')).toEqual([]);
   });
 });

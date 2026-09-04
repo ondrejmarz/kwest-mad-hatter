@@ -28,6 +28,7 @@ export function RewardBidDialog({
   myPlayer,
   settings,
   bid,
+  activeBidCount,
   count,
   targetCounts,
   candidates,
@@ -38,6 +39,8 @@ export function RewardBidDialog({
   myPlayer: Player;
   settings: TurnusSettings;
   bid: RewardBid | null;
+  /** How many rewards this player already has an active bid on — caps new bids (spec 8). */
+  activeBidCount: number;
   count: number;
   /** Live public tally of how many current bids aim at each player id (spec 8). */
   targetCounts: Readonly<Record<string, number>>;
@@ -47,6 +50,9 @@ export function RewardBidDialog({
 }) {
   const { t, locale } = useTranslation();
   const mine = bid !== null && bid.rewardId === reward.id;
+  // A player may bid on several rewards a day, up to the turnus cap. A new bid is blocked once they
+  // are at the cap; an existing bid on this reward can always be raised, re-targeted or withdrawn.
+  const atBidLimit = !mine && activeBidCount >= settings.maxActiveRewardsPerPlayer;
   const isPunish = reward.form === 'punish_someone';
   const [amount, setAmount] = useState(String(mine && bid !== null ? bid.amount : reward.price));
   const [targets, setTargets] = useState<readonly PlayerId[]>(
@@ -59,10 +65,9 @@ export function RewardBidDialog({
   // quicker than a one-item checklist. A range still uses checkboxes.
   const singleTarget = isPunish && reward.minTargets === 1 && reward.maxTargets === 1;
 
-  // A target is locked once `maxActivePunishesPerPlayer` other bidders aim at it. A player has one
-  // sealed bid, and placing this one replaces it — even a bid on a different reward — so the targets
-  // that current bid holds are subtracted: the buyer can re-pick them here without pushing the count
-  // over. (Were a player ever allowed several concurrent bids, this would need all of their picks.)
+  // A target is locked once `maxActivePunishesPerPlayer` bids aim at it. This reward's own current
+  // bid (if any) is subtracted, so the buyer can re-pick the targets it already holds here without
+  // pushing the public tally over the cap.
   const ownSubmitted = bid !== null ? bid.targetIds : [];
   const isLocked = (id: PlayerId): boolean =>
     (targetCounts[id] ?? 0) - (ownSubmitted.includes(id) ? 1 : 0) >=
@@ -156,6 +161,10 @@ export function RewardBidDialog({
           <p className="text-sm text-content-muted">{t('rewards.bidLocked')}</p>
         ) : !reward.active ? (
           <p className="text-sm text-content-muted">{t('rewards.reasonInactive')}</p>
+        ) : atBidLimit ? (
+          <p className="text-sm text-content-muted">
+            {t('rewards.bidLimitReached', { max: settings.maxActiveRewardsPerPlayer })}
+          </p>
         ) : (
           <form onSubmit={(event) => void place(event)} className="flex flex-col gap-3">
             <TextInput
@@ -222,7 +231,7 @@ export function RewardBidDialog({
           <Button
             variant="danger"
             disabled={busy}
-            onClick={() => void run(cancelBid(db, turnusId, myPlayer.id))}
+            onClick={() => void run(cancelBid(db, turnusId, myPlayer.id, reward.id))}
           >
             {t('rewards.cancelBid')}
           </Button>

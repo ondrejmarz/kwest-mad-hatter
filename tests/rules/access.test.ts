@@ -12,9 +12,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
@@ -123,6 +125,7 @@ beforeEach(async () => {
       maxPlayers: 3,
     });
     await put('rewards/r1', { name: 'R', price: 10, form: 'reward', active: true });
+    await put('rewards/r2', { name: 'R2', price: 10, form: 'reward', active: true });
 
     await put('reservations/p1', {
       day: 2,
@@ -134,7 +137,8 @@ beforeEach(async () => {
       responses: {},
       createdAt: serverTimestamp(),
     });
-    await put('rewardBids/p1', {
+    await put('rewardBids/p1_r1', {
+      playerId: 'p1',
       day: 1,
       rewardId: 'r1',
       amount: 20,
@@ -170,6 +174,35 @@ describe('reads', () => {
   it('lets a member read only their own role', async () => {
     await assertSucceeds(getDoc(doc(authed('alice'), path('roles/alice'))));
     await assertFails(getDoc(doc(authed('alice'), path('roles/bob'))));
+  });
+});
+
+describe('coin ledger', () => {
+  const entry = {
+    kind: 'adjust',
+    day: 1,
+    delta: 10,
+    note: 'x',
+    seq: 0,
+    createdAt: serverTimestamp(),
+  };
+
+  it('lets the character owner read their own ledger', async () => {
+    await assertSucceeds(getDocs(collection(authed('alice'), path('players/p1/ledger'))));
+  });
+
+  it("denies reading another player's ledger", async () => {
+    await assertFails(getDocs(collection(authed('bob'), path('players/p1/ledger'))));
+    await assertFails(getDocs(collection(authed('stranger'), path('players/p1/ledger'))));
+  });
+
+  it('lets an admin read any ledger and append entries', async () => {
+    await assertSucceeds(getDocs(collection(authed('admin'), path('players/p1/ledger'))));
+    await assertSucceeds(setDoc(doc(authed('admin'), path('players/p1/ledger/e1')), entry));
+  });
+
+  it('forbids players from writing ledger entries, even their own', async () => {
+    await assertFails(setDoc(doc(authed('alice'), path('players/p1/ledger/e1')), entry));
   });
 });
 
@@ -218,24 +251,53 @@ describe('reservations are secret', () => {
 });
 
 describe('reward bids are secret', () => {
+  const bid = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    playerId: 'p1',
+    day: 1,
+    rewardId: 'r2',
+    amount: 20,
+    createdAt: serverTimestamp(),
+    ...over,
+  });
+
   it("denies any other member reading someone's sealed bid", async () => {
-    await assertFails(getDoc(doc(authed('carol'), path('rewardBids/p1'))));
-    await assertFails(getDoc(doc(authed('bob'), path('rewardBids/p1'))));
+    await assertFails(getDoc(doc(authed('carol'), path('rewardBids/p1_r1'))));
+    await assertFails(getDoc(doc(authed('bob'), path('rewardBids/p1_r1'))));
   });
 
   it('lets the bidder and an admin read it', async () => {
-    await assertSucceeds(getDoc(doc(authed('alice'), path('rewardBids/p1'))));
-    await assertSucceeds(getDoc(doc(authed('admin'), path('rewardBids/p1'))));
+    await assertSucceeds(getDoc(doc(authed('alice'), path('rewardBids/p1_r1'))));
+    await assertSucceeds(getDoc(doc(authed('admin'), path('rewardBids/p1_r1'))));
+  });
+
+  it('lets the bidder list their own bids but not query for another player’s', async () => {
+    const bids = (uid: string) => collection(authed(uid), path('rewardBids'));
+    await assertSucceeds(getDocs(query(bids('alice'), where('playerId', '==', 'p1'))));
+    await assertFails(getDocs(query(bids('bob'), where('playerId', '==', 'p1'))));
   });
 
   it('lets the bidder change and withdraw their own bid', async () => {
-    await assertSucceeds(updateDoc(doc(authed('alice'), path('rewardBids/p1')), { amount: 50 }));
-    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1'))));
+    await assertSucceeds(updateDoc(doc(authed('alice'), path('rewardBids/p1_r1')), { amount: 50 }));
+    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1_r1'))));
+  });
+
+  it('lets the bidder place a second bid on another reward', async () => {
+    await assertSucceeds(setDoc(doc(authed('alice'), path('rewardBids/p1_r2')), bid()));
+  });
+
+  it('rejects a bid whose id does not match its (player, reward)', async () => {
+    await assertFails(setDoc(doc(authed('alice'), path('rewardBids/p1_rX')), bid()));
+  });
+
+  it("rejects creating a bid under another player's id", async () => {
+    await assertFails(
+      setDoc(doc(authed('alice'), path('rewardBids/p2_r2')), bid({ playerId: 'p2' })),
+    );
   });
 
   it("forbids a member writing someone else's bid", async () => {
-    await assertFails(updateDoc(doc(authed('carol'), path('rewardBids/p1')), { amount: 50 }));
-    await assertFails(deleteDoc(doc(authed('carol'), path('rewardBids/p1'))));
+    await assertFails(updateDoc(doc(authed('carol'), path('rewardBids/p1_r1')), { amount: 50 }));
+    await assertFails(deleteDoc(doc(authed('carol'), path('rewardBids/p1_r1'))));
   });
 
   it('freezes new and raised bids while the day is locked, but still allows withdrawal', async () => {
@@ -247,8 +309,8 @@ describe('reward bids are secret', () => {
         dayLocked: true,
       });
     });
-    await assertFails(updateDoc(doc(authed('alice'), path('rewardBids/p1')), { amount: 50 }));
-    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1'))));
+    await assertFails(updateDoc(doc(authed('alice'), path('rewardBids/p1_r1')), { amount: 50 }));
+    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1_r1'))));
   });
 });
 

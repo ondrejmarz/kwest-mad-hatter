@@ -1,4 +1,4 @@
-import { type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, type Firestore, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
 import { resolveRollover } from '../../domain/rollover';
@@ -8,13 +8,13 @@ import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import {
   playerDoc,
+  playerLedgerCol,
   punishTargetCountsDoc,
   purchaseDoc,
   reservationCountsDoc,
   reservationDoc,
   rewardBidCountsDoc,
   rewardBidDoc,
-  rollbackDoc,
   taskDoc,
   turnusDoc,
 } from '../paths';
@@ -58,14 +58,13 @@ export async function runRollover(
       nextDayCategories: result.turnus.nextDayCategories,
       dayLocked: result.turnus.dayLocked,
     });
-    tx.set(rollbackDoc(db, t), { snapshot: result.rollbackSnapshot, savedAt: serverTimestamp() });
     for (const reservation of input.reservations) {
       tx.delete(reservationDoc(db, t, reservation.playerId));
     }
     tx.set(reservationCountsDoc(db, t, result.nextDay), { counts: {} });
     // Consume the sealed bids: winners already paid via the coin updates above (spec 8).
     for (const bid of input.rewardBids) {
-      tx.delete(rewardBidDoc(db, t, bid.playerId));
+      tx.delete(rewardBidDoc(db, t, bid.playerId, bid.rewardId));
     }
     tx.set(rewardBidCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
     tx.set(punishTargetCountsDoc(db, t, input.turnus.currentDay), { counts: {} });
@@ -74,6 +73,15 @@ export async function runRollover(
       const { id, ...data } = purchase;
       tx.set(purchaseDoc(db, t, id), { ...data, createdAt: serverTimestamp() });
     }
+    // Coin-history entries (spec 9.1): auto-id docs, `seq` = append order so a player's task entry
+    // precedes the reward it paid for when the history is sorted by `createdAt` then `seq`.
+    result.ledger.forEach((append, index) => {
+      tx.set(doc(playerLedgerCol(db, t, append.playerId)), {
+        ...append.entry,
+        seq: index,
+        createdAt: serverTimestamp(),
+      });
+    });
     return ok(undefined);
   });
 }

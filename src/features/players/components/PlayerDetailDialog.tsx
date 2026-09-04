@@ -1,6 +1,9 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 
 import { db } from '../../../data/firebase';
+import { subscribePlayerLedger } from '../../../data/repositories/ledger';
+import type { LedgerEntryDoc } from '../../../data/schemas/ledger';
+import type { Subscription } from '../../../data/subscriptions';
 import { claimPlayer } from '../../../data/transactions/claimPlayer';
 import type { Player } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
@@ -13,7 +16,7 @@ import { Dialog } from '../../../ui/Dialog';
 import { TextInput } from '../../../ui/TextInput';
 import {
   useCatalogRewards,
-  useMyBid,
+  useMyBids,
   useMyInvites,
   useMyReservation,
   usePurchases,
@@ -21,6 +24,7 @@ import {
 } from '../../session';
 
 import { PlayerFacts, selectPlayerFacts } from './PlayerFacts';
+import { PlayerLedgerView } from './PlayerLedgerView';
 
 /**
  * Player detail (spec 9.1). For every player it surfaces the useful public facts — coins and the
@@ -43,12 +47,20 @@ export function PlayerDetailDialog({
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The coin history is private to the owner (and admins); only subscribe on the own card.
+  const [ledger, setLedger] = useState<Subscription<readonly LedgerEntryDoc[]>>({
+    status: 'loading',
+  });
+  useEffect(() => {
+    if (!mine) return;
+    return subscribePlayerLedger(db, turnusId, player.id, setLedger);
+  }, [mine, turnusId, player.id]);
 
   // The reservation and bid are secret — these listeners hold *this device's* own, so they are only
   // meaningful (and only shown) on the player's own card.
   const reservationState = useMyReservation();
   const invitesState = useMyInvites();
-  const bidState = useMyBid();
+  const bidsState = useMyBids();
   const rewardsState = useCatalogRewards();
   const purchasesState = usePurchases();
   // Won rewards and incoming punishments are public — shown for every player, split the same way as
@@ -65,11 +77,13 @@ export function PlayerDetailDialog({
       ? (invitesState.data.find((invite) => invite.responses[player.id] === 'accepted') ?? null)
       : null;
   const myReservation = ownReservation ?? acceptedInvite;
-  const myBid = mine && bidState.status === 'ready' ? bidState.data : null;
-  const bidReward =
-    myBid !== null && rewardsState.status === 'ready'
-      ? (rewardsState.data.find((reward) => reward.id === myBid.rewardId) ?? null)
-      : null;
+  // A player may hold several sealed bids at once — show each with its reward name (spec 8).
+  const myBids = mine && bidsState.status === 'ready' ? bidsState.data : [];
+  const rewardName = (rewardId: string): string | null => {
+    if (rewardsState.status !== 'ready') return null;
+    const reward = rewardsState.data.find((candidate) => candidate.id === rewardId);
+    return reward !== undefined ? localize(reward.name, locale) : null;
+  };
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
@@ -119,16 +133,27 @@ export function PlayerDetailDialog({
                 : t('players.noReservation')}
             </p>
           </div>
-          {myBid !== null && (
+          {myBids.length > 0 && (
             <div>
               {label(t('players.myBid'))}
-              <p className="mt-1 flex items-center gap-2 text-content">
-                {bidReward !== null && <span>{localize(bidReward.name, locale)}</span>}
-                <CoinAmount amount={myBid.amount} />
-              </p>
+              <div className="mt-1 flex flex-col gap-1">
+                {myBids.map((bid) => {
+                  const name = rewardName(bid.rewardId);
+                  return (
+                    <p key={bid.rewardId} className="flex items-center gap-2 text-content">
+                      {name !== null && <span>{name}</span>}
+                      <CoinAmount amount={bid.amount} />
+                    </p>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
+      )}
+
+      {mine && ledger.status === 'ready' && (
+        <PlayerLedgerView player={player} entries={ledger.data} />
       )}
 
       {!mine && (

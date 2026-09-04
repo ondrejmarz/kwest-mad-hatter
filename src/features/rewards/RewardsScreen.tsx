@@ -21,7 +21,7 @@ import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
 import {
   useCatalogRewards,
-  useMyBid,
+  useMyBids,
   useMyPlayer,
   usePlayers,
   useSession,
@@ -56,7 +56,7 @@ export function RewardsScreen() {
   const rewardsState = useCatalogRewards();
   const turnusState = useTurnus();
   const myPlayer = useMyPlayer();
-  const bidState = useMyBid();
+  const bidsState = useMyBids();
   const playersState = usePlayers();
   const isAdmin = role === 'admin';
 
@@ -79,7 +79,7 @@ export function RewardsScreen() {
 
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const settings = turnus !== null ? toTurnusSettings(turnus) : null;
-  const myBid = bidState.status === 'ready' ? bidState.data : null;
+  const myBids = bidsState.status === 'ready' ? bidsState.data : [];
   const countMap = counts.status === 'ready' && counts.data !== null ? counts.data.counts : {};
   const targetCountMap =
     targetCounts.status === 'ready' && targetCounts.data !== null ? targetCounts.data.counts : {};
@@ -164,7 +164,7 @@ export function RewardsScreen() {
               key={reward.id}
               reward={reward}
               isAdmin={isAdmin}
-              reserved={myBid?.rewardId === reward.id}
+              reserved={myBids.some((bid) => bid.rewardId === reward.id)}
               interested={countMap[reward.id] ?? 0}
               {...(myPlayer !== null && settings !== null
                 ? { onOpen: () => setActing(reward) }
@@ -188,7 +188,8 @@ export function RewardsScreen() {
           reward={acting}
           myPlayer={myPlayer}
           settings={settings}
-          bid={myBid}
+          bid={myBids.find((bid) => bid.rewardId === acting.id) ?? null}
+          activeBidCount={myBids.length}
           count={countMap[acting.id] ?? 0}
           targetCounts={targetCountMap}
           candidates={candidates}

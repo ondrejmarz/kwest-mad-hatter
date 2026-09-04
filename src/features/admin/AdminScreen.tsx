@@ -18,9 +18,9 @@ import { EvaluationPanel } from './evaluation/EvaluationPanel';
 import { TurnusSettingsDialog } from './settings/TurnusSettingsDialog';
 
 /**
- * Admin area (spec 9.4). The daily action is day evaluation; below it the admin bulk-imports
- * the catalog and chooses which task categories are in play. Per-item catalog editing lives on
- * the tabs behind the pencil.
+ * Admin area (spec 9.4). The daily action is day evaluation; below it the admin chooses which task
+ * categories are in play, then bulk-imports the catalog. Per-item catalog editing lives on the tabs
+ * behind the pencil.
  */
 export function AdminScreen() {
   const { t, locale } = useTranslation();
@@ -78,11 +78,6 @@ export function AdminScreen() {
   return (
     <section className="flex flex-col gap-3">
       <EvaluationPanel turnus={settings} players={players} tasks={tasks} rewards={rewards} />
-      <CatalogImport
-        turnusId={turnus.id}
-        taskNames={new Set(tasks.map((task) => task.name.cs))}
-        rewardNames={new Set(rewards.map((reward) => reward.name.cs))}
-      />
       <div className="grid grid-cols-2 gap-3">
         <CategoryPicker
           turnusId={turnus.id}
@@ -101,6 +96,11 @@ export function AdminScreen() {
           selected={settings.nextDayCategories}
         />
       </div>
+      <CatalogImport
+        turnusId={turnus.id}
+        taskNames={new Set(tasks.map((task) => task.name.cs))}
+        rewardNames={new Set(rewards.map((reward) => reward.name.cs))}
+      />
       <Button variant="secondary" className="mt-2" onClick={() => setSettingsOpen(true)}>
         {t('admin.settings')}
       </Button>

@@ -1,14 +1,20 @@
 # Kwest
 
-A mobile-first Progressive Web App for groups of people spending a few days together —
-a trip, a retreat, a camp — who want to complete side quests and cause each other a bit of
+A mobile-first Progressive Web App for groups of people spending a few days together -
+a trip, a retreat, a camp - who want to complete side quests and cause each other a bit of
 mischief. Installable on Android, iOS and desktop.
 
 Everyone joins a shared group. Each day players pick a task, earn coins for finishing it, and
-spend those coins on rewards — many of which are small punishments aimed at everyone else.
+spend those coins on rewards, many of which are small punishments aimed at everyone else.
 Who reserved which task and who bid on which reward stays secret during the day; every evening
 one admin runs a single day evaluation that settles the day, reveals who won what, and
 advances the game to the next round.
+
+## Branding
+
+The colour system, a cobalt-to-magenta spectrum with a turquoise accent, defined once as
+semantic tokens and themed for light and dark, is documented in [BRANDING.md](BRANDING.md),
+with a full styled sheet at [`docs/brand.html`](docs/brand.html).
 
 ## No backend
 
@@ -24,7 +30,7 @@ because it's a PWA it installs to the home screen and loads instantly from cache
 
 - **Vite + React 19 + TypeScript** (strict) with `react-router-dom`
 - **Tailwind CSS** with semantic design tokens (light + dark)
-- **Firebase** — Firestore + Anonymous Auth (modular SDK), nothing else
+- **Firebase** - Firestore + Anonymous Auth (modular SDK), nothing else
 - **zod** validates everything read from Firestore
 - **Vitest** + Testing Library + `@firebase/rules-unit-testing`
 - **ESLint** (with enforced architecture boundaries), Prettier, husky
@@ -39,7 +45,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` starts Vite, the Firestore/Auth emulators and demo seed data in one command — no
+`npm run dev` starts Vite, the Firestore/Auth emulators and demo seed data in one command, no
 configuration needed. To run against a real Firebase project instead, copy `.env.example` to
 `.env`, fill it in, and use `npm run dev:cloud`. Run `npm run verify` (lint + typecheck +
 tests + build) before committing.
@@ -48,7 +54,7 @@ tests + build) before committing.
 
 The game logic is a pure, framework-free layer with no idea that Firestore or React exist, so
 it is fully unit-testable and holds every rule in one place. The app is split into layers, and
-each may import only from the ones below it — the boundary is enforced by ESLint, so CI fails
+each may import only from the ones below it, the boundary is enforced by ESLint, so CI fails
 on a violation rather than letting the layering rot.
 
 ```mermaid
@@ -80,18 +86,12 @@ graph TD
 
 A few rules give this teeth:
 
-- `domain/` is pure — no `firebase`, no `react`, and no `Date.now()`, `Math.random()` or
+- `domain/` is pure, no `firebase`, no `react`, and no `Date.now()`, `Math.random()` or
   `crypto.randomUUID()`. Time and randomness are passed in, so every outcome is deterministic
   and testable.
-- All game rules are pure functions returning `Result<T, DomainError>` — an expected
+- All game rules are pure functions returning `Result<T, DomainError>`, an expected
   failure is a value, not a thrown exception.
-- `runTransaction` lives only in `data/transactions/` — each transaction reads, calls a
+- `runTransaction` lives only in `data/transactions/`, each transaction reads, calls a
   pure domain function, then writes. No game logic hides inside a transaction.
-- All translatable text lives in `i18n/` — the domain returns error codes; the UI renders
+- All translatable text lives in `i18n/`, the domain returns error codes; the UI renders
   them in Czech, English or German.
-
-## Branding
-
-The colour system — a cobalt-to-magenta spectrum with a turquoise accent, defined once as
-semantic tokens and themed for light and dark — is documented in [BRANDING.md](BRANDING.md),
-with a full styled sheet at [`docs/brand.html`](docs/brand.html).

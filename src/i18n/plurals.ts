@@ -6,16 +6,16 @@ export function coinWord(locale: Locale, amount: number): string {
   switch (locale) {
     case 'cs':
       if (n === 1) {
-        return 'mince';
+        return 'Koin';
       }
       if (n >= 2 && n <= 4) {
-        return 'mince';
+        return 'Koiny';
       }
-      return 'mincí';
+      return 'Koinů';
     case 'en':
-      return n === 1 ? 'coin' : 'coins';
+      return n === 1 ? 'Koin' : 'Koins';
     case 'de':
-      return n === 1 ? 'Münze' : 'Münzen';
+      return n === 1 ? 'Koin' : 'Koins';
   }
 }
 

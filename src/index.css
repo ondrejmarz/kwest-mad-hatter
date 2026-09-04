@@ -143,3 +143,118 @@
     animation: none;
   }
 }
+
+/*
+ * The tab bar unfolds from under the header when a turnus opens, and folds back up fast when the
+ * player leaves (AppLayout collapses it, then switches turnus). Animating the grid row keeps the
+ * content below reflowing smoothly instead of jumping; the inner clips the nav while it grows.
+ * Honours reduced-motion.
+ */
+@keyframes nav-reveal-open {
+  from {
+    grid-template-rows: 0fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+.nav-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: nav-reveal-open 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-reveal__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.nav-reveal--leaving {
+  grid-template-rows: 0fr;
+  animation: none;
+  transition: grid-template-rows 150ms ease-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-reveal {
+    animation: none;
+  }
+  .nav-reveal--leaving {
+    transition: none;
+  }
+}
+
+/*
+ * A screen reached by a horizontal tab-swipe springs in from the side it came from: 'next' enters
+ * from the right, 'prev' from the left. Tab taps carry no swipe state, so they don't animate. The
+ * slight overshoot reads as a spring. Honours reduced-motion.
+ */
+@keyframes swipe-in-right {
+  from {
+    transform: translateX(28px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes swipe-in-left {
+  from {
+    transform: translateX(-28px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.swipe-in-right {
+  animation: swipe-in-right 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.swipe-in-left {
+  animation: swipe-in-left 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-in-right,
+  .swipe-in-left {
+    animation: none;
+  }
+}
+
+/*
+ * The header's left slot differs by destination — the leave button in-turnus, the version/© credit
+ * on the entry screen. Rather than blink on the swap, it slides in from the left with a fade (a small
+ * settle, not a big travel) and, on leave, slides back out. Kept no slower than the tab bar: in 240ms
+ * (< the bar's 280ms unfold), out 150ms (= its fold), so the button and bar leave together. Honours
+ * reduced-motion.
+ */
+@keyframes header-slot-in {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes header-slot-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+}
+.header-slot-in {
+  animation: header-slot-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.header-slot-out {
+  animation: header-slot-out 150ms ease-in forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-slot-in,
+  .header-slot-out {
+    animation: none;
+  }
+}

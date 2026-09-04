@@ -25,7 +25,7 @@ export function EntryLayout({
         <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-y border-border px-4 py-3">
           {/* The `v`/`©` glyphs share a fixed-width box so the text after them (the years) lines up
               vertically. Widen `w-[1.1em]` if the `©` ever looks cramped. */}
-          <div className="flex min-h-[44px] flex-col justify-center justify-self-start">
+          <div className="header-slot-in flex min-h-[44px] flex-col justify-center justify-self-start">
             <span className="text-xs tabular-nums text-content-muted">
               <span className="inline-block w-[1.1em] text-right">v</span>
               {__APP_VERSION__}

@@ -1,7 +1,5 @@
 import { useState } from 'react';
 
-import { db } from '../../data/firebase';
-import { adjustCoins } from '../../data/transactions/adjustCoins';
 import type { Player } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { byName, csCollator } from '../../lib/collator';
@@ -59,10 +57,6 @@ export function PlayersScreen() {
 
   if (turnus === null) return null;
   const turnusId = turnus.id;
-  // Quick coin steps from the roster (spec 9.4).
-  const adjustCoinsFor = (playerId: string) => (delta: number) => {
-    void adjustCoins(db, turnusId, playerId, delta);
-  };
 
   if (playersState.status === 'loading') {
     return (
@@ -124,7 +118,6 @@ export function PlayersScreen() {
           {...selectPlayerFacts(purchases, myPlayer.id)}
           onOpen={() => setSelected(myPlayer)}
           onEdit={() => setEditing(myPlayer)}
-          onAdjustCoins={adjustCoinsFor(myPlayer.id)}
         />
       )}
 
@@ -142,7 +135,6 @@ export function PlayersScreen() {
               {...selectPlayerFacts(purchases, player.id)}
               onOpen={() => setSelected(player)}
               onEdit={() => setEditing(player)}
-              onAdjustCoins={adjustCoinsFor(player.id)}
             />
           ))
         )}

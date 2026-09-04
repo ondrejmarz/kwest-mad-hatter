@@ -4,6 +4,7 @@ import { db } from '../../data/firebase';
 import { joinTurnus } from '../../data/transactions/joinTurnus';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { Button } from '../../ui/Button';
+import { FormError } from '../../ui/FormError';
 import { TextInput } from '../../ui/TextInput';
 import { useSession } from '../session';
 
@@ -45,7 +46,7 @@ export function CodeEntryScreen() {
           autoComplete="off"
           autoFocus
         />
-        {error !== null && <p className="text-center text-sm text-danger">{error}</p>}
+        <FormError message={error} className="text-center" />
         <Button type="submit" disabled={busy || code.trim().length === 0}>
           {t('entry.submit')}
         </Button>

@@ -1,12 +1,16 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useTranslation } from '../i18n/LocaleProvider';
+
 /**
  * Centered modal dialog — the shared surface for every dialog in the app (a code prompt, a player
- * detail, a task/reward action). Closes on backdrop click and Escape; the panel keeps clear of the
- * top/bottom safe-area insets. It is deliberately a touch wider than the list cards it floats over
- * (`max-w-lg` panel vs. the `max-w-lg` content column's inner card width, plus a slim `px-2`
- * backdrop so it still overhangs the cards on a phone) — every dialog stays the same width.
+ * detail, a task/reward action). Closes on backdrop click, Escape, and a ✕ in the top-right — the
+ * same dismiss control the pair invites use (spec 15.8), so every dialog carries a visible way out.
+ * The panel keeps clear of the top/bottom safe-area insets. It is deliberately a touch wider than
+ * the list cards it floats over (`max-w-lg` panel vs. the `max-w-lg` content column's inner card
+ * width, plus a slim `px-2` backdrop so it still overhangs the cards on a phone) — every dialog
+ * stays the same width.
  */
 export function Dialog({
   open,
@@ -22,6 +26,7 @@ export function Dialog({
   ariaLabel?: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent): void => {
@@ -52,9 +57,19 @@ export function Dialog({
         className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
-        {title !== undefined && (
-          <h2 className="mb-3 text-lg font-semibold text-content">{title}</h2>
-        )}
+        {/* A header row so the ✕ sits top-right whether or not there is a visible title (`ml-auto`
+            pushes it to the wall) — matching the pair-invite dismiss control. */}
+        <div className="mb-3 flex items-start gap-3">
+          {title !== undefined && <h2 className="text-lg font-semibold text-content">{title}</h2>}
+          <button
+            type="button"
+            aria-label={t('common.close')}
+            onClick={onClose}
+            className="-mr-1 -mt-1 ml-auto shrink-0 rounded-lg px-2 text-lg leading-none text-content-muted"
+          >
+            ✕
+          </button>
+        </div>
         {children}
       </div>
     </div>,

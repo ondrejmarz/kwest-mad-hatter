@@ -25,13 +25,14 @@ import {
 } from '../../session';
 
 import { PlayerChips } from './PlayerChips';
-import { PlayerFacts, selectPlayerFacts } from './PlayerFacts';
+import { selectPlayerFacts } from './PlayerFacts';
 import { PlayerLedgerView } from './PlayerLedgerView';
 
 /**
- * Player detail (spec 9.1). For every player it surfaces the useful public facts — coins and the
- * current task. On the player's own card it also shows their secret plans (tomorrow's reservation
- * and any reward bid), which only they can read. A foreign character is claimed by entering its
+ * Player detail (spec 9.1). The card header (name, status chips, coins) identifies the player; the
+ * task/reward/punishment facts are not repeated here — they already sit on the roster row. On the
+ * player's own card it adds their secret plans (tomorrow's reservation and any reward bid, which
+ * only they can read) and their stats + coin history. A foreign card is just a claim: enter its
  * 4-digit PIN — the same whether it is the first claim or moving the character to this device.
  */
 export function PlayerDetailDialog({
@@ -118,8 +119,6 @@ export function PlayerDetailDialog({
         chips={chips}
         footerRight={<CoinAmount amount={player.coins} />}
       />
-
-      <PlayerFacts player={player} won={won} targetedBy={targetedBy} />
 
       {mine && (
         <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">

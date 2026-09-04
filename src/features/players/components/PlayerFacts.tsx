@@ -57,7 +57,11 @@ export function PlayerFacts({
             <p className="text-content-muted">{localize(active.description, locale)}</p>
           )}
           {active.partnerNames.length > 0 && (
-            <p className="text-content-muted">{active.partnerNames.join(', ')}</p>
+            <p className="text-content-muted">
+              {active.partnerNames.length === 1
+                ? t('players.partnerWith', { name: active.partnerNames.join(', ') })
+                : t('players.groupWith', { names: active.partnerNames.join(', ') })}
+            </p>
           )}
         </Section>
       )}

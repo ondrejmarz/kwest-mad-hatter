@@ -7,14 +7,14 @@ import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
 import { PlayerChips } from './PlayerChips';
-import { PlayerFacts } from './PlayerFacts';
+import { PlayerFactCards } from './PlayerFactCards';
 
 /**
  * One player in the list (spec 9.1): name, status chips, coins and (for an admin) an edit pencil.
- * Below the bands come the shared fact sections — task, won rewards, being a target — so a row
- * shows the same facts as the opened detail. Chips always state whether the player has a task, and
- * flag a won reward or being a target. All coin changes go through the edit dialog, which requires
- * a note.
+ * Below the bands come the shared fact cards — task, won rewards, being a target, one card each — so
+ * a row shows the same facts (and the same card shape) as the profile. Chips always state whether the
+ * player has a task, and flag a won reward or being a target. All coin changes go through the edit
+ * dialog, which requires a note.
  */
 export const PlayerRow = memo(function PlayerRow({
   player,
@@ -40,6 +40,12 @@ export const PlayerRow = memo(function PlayerRow({
       onClick={onOpen}
       highlighted={mine}
       title={player.name}
+      topRight={
+        <div className="flex items-center gap-2">
+          {isAdmin && <EditButton onClick={onEdit} />}
+          <CoinAmount amount={player.coins} />
+        </div>
+      }
       chips={
         <PlayerChips
           player={player}
@@ -49,10 +55,12 @@ export const PlayerRow = memo(function PlayerRow({
           hasReservation={hasReservation}
         />
       }
-      footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
-      footerRight={<CoinAmount amount={player.coins} />}
     >
-      <PlayerFacts player={player} won={won} targetedBy={targetedBy} />
+      {(player.activeTask !== null || won.length > 0 || targetedBy.length > 0) && (
+        <div className="mt-3 flex flex-col gap-2">
+          <PlayerFactCards player={player} won={won} targetedBy={targetedBy} />
+        </div>
+      )}
     </ListCard>
   );
 });

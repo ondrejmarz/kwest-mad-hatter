@@ -30,7 +30,9 @@ export function InstallBanner() {
   };
 
   return (
-    <div className="px-6 pt-4">
+    // No horizontal padding of its own — it sits in the entry shell's padded scroll area, so it
+    // matches the width of the cards below it; the bottom margin keeps them from touching.
+    <div className="mb-4">
       {/* Same shape as the pair-invite cards (InviteBanner): the ✕ sits top-right, and the action
           sits on its own full-width row below so it reaches the right wall, under the ✕. */}
       <div className="rounded-2xl border border-border bg-surface-raised p-4 shadow-sm">

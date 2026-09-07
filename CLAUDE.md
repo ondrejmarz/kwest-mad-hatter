@@ -170,7 +170,7 @@ Hard rules:
   IconKitchen and drop the files in to update. SW registration only runs on a real
   browser/HTTPS; the sandboxed in-app preview browser blocks it.
 - **Install prompt / add to home screen:** a dismissible `InstallBanner` on the entry screen
-  (`EntryLayout`), hidden once running standalone (`display-mode: standalone` + iOS
+  (`EntryTabsLayout`), hidden once running standalone (`display-mode: standalone` + iOS
   `navigator.standalone`; iPadOS-as-Mac disambiguated by touch points). Chrome/Chromium's
   `beforeinstallprompt` is captured at module load by a React-free store
   (`platform/install/beforeInstallPrompt`), so it survives firing before React mounts; Chrome no

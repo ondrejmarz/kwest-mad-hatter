@@ -1,9 +1,10 @@
 import { readJson, remove, writeJson } from './storage';
 
 /**
- * The turnus a device last entered (spec 3a). Persisted so a returning device goes
- * straight in; cleared by "switch turnus". Also recoverable from the `/t/{slug}` URL,
- * so a wipe (iOS clears PWA data after ~7 days) never strands the user (spec 12).
+ * The turnus a device last entered (spec 3a). Persisted so a returning device goes straight in
+ * (the whole "remember my turnus" mechanism — not the URL); cleared by "switch turnus". If a wipe
+ * clears it (iOS drops PWA data after ~7 days idle) the player re-picks their turnus in the Skupiny
+ * tab.
  */
 export interface RememberedTurnus {
   readonly id: string;

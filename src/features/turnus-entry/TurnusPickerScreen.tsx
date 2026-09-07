@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
 import { db } from '../../data/firebase';
-import { listTurnuses } from '../../data/repositories/turnus';
+import { getMyRole, listTurnuses } from '../../data/repositories/turnus';
 import type { Turnus } from '../../data/schemas/turnus';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
+import { useSession } from '../session';
 
-import { EntryLayout } from './EntryLayout';
+import type { EntryOutletContext } from './EntryTabsLayout';
+import { JoinTurnusDialog } from './JoinTurnusDialog';
 
-/** Lists the available turnuses; picking one routes to its `/t/{slug}` entry (spec 3a). */
+/** The Skupiny tab (spec 3a): lists every turnus; picking one opens the join dialog. */
 export function TurnusPickerScreen() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const { uid } = useSession();
+  const { beginEnter } = useOutletContext<EntryOutletContext>();
   const [turnuses, setTurnuses] = useState<readonly Turnus[] | null>(null);
+  const [selected, setSelected] = useState<Turnus | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -30,21 +35,60 @@ export function TurnusPickerScreen() {
     };
   }, []);
 
+  // A device that already belongs to this turnus (a code was accepted here before) skips the code
+  // and goes straight in; a turnus it has never joined still needs the code (the rules require it).
+  const pick = async (turnus: Turnus): Promise<void> => {
+    if (uid === null || checking !== null) return;
+    setChecking(turnus.id);
+    try {
+      const role = await getMyRole(db, turnus.id, uid);
+      if (role !== null) beginEnter(turnus);
+      else setSelected(turnus);
+    } catch {
+      setSelected(turnus);
+    } finally {
+      setChecking(null);
+    }
+  };
+
   return (
-    <EntryLayout title={t('entry.pickTitle')} subtitle={t('entry.pickSubtitle')}>
-      {turnuses === null ? (
-        <div className="flex justify-center">
-          <Spinner />
-        </div>
-      ) : turnuses.length === 0 ? (
-        <p className="text-center text-content-muted">{t('entry.empty')}</p>
-      ) : (
-        turnuses.map((turnus) => (
-          <Button key={turnus.id} variant="secondary" onClick={() => navigate(`/t/${turnus.slug}`)}>
-            {turnus.name}
-          </Button>
-        ))
+    <section className="flex flex-col gap-6">
+      <header className="text-center">
+        {/* Smaller on phones (a long title wraps on a narrow iPhone), full size from sm up. */}
+        <h1 className="text-balance text-xl font-bold text-content sm:text-2xl">
+          {t('entry.pickTitle')}
+        </h1>
+        <p className="mt-2 text-content-muted">{t('entry.pickSubtitle')}</p>
+      </header>
+
+      <div className="flex flex-col gap-3">
+        {turnuses === null ? (
+          <div className="flex justify-center">
+            <Spinner />
+          </div>
+        ) : turnuses.length === 0 ? (
+          <p className="text-center text-content-muted">{t('entry.empty')}</p>
+        ) : (
+          turnuses.map((turnus) => (
+            <Button
+              key={turnus.id}
+              variant="secondary"
+              disabled={checking !== null}
+              onClick={() => void pick(turnus)}
+            >
+              {turnus.name}
+            </Button>
+          ))
+        )}
+      </div>
+
+      {selected !== null && (
+        <JoinTurnusDialog
+          turnus={selected}
+          onClose={() => setSelected(null)}
+          onJoined={() => beginEnter(selected)}
+        />
       )}
-    </EntryLayout>
+    </section>
   );
 }

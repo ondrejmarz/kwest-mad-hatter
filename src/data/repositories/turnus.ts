@@ -1,4 +1,4 @@
-import { type Firestore, getDocs, limit, query, where } from 'firebase/firestore';
+import { type Firestore, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 import { roleDoc, turnusDoc, turnusesCol } from '../paths';
 import { parseRole, parseTurnus, type Role, type Turnus } from '../schemas/turnus';
@@ -18,11 +18,13 @@ export const subscribeMyRole = (
   onState: (state: Subscription<Role | null>) => void,
 ): (() => void) => subscribeDoc(roleDoc(db, t, uid), parseRole, onState);
 
-/** Turnus entry resolves the bookmarkable `/t/{slug}` URL to a turnus (spec 3). */
-export async function getTurnusBySlug(db: Firestore, slug: string): Promise<Turnus | null> {
-  const snap = await getDocs(query(turnusesCol(db), where('slug', '==', slug), limit(1)));
-  const first = snap.docs[0];
-  return first ? parseTurnus(first.id, first.data({ serverTimestamps: 'estimate' })) : null;
+/**
+ * A one-shot read of this device's role in a turnus (spec 3) — used to skip the code prompt when a
+ * device already belongs to the group it tapped. `null` means "not a member" (needs the code).
+ */
+export async function getMyRole(db: Firestore, t: string, uid: string): Promise<Role | null> {
+  const snap = await getDoc(roleDoc(db, t, uid));
+  return snap.exists() ? parseRole(snap.id, snap.data()) : null;
 }
 
 /** The turnus picker lists every non-archived turnus (spec 3a). */

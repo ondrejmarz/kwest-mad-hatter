@@ -32,7 +32,9 @@ export function ListCard({
   children?: ReactNode;
 }) {
   const className = cx(
-    'w-full rounded-xl border px-4 py-3 text-left',
+    // Uniform padding so nested content (the player's fact cards) sits the same distance from every
+    // edge, not a tighter gap top/bottom than the sides.
+    'w-full rounded-xl border p-4 text-left',
     highlighted ? 'border-accent bg-accent/5' : 'border-border bg-surface-raised',
     onClick !== undefined && 'tap-target cursor-pointer',
   );

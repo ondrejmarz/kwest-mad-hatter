@@ -1,40 +1,36 @@
-import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { PlayersScreen } from '../features/players';
+import { ProfileScreen } from '../features/profile';
 import { RewardsScreen } from '../features/rewards';
-import { RulesScreen } from '../features/rules';
 import { TasksScreen } from '../features/tasks';
-import { TurnusEntryRoute, TurnusEntryScreen } from '../features/turnus-entry';
-import { Spinner } from '../ui/Spinner';
+import {
+  EntryAboutScreen,
+  EntryContactScreen,
+  EntryRulesScreen,
+  EntryTabsLayout,
+  TurnusPickerScreen,
+} from '../features/turnus-entry';
 
 import { AppLayout } from './AppLayout';
-import { AppErrorBoundary, RouteError } from './ErrorBoundary';
-import { RequireAdmin } from './guards/RequireAdmin';
+import { RouteError } from './ErrorBoundary';
 import { RequireTurnus } from './guards/RequireTurnus';
 import { GameProviders } from './providers/GameProviders';
 
-// The whole admin feature is lazy — most users never load it (spec 15.13). The dynamic import is
-// retried a few times: the admin chunk is fetched the first time a device opens the admin area,
-// often moments after unlocking admin, when a transient network hiccup or a just-activated service
-// worker can drop the request. React caches a lazy rejection permanently, so without the retry a
-// single blip would wedge the admin tab on the error screen until a full reload.
-const AdminScreen = lazy(async () => {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    try {
-      return { default: (await import('../features/admin')).AdminScreen };
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError;
-});
-
 export const router = createBrowserRouter([
-  { path: '/t/:slug', element: <TurnusEntryRoute />, errorElement: <RouteError /> },
-  { path: '/enter', element: <TurnusEntryScreen />, errorElement: <RouteError /> },
+  {
+    // The pre-turnus shell: a tabbed picker (Skupiny / Pravidla / Kontakt / Aplikace). The layout
+    // itself gates — a device that already belongs to its remembered turnus is sent straight in.
+    path: '/enter',
+    element: <EntryTabsLayout />,
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <TurnusPickerScreen /> },
+      { path: 'rules', element: <EntryRulesScreen /> },
+      { path: 'contact', element: <EntryContactScreen /> },
+      { path: 'about', element: <EntryAboutScreen /> },
+    ],
+  },
   {
     element: <RequireTurnus />,
     errorElement: <RouteError />,
@@ -50,34 +46,9 @@ export const router = createBrowserRouter([
               { path: 'players', element: <PlayersScreen /> },
               { path: 'tasks', element: <TasksScreen /> },
               { path: 'rewards', element: <RewardsScreen /> },
-              { path: 'rules', element: <RulesScreen /> },
-              {
-                element: <RequireAdmin />,
-                children: [
-                  {
-                    path: 'admin',
-                    // A boundary in-shell (nav stays put) rather than letting a failed admin chunk
-                    // bubble up and blank the whole app to the route error — same recover-by-reload
-                    // screen either way, but here a first-load hiccup stays contained to this pane.
-                    element: (
-                      <AppErrorBoundary>
-                        {/* Centre the chunk-loading spinner like every in-content loader
-                            (and the admin screen's own), so it matches instead of sitting
-                            top-left while the lazy admin bundle downloads. */}
-                        <Suspense
-                          fallback={
-                            <div className="flex justify-center py-10">
-                              <Spinner />
-                            </div>
-                          }
-                        >
-                          <AdminScreen />
-                        </Suspense>
-                      </AppErrorBoundary>
-                    ),
-                  },
-                ],
-              },
+              // Admin actions live on Profil+ (an admin-only section of the profile), lazily loaded
+              // there — there is no separate admin route anymore.
+              { path: 'profile', element: <ProfileScreen /> },
             ],
           },
         ],

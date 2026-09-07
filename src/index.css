@@ -258,3 +258,18 @@
     animation: none;
   }
 }
+
+/*
+ * "Turn your phone upright" overlay (OrientationGate). The installed PWA is already pinned to
+ * portrait by the manifest; this covers the browser case, where orientation can't be locked. Hidden
+ * by default; shown only on a short, coarse-pointer landscape viewport (a phone on its side) — not on
+ * tablets or a resized desktop window.
+ */
+.orientation-gate {
+  display: none;
+}
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 600px) {
+  .orientation-gate {
+    display: flex;
+  }
+}

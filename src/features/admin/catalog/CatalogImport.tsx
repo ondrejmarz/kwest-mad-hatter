@@ -56,7 +56,8 @@ export function CatalogImport({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-raised p-4">
+    // Frameless — it always lives inside a dialog now, which provides the card frame.
+    <div className="flex flex-col gap-3">
       <h2 className="font-semibold text-content">{t('catalog.importTitle')}</h2>
       <div className="flex gap-2">
         <Tab active={isTasks} onClick={() => switchTab('tasks')}>

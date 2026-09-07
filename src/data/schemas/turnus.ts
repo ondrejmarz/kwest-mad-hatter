@@ -23,6 +23,9 @@ export const turnusSchema = z.object({
   maxActivePunishesPerPlayer: z.number(),
   noPickPenalty: z.number(),
   dayLocked: z.boolean(),
+  // When on, a turnus reveals every player's stats/history to the group (spec, "Not yet built" #1).
+  // Defaulted so turnus docs written before this field still parse (they read as private).
+  publicProfiles: z.boolean().default(false),
   nextDayCategories: z.array(z.string()).readonly(),
   currentDayCategories: z.array(z.string()).readonly(),
 });

@@ -31,6 +31,7 @@ export function TurnusSettingsDialog({
   const [maxRewards, setMaxRewards] = useState(String(turnus.maxActiveRewardsPerPlayer));
   const [maxPunishes, setMaxPunishes] = useState(String(turnus.maxActivePunishesPerPlayer));
   const [allowNegative, setAllowNegative] = useState(turnus.allowNegativeBalance);
+  const [publicProfiles, setPublicProfiles] = useState(turnus.publicProfiles);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (event: FormEvent): void => {
@@ -49,6 +50,7 @@ export function TurnusSettingsDialog({
     const fields: TurnusSettingsFields = {
       ...values,
       allowNegativeBalance: allowNegative,
+      publicProfiles,
     };
     void updateTurnusSettings(db, turnusId, fields);
     onClose();
@@ -95,6 +97,11 @@ export function TurnusSettingsDialog({
           label={t('turnusSettings.allowNegative')}
           checked={allowNegative}
           onChange={setAllowNegative}
+        />
+        <Checkbox
+          label={t('turnusSettings.publicProfiles')}
+          checked={publicProfiles}
+          onChange={setPublicProfiles}
         />
         <FormError message={error} />
         <Button type="submit">{t('turnusSettings.save')}</Button>

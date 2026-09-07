@@ -6,7 +6,6 @@ import { subscribeAllBids } from '../../../data/repositories/rewardBids';
 import { toTurnusSettings, type Turnus } from '../../../data/schemas/turnus';
 import type { Subscription } from '../../../data/subscriptions';
 import { runRollover } from '../../../data/transactions/runRollover';
-import { setDayLock } from '../../../data/transactions/setDayLock';
 import type { PlayerId } from '../../../domain/ids';
 import { resolveRollover } from '../../../domain/rollover';
 import type { RolloverInput, RolloverPreview } from '../../../domain/rollover';
@@ -32,18 +31,21 @@ function safePreview(input: RolloverInput): RolloverPreview | null {
  * Day evaluation (spec 6). The admin ticks who finished their active task; the panel runs the
  * exact pure `resolveRollover` for a live preview of the settlement and tomorrow's assignments,
  * then commits it in one transaction. Every approved player is settled: an unticked player who
- * had a task counts as failed.
+ * had a task counts as failed. The day is already locked (its dialog holds the lock open, spec 6
+ * decision), so there is no lock control here; evaluating advances the day and reopens it.
  */
 export function EvaluationPanel({
   turnus,
   players,
   tasks,
   rewards,
+  onEvaluated,
 }: {
   turnus: Turnus;
   players: readonly Player[];
   tasks: readonly Task[];
   rewards: readonly Reward[];
+  onEvaluated?: () => void;
 }) {
   const { t, locale } = useTranslation();
   const [completed, setCompleted] = useState<ReadonlySet<PlayerId>>(new Set());
@@ -82,41 +84,25 @@ export function EvaluationPanel({
   };
   const ready = reservations.status === 'ready' && bids.status === 'ready';
   const preview = ready ? safePreview(input) : null;
-  // Locking the day gates the whole evaluation: no ticking completions, no evaluating, until
-  // the admin deliberately freezes the day (spec 6, decision).
-  const locked = turnus.dayLocked;
-
   const evaluate = async (): Promise<void> => {
     if (busy) return;
     setBusy(true);
     await runRollover(db, turnus.id, input);
     setBusy(false);
     setCompleted(new Set());
+    // Rollover advanced the day and reopened it; close the dialog (its unmount clears the lock).
+    onEvaluated?.();
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-raised p-4">
+    // Frameless — it always lives inside a dialog now, which provides the card frame.
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-semibold text-content">{t('eval.title')}</h2>
         <span className="text-sm text-content-muted">
           {t('eval.day', { day: turnus.currentDay })}
         </span>
       </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-content-muted">
-          {locked ? t('eval.locked') : t('eval.open')}
-        </span>
-        <Button
-          variant={locked ? 'secondary' : 'primary'}
-          className="shrink-0"
-          disabled={busy}
-          onClick={() => void setDayLock(db, turnus.id, !locked)}
-        >
-          {locked ? t('eval.unlock') : t('eval.lock')}
-        </Button>
-      </div>
-      {!locked && <p className="text-sm text-content-muted">{t('eval.lockHint')}</p>}
 
       {withTask.length === 0 ? (
         <p className="text-sm text-content-muted">{t('eval.noActiveTasks')}</p>
@@ -127,7 +113,6 @@ export function EvaluationPanel({
               <Checkbox
                 label={player.name}
                 checked={completed.has(player.id)}
-                disabled={!locked}
                 onChange={(done) => toggle(player.id, done)}
               />
               {player.activeTask !== null && (
@@ -143,7 +128,7 @@ export function EvaluationPanel({
       {preview !== null && <EvaluationPreview preview={preview} />}
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
-        <Button disabled={busy || !ready || !locked} onClick={() => void evaluate()}>
+        <Button disabled={busy || !ready} onClick={() => void evaluate()}>
           {t('eval.evaluate')}
         </Button>
       </div>

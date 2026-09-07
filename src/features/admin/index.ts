@@ -1,1 +1,1 @@
-export { AdminScreen } from './AdminScreen';
+export { ProfileAdminSection } from './ProfileAdminSection';

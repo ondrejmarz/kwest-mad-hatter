@@ -17,7 +17,7 @@ export function Chip({ children, tone = 'muted' }: { children: ReactNode; tone?:
   return (
     <span
       className={cx(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-medium',
         TONES[tone],
       )}
     >

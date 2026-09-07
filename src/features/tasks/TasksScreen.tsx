@@ -189,53 +189,57 @@ export function TasksScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          <Select value={sort} onChange={(event) => setSort(event.target.value as TaskSort)}>
-            {TASK_SORTS.map((value) => (
-              <option key={value} value={value}>
-                {t(`sort.${value}`)}
-              </option>
-            ))}
-          </Select>
-          <Select value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="">{t('tasks.allCategories')}</option>
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.key} value={option.key}>
-                {t(`tasks.${option.labelKey}`)}
-              </option>
-            ))}
-            {categories.map((category) => (
-              <option key={category.cs} value={category.cs}>
-                {categoryLabel(localize(category, locale))}
-              </option>
-            ))}
-          </Select>
-          {myPlayer !== null && (
-            <div className="flex w-full flex-wrap gap-x-4 gap-y-1 py-1">
-              <Checkbox
-                label={t('tasks.onlyAvailableToday')}
-                checked={availToday}
-                onChange={setAvailToday}
-              />
-              <Checkbox
-                label={t('tasks.onlyAvailableTomorrow')}
-                checked={availTomorrow}
-                onChange={setAvailTomorrow}
-              />
-            </div>
+      <div className="flex flex-col gap-2">
+        {/* Sort + filter share a row with the admin add (+), which lines up with them; the two
+            availability toggles sit below, each on its own line. */}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            <Select value={sort} onChange={(event) => setSort(event.target.value as TaskSort)}>
+              {TASK_SORTS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`sort.${value}`)}
+                </option>
+              ))}
+            </Select>
+            <Select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <option value="">{t('tasks.allCategories')}</option>
+              {TYPE_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {t(`tasks.${option.labelKey}`)}
+                </option>
+              ))}
+              {categories.map((category) => (
+                <option key={category.cs} value={category.cs}>
+                  {categoryLabel(localize(category, locale))}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {isAdmin && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="shrink-0"
+              aria-label={t('tasks.add')}
+              onClick={() => setEditing(null)}
+            >
+              +
+            </Button>
           )}
         </div>
-        {isAdmin && (
-          <Button
-            variant="secondary"
-            size="icon"
-            className="shrink-0"
-            aria-label={t('tasks.add')}
-            onClick={() => setEditing(null)}
-          >
-            +
-          </Button>
+        {myPlayer !== null && (
+          <div className="flex flex-col gap-1">
+            <Checkbox
+              label={t('tasks.onlyAvailableToday')}
+              checked={availToday}
+              onChange={setAvailToday}
+            />
+            <Checkbox
+              label={t('tasks.onlyAvailableTomorrow')}
+              checked={availTomorrow}
+              onChange={setAvailTomorrow}
+            />
+          </div>
         )}
       </div>
 

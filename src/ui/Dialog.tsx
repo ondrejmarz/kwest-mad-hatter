@@ -5,12 +5,11 @@ import { useTranslation } from '../i18n/LocaleProvider';
 
 /**
  * Centered modal dialog — the shared surface for every dialog in the app (a code prompt, a player
- * detail, a task/reward action). Closes on backdrop click, Escape, and a ✕ in the top-right — the
- * same dismiss control the pair invites use (spec 15.8), so every dialog carries a visible way out.
- * The panel keeps clear of the top/bottom safe-area insets. It is deliberately a touch wider than
- * the list cards it floats over (`max-w-lg` panel vs. the `max-w-lg` content column's inner card
- * width, plus a slim `px-2` backdrop so it still overhangs the cards on a phone) — every dialog
- * stays the same width.
+ * detail, a task/reward action). It closes on Escape, on a click anywhere in the dim outside the
+ * panel, and on the round ✕ button that sits just below the panel — one dismiss control for the whole
+ * app (no per-panel corner ✕). The panel is top-anchored so a tall dialog rides up over the app-name
+ * header (never the whole header) instead of overflowing, and scrolls inside itself; the ✕ stays put
+ * right beneath it. The page behind is locked so only the dialog scrolls (spec 15.8).
  */
 export function Dialog({
   open,
@@ -46,7 +45,14 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="safe-top safe-bottom fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-2 py-4"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black/40 px-2"
+      // Centered when it fits; a full-height dialog fills the space (capped by the panel's max-height)
+      // and so rides up to just below the safe area, covering the app name but not the header's top
+      // edge. The bottom inset keeps the ✕ off the home indicator.
+      style={{
+        paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)',
+      }}
       onClick={onClose}
       role="presentation"
     >
@@ -54,24 +60,28 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={title ?? ariaLabel}
-        className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
+        className="w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface-raised p-5 shadow-lg"
+        // Cap the panel so the ✕ below it always stays on screen; the panel itself scrolls.
+        style={{
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 6rem)',
+        }}
         onClick={(event) => event.stopPropagation()}
       >
-        {/* A header row so the ✕ sits top-right whether or not there is a visible title (`ml-auto`
-            pushes it to the wall) — matching the pair-invite dismiss control. */}
-        <div className="mb-3 flex items-start gap-3">
-          {title !== undefined && <h2 className="text-lg font-semibold text-content">{title}</h2>}
-          <button
-            type="button"
-            aria-label={t('common.close')}
-            onClick={onClose}
-            className="-mr-1 -mt-1 ml-auto shrink-0 rounded-lg px-2 text-lg leading-none text-content-muted"
-          >
-            ✕
-          </button>
-        </div>
+        {title !== undefined && (
+          <h2 className="mb-3 text-lg font-semibold text-content">{title}</h2>
+        )}
         {children}
       </div>
+      {/* The one dismiss control: a round ✕ hugging the bottom of the panel, so people learn to
+          reach for it. The dim around it also closes (the presentation div above). */}
+      <button
+        type="button"
+        aria-label={t('common.close')}
+        onClick={onClose}
+        className="mt-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface-raised text-lg leading-none text-content-muted shadow-lg"
+      >
+        ✕
+      </button>
     </div>,
     document.body,
   );

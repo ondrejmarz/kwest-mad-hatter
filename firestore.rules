@@ -285,7 +285,7 @@ service cloud.firestore {
       // leaks whether someone else's exists. A `list` gates on the stored `playerId` per returned doc
       // (the client only ever queries its own with `where playerId == me`); the id wildcard is not
       // bound during a collection list. A write binds the stored `playerId`/`rewardId` to the id.
-      // Placing or raising a bid is frozen while the day is locked; withdrawing stays open. Admins may
+      // Placing, raising and withdrawing a bid are all frozen while the day is locked. Admins may
       // write them — evaluation deletes them at rollover.
       match /rewardBids/{id} {
         allow get: if isAdmin(t) || (hasPlayer(t) && id.split('_')[0] == myPlayerId(t));
@@ -294,7 +294,8 @@ service cloud.firestore {
           || (hasPlayer(t) && dayUnlocked(t)
               && request.resource.data.playerId == myPlayerId(t)
               && id == request.resource.data.playerId + '_' + request.resource.data.rewardId);
-        allow delete: if isAdmin(t) || (hasPlayer(t) && id.split('_')[0] == myPlayerId(t));
+        allow delete: if isAdmin(t)
+          || (hasPlayer(t) && dayUnlocked(t) && id.split('_')[0] == myPlayerId(t));
       }
 
       // Public aggregate interest per reward — a count only, no bidders or amounts (spec 8).

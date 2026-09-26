@@ -21,8 +21,8 @@ import { TextInput } from '../../../ui/TextInput';
 /**
  * Tap a reward, bid on it in the day's hidden auction (spec 8). A bid must be at least the reward's
  * price — the starting bid — and can be raised; only the number of interested players is shown,
- * never who or how much. The winner is decided and charged at evaluation. Bidding is frozen once
- * the admin locks the day, though a bid already placed can still be withdrawn.
+ * never who or how much. The winner is decided and charged at evaluation. Once the admin locks the
+ * day the auction is frozen: no new bids, no changes, no withdrawals.
  */
 export function RewardBidDialog({
   reward,
@@ -84,13 +84,14 @@ export function RewardBidDialog({
     );
   };
 
-  const run = async (action: Promise<{ ok: boolean }>): Promise<void> => {
+  const withdraw = async (): Promise<void> => {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await action;
+    const result = await cancelBid(db, turnusId, myPlayer.id, reward.id);
     setBusy(false);
     if (result.ok) onClose();
+    else if (result.error.code === 'DAY_LOCKED') setError(t('rewards.bidLocked'));
     else setError(t('entry.offline'));
   };
 
@@ -228,12 +229,9 @@ export function RewardBidDialog({
           </form>
         )}
 
-        {mine && (
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() => void run(cancelBid(db, turnusId, myPlayer.id, reward.id))}
-          >
+        {/* A locked round freezes the auction, withdrawals included (spec 8). */}
+        {mine && !settings.dayLocked && (
+          <Button variant="danger" disabled={busy} onClick={() => void withdraw()}>
             {t('rewards.cancelBid')}
           </Button>
         )}

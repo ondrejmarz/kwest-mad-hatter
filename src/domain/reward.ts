@@ -65,3 +65,12 @@ export function createBid(params: {
     createdAt,
   });
 }
+
+/**
+ * A bid can be withdrawn until the admin locks the day (spec 8). A locked day freezes the auction as
+ * the admin evaluates it, so a withdrawal can't change the result between the preview and the write.
+ */
+export function canCancelBid(turnus: TurnusSettings): Result<void, DomainError> {
+  if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
+  return ok(undefined);
+}

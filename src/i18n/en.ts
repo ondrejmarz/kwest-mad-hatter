@@ -324,9 +324,6 @@ export const en: Dictionary = {
     outcomeFailed: 'Not done',
     outcomeNoTask: 'No task',
   },
-  screens: {
-    rulesPlaceholder: 'The game rules arrive in a later phase.',
-  },
   contact: {
     title: 'Contact',
     intro: 'Something broke, or you have an idea to make it better?',

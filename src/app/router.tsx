@@ -3,11 +3,11 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { PlayersScreen } from '../features/players';
 import { ProfileScreen } from '../features/profile';
 import { RewardsScreen } from '../features/rewards';
+import { RulesScreen } from '../features/rules';
 import { TasksScreen } from '../features/tasks';
 import {
   EntryAboutScreen,
   EntryContactScreen,
-  EntryRulesScreen,
   EntryTabsLayout,
   TurnusPickerScreen,
 } from '../features/turnus-entry';
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <TurnusPickerScreen /> },
-      { path: 'rules', element: <EntryRulesScreen /> },
+      { path: 'rules', element: <RulesScreen /> },
       { path: 'contact', element: <EntryContactScreen /> },
       { path: 'about', element: <EntryAboutScreen /> },
     ],

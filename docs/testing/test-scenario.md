@@ -70,7 +70,12 @@ Když se po vyhodnocení zůstatek liší, zastav se a zjisti proč. Další kol
     dá přejíždět prstem.
   - V hlavičce vlevo verze a ©. Na **Aplikace** je nadpis „O aplikaci“ a „Verze …“ s číslem
     nasazené verze.
-  - **Pravidla**: „Pravidla hry se objeví v další fázi.“ **Kontakt**: odkaz **GitHub Projekt**.
+  - **Pravidla**: nadpis „Pravidla hry“, pod ním zkratky sekcí a karty s pravidly. Zkratka
+    **Rezervace** posune stránku na sekci „Rezervace na příští kolo“.
+  - Ťukni na „Když o stejný úkol stojí víc hráčů, dostane ho chudší.“ Otevře se „Pravidlo
+    chudšího“ s příklady a dole „Souvisí“. Odkaz **Skupinové úkoly** přepne dialog na jiné
+    pravidlo. Dole na stránce stojí „Pravidla odpovídají hře ke dni …“ s datem.
+  - **Kontakt**: odkaz **GitHub Projekt**.
 - [ ] **0.2** · všichni — Nainstaluj aplikaci ještě **před** vstupem do skupiny. Na iPhonu má
       aplikace na ploše vlastní úložiště, oddělené od Safari. Kdo vstoupí v Safari a teprve pak
       nainstaluje, je v nainstalované aplikaci nové zařízení.
@@ -85,7 +90,8 @@ Když se po vyhodnocení zůstatek liší, zastav se a zjisti proč. Další kol
 - [ ] **0.4** · A nebo B — V prohlížeči (ne v nainstalované aplikaci) otoč telefon naležato.
   - Zobrazí se „Otoč telefon na výšku“.
 - [ ] **0.5** · kdokoli — Přepínačem jazyka vpravo nahoře zkus CS → EN → DE a zase CS.
-  - Texty rozhraní se přeloží celé. Názvy skupin zůstanou, jak je organizátor napsal.
+  - Texty rozhraní se přeloží celé, včetně pravidel. Názvy skupin zůstanou, jak je organizátor
+    napsal.
 
 ## Fáze 1 — Vstup do skupiny
 
@@ -419,8 +425,8 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
 - [ ] **K6.9** · C — **Zamknout kolo** a dialog nech otevřený.
   - A otevře H1: „Rezervováno na příští kolo“ a „Kolo je zamčené, teď to měnit nejde.“ Zrušit to
     nejde.
-  - B otevře R3: „Kolo je zamčené, teď přihazovat nejde.“ Tlačítko **Zrušit přihoz** tam zůstává,
-    stáhnout přihoz jde i při zamčeném kole. Neťukej na něj.
+  - B otevře R3: „Kolo je zamčené, teď přihazovat nejde.“ Tlačítko **Zrušit přihoz** tam není,
+    zamčené kolo nepustí ani stažení přihozu.
 - [ ] **K6.10** · C — Zaškrtni Adama a Báru.
   - Zúčtování: Adam +100, Bára +100, Cyril „Bez úkolu“ −30.
   - Přiděleno: Cyril → H3 Kvíz, Adam → H1 Hádanka. **Nevyšlo**: „Bára: H3 Kvíz“. Když o úkol

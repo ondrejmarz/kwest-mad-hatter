@@ -374,7 +374,7 @@ describe('reward bids are secret', () => {
     await assertFails(deleteDoc(doc(authed('carol'), path('rewardBids/p1_r1'))));
   });
 
-  it('freezes new and raised bids while the day is locked, but still allows withdrawal', async () => {
+  it('freezes raising and withdrawing bids while the day is locked', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `turnuses/${T}`), {
         name: 'Demo',
@@ -384,7 +384,7 @@ describe('reward bids are secret', () => {
       });
     });
     await assertFails(updateDoc(doc(authed('alice'), path('rewardBids/p1_r1')), { amount: 50 }));
-    await assertSucceeds(deleteDoc(doc(authed('alice'), path('rewardBids/p1_r1'))));
+    await assertFails(deleteDoc(doc(authed('alice'), path('rewardBids/p1_r1'))));
   });
 });
 

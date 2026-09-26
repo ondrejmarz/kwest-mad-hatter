@@ -25,6 +25,7 @@
     "vitest.config.ts",
     "vitest.rules.config.ts",
     "tailwind.config.ts",
-    "seed/**/*.ts"
+    "seed/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }

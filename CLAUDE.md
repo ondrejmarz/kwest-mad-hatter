@@ -24,6 +24,8 @@ live in "Not yet built" below and as GitHub issues; the durable design lives in 
 - `npm run test:rules` — Firestore rules tests inside the emulator (needs a JRE).
 - `npm run test:coverage` — coverage (domain must reach 100% branch).
 - `npm run lint` / `npm run format`.
+- `npm run rules:wiki` — renders the English rules to `wiki/Rules.md` (clone the GitHub wiki into
+  the gitignored `wiki/`, then commit and push there).
 
 Requires Node >= 20 and, for the emulator, a JDK (21).
 
@@ -67,6 +69,11 @@ Hard rules:
 - **Manual E2E scenario:** `docs/testing/test-scenario.md` walks the whole game on three devices
   with exact expected balances (test catalog in `docs/testing/*.tsv`). New or changed user-facing
   behaviour extends it in the step where players meet it, keeping the balance table in sync.
+- **Rules text:** the Pravidla tab reads `src/i18n/rules/` (shared structure + cs/en/de text). A
+  change to game behaviour updates the rules in all three languages in the same commit and bumps
+  `RULES_CHECKED_AT` (its doc comment has the `git log` that lists what changed since). Plain
+  text only: no bold, no dashes as punctuation (a test enforces it). The wiki page is generated,
+  never edited by hand.
 - Conventional commits. **Propose commits; the human runs them.**
 - Keep the repo looking hand-written. `CLAUDE.md` is fine; avoid other "AI wrote this" traces.
 
@@ -89,20 +96,25 @@ Hard rules:
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
   rules, freezes every task and reward action for the day until evaluation: task selection,
-  reward purchases, and reservation changes alike — reserving, answering an invite, and
-  cancelling a reservation are all blocked. The UI hides the frozen actions rather than
-  offering ones the rules would reject. The lock lives exactly as long as the evaluation dialog
+  reward bids, and reservation changes alike — reserving, answering an invite, cancelling a
+  reservation, and placing, changing or withdrawing a bid are all blocked. The UI hides the
+  frozen actions rather than offering ones the rules would reject. The lock lives exactly as long as the evaluation dialog
   (`EvaluationDialog` locks on mount, unlocks on unmount), so if the evaluating device dies with
   it open the round would stay locked forever: Profil+ therefore offers an explicit
   "Odemknout kolo" whenever the round is locked and no evaluation dialog is open on this device.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
-- **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
-  pair, e.g. 2/4 range), counting the initiator. The initiator's reservation carries
-  `invitees: PlayerId[]` + `responses: {playerId → accepted|declined}` (invitees toggle until
-  evaluation, rules let them touch only their own key). At evaluation the members are the
-  initiator + accepted invitees; the group competes only if it reaches `minPlayers` (else it
-  expires), balance = poorest member.
+- **Task sizes: solo, pair, group.** A task has `minPlayers`/`maxPlayers`, counting everyone:
+  1/1 is solo, 2/2 a pair, anything else (2–4, 3–4, …) a group (`lib/group.taskType`). A **pair**
+  is reserved by its initiator with one invitee: `invitees: PlayerId[]` plus
+  `responses: {playerId → accepted|declined}`. The invitee answers once in the UI (accepted leaves only "cancel for
+  both", declined is final); rules let them touch only their own key. At evaluation the pair
+  competes only if the partner accepted (else it expires), with the poorer member's balance and
+  the initiator's reservation time. A **group** is reserved individually, with no invitees
+  (`createReservation` drops them): `buildClaims` pools the reservers per task at evaluation;
+  below `minPlayers` the pool expires for everyone, above `maxPlayers` the poorest fill the seats
+  (ties: earlier reservation), and the survivors become one claim. Groups can't be taken for the
+  current round.
 - **A pair is done together or not at all.** Once the partner has accepted, either member
   cancelling the pair's reservation, reserving something else, or accepting another pair cancels
   it for BOTH (the reservation doc is deleted; the rules let the accepted partner delete the
@@ -190,6 +202,10 @@ Hard rules:
   ties so a settlement sorts before the reward it paid for. The own-card detail shows a 2×2 stats
   grid (`derivePlayerStats`: tasks completed, rewards won, coins earned, coins spent) then the
   history. Rules let only the character's owner (and admins) read the ledger — Phase 2 widens it.
+- **Rules tab on the entry shell only.** The Pravidla tab (`features/rules`, `/enter/rules`) sits
+  on the pre-group entry screen; a player in a group reaches it by leaving, and re-entering needs
+  no code. The text is generic and never shows a group's own settings. Each rule is one line; a
+  rule with more to say opens a dialog, and a detail links to related rules (`RULE_LINKS`).
 - **Inactive catalog items stay visible to admins.** Players see only active tasks and rewards; an
   admin also sees the inactive ones, greyed out (`ListCard muted`) with a "Neaktivní" chip and
   sorted last, so the pencil can switch them back on. The TSV re-import never touches `active`.
@@ -237,8 +253,7 @@ Hard rules:
 
 ## Not yet built (backlog)
 
-Planned rework, confirmed with the user, not yet scheduled. The rules/manual page (item 3)
-stays LAST, after every mechanic is frozen.
+Planned rework, confirmed with the user, not yet scheduled.
 
 1. **Shared stats / public profiles (ledger Phase 2).** Phase 1 (the per-player ledger + the
    own-card stats grid and history) shipped — see the locked decision above. Phase 2 adds a
@@ -249,8 +264,9 @@ stays LAST, after every mechanic is frozen.
 2. **Gated turnus creation.** Only the owner may create a group; mechanism undecided
    (super-admin flag, creation code, or hand-editing the DB). Needs the `turnuses` create rule
    (currently `if false`). Decide the gate before building.
-3. **Rules tab + full manuals (LAST).** Short in-app rules with a `?` per section opening the
-   full detail; a complete player rules page and organizer manual. Only once mechanics freeze.
+3. **Organizer manual.** The player rules shipped (the Pravidla tab and the generated wiki page).
+   A manual for organizers (creating a group in the console, categories, evaluation, settings,
+   the hidden admin unlock) is still to write.
 4. **Secret achievements.** Hidden achievements earned by in-app actions, with a turnus setting
    "achievements are public" (default OFF). Obscure name + emoji + configurable coin award.
    Design the concrete list (what is technically detectable) before implementing.

@@ -325,9 +325,6 @@ export const cs = {
     outcomeFailed: 'Nesplněno',
     outcomeNoTask: 'Bez úkolu',
   },
-  screens: {
-    rulesPlaceholder: 'Pravidla hry se objeví v další fázi.',
-  },
   contact: {
     title: 'Kontakt',
     intro: 'Něco se rozbilo, nebo tě napadlo, jak to vylepšit?',

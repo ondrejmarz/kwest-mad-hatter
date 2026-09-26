@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { Day, PlayerId, RewardId } from '../ids';
-import { createBid } from '../reward';
+import { canCancelBid, createBid } from '../reward';
 
 import { makePlayer, makeReward, makeTurnus } from './fixtures';
 
@@ -116,6 +116,19 @@ describe('createBid', () => {
     expect(createBid({ ...base, amount: 60.5 })).toEqual({
       ok: false,
       error: { code: 'BID_BELOW_MINIMUM', min: 50 },
+    });
+  });
+});
+
+describe('canCancelBid', () => {
+  it('allows withdrawing a bid while the day is open', () => {
+    expect(canCancelBid(makeTurnus())).toEqual({ ok: true, value: undefined });
+  });
+
+  it('freezes withdrawals once the day is locked', () => {
+    expect(canCancelBid(makeTurnus({ dayLocked: true }))).toEqual({
+      ok: false,
+      error: { code: 'DAY_LOCKED' },
     });
   });
 });

@@ -27,6 +27,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-tabor \"vitest run --config vitest.rules.config.ts\"",
     "seed": "node --experimental-strip-types seed/seed.ts",
     "seed:cloud": "node --experimental-strip-types seed/cloud.ts",
+    "rules:wiki": "node --experimental-strip-types scripts/rules-wiki.ts",
     "verify": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "prepare": "husky"
   },

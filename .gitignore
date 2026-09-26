@@ -26,6 +26,9 @@ coverage
 !.env.example
 !.env.emulator
 
+# GitHub wiki clone, written by `npm run rules:wiki`
+/wiki
+
 # Firebase
 .firebase
 .firebaserc

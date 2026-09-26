@@ -1,13 +1,16 @@
 import { type Firestore, increment, runTransaction } from 'firebase/firestore';
 
 import type { DomainError } from '../../domain/errors';
+import { canCancelBid } from '../../domain/reward';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import { punishTargetCountsDoc, rewardBidCountsDoc, rewardBidDoc } from '../paths';
 import { parseRewardBid } from '../schemas/rewardBid';
 
+import { readTurnus } from './shared';
+
 /**
- * A player withdraws their bid before the day is evaluated (spec 8). Deleting the doc drops the
+ * A player withdraws their bid before the day is locked (spec 8). Deleting the doc drops the
  * reward's public interest count by one and frees any punishment targets it held (the live tally
  * goes down, so a locked target can be picked again). Secret, so no public event is written.
  */
@@ -19,8 +22,11 @@ export async function cancelBid(
 ): Promise<Result<void, DomainError>> {
   if (!isOnline()) return err({ code: 'REQUIRES_ONLINE' });
   return runTransaction<Result<void, DomainError>>(db, async (tx) => {
+    const turnus = await readTurnus(tx, db, t);
     const snap = await tx.get(rewardBidDoc(db, t, playerId, rewardId));
     if (!snap.exists()) return ok(undefined);
+    const allowed = canCancelBid(turnus);
+    if (!allowed.ok) return allowed;
     const bid = parseRewardBid(snap.id, snap.data() ?? {});
 
     tx.delete(rewardBidDoc(db, t, playerId, rewardId));

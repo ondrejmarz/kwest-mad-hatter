@@ -13,6 +13,7 @@ import { CardLayout } from './CardLayout';
  */
 export function ListCard({
   title,
+  topCenter,
   topRight,
   chips,
   description,
@@ -24,6 +25,7 @@ export function ListCard({
   children,
 }: {
   title: ReactNode;
+  topCenter?: ReactNode;
   topRight?: ReactNode;
   chips?: ReactNode;
   description?: ReactNode;
@@ -47,6 +49,7 @@ export function ListCard({
     <>
       <CardLayout
         title={title}
+        {...(topCenter !== undefined ? { topCenter } : {})}
         {...(topRight !== undefined ? { topRight } : {})}
         {...(chips !== undefined ? { chips } : {})}
         {...(description !== undefined ? { description } : {})}

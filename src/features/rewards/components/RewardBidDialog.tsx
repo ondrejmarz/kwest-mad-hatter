@@ -131,6 +131,7 @@ export function RewardBidDialog({
     <Dialog open onClose={onClose} ariaLabel={localize(reward.name, locale)}>
       <CardLayout
         title={localize(reward.name, locale)}
+        topRight={<CoinAmount amount={reward.price} />}
         chips={
           <>
             <Chip
@@ -152,7 +153,6 @@ export function RewardBidDialog({
         {...(reward.description.cs !== ''
           ? { description: localize(reward.description, locale) }
           : {})}
-        footerRight={<CoinAmount amount={reward.price} />}
         clampDescription={false}
       />
 

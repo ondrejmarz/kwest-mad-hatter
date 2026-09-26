@@ -23,10 +23,10 @@ export function RuleSectionCard({
       aria-labelledby={`${anchor}-title`}
       className="scroll-mt-4 rounded-2xl border border-border bg-surface-raised px-4 pt-4 pb-1"
     >
-      <h2 id={`${anchor}-title`} className="font-semibold text-content">
+      <h2 id={`${anchor}-title`} className="pb-3 font-semibold text-content">
         {title}
       </h2>
-      <ul className="divide-y divide-border">
+      <ul className="divide-y divide-border border-t border-border">
         {rules.map(({ id, text }) => (
           <li key={id}>
             {text.detail ? (

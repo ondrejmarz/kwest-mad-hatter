@@ -230,6 +230,8 @@ export const de: Dictionary = {
   },
   pair: {
     inviteChip: 'Einladung',
+    reservationChip: 'Reservierung für die nächste Runde',
+    todayChip: 'Auswahl für die laufende Runde',
     youInvited: '{names} wurde zu „{task}“ eingeladen',
     invitedBy: '{name} lädt dich zu „{task}“ ein',
     accept: 'Annehmen',
@@ -238,12 +240,6 @@ export const de: Dictionary = {
     declinedResult: 'Abgelehnt',
     pending: 'Wartet auf Antwort',
     cancelInvite: 'Für beide abbrechen',
-  },
-  todayPick: {
-    chip: 'Paar für die laufende Runde',
-    youInvited: 'Du hast {name} zur Aufgabe „{task}“ in der laufenden Runde eingeladen',
-    invited: '{name} lädt dich zur Aufgabe „{task}“ in der laufenden Runde ein',
-    waiting: 'Wartet auf Bestätigung',
   },
   rewards: {
     forms: {

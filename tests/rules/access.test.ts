@@ -541,6 +541,39 @@ describe('an abandoned claim marker can be released', () => {
   });
 });
 
+describe('answering a same-round pair invite', () => {
+  // p2 (bob) invited p4 (carol) to t1 for the current round.
+  const pending = { day: 1, taskId: 't1', playerId: 'p2', invitee: 'p4', accepted: false };
+  const seedClaim = (data: Record<string, unknown>): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path('taskClaims/1_t1')), data),
+    );
+  const ownClaim = { day: 1, taskId: 't1', playerId: 'p1' };
+
+  it('lets only the invitee decline, by marking the claim declined', async () => {
+    await seedClaim(pending);
+    const claim = (uid: string) => doc(authed(uid), path('taskClaims/1_t1'));
+    await assertFails(updateDoc(claim('alice'), { declined: true }));
+    await assertFails(updateDoc(claim('bob'), { declined: true }));
+    await assertSucceeds(updateDoc(claim('carol'), { declined: true }));
+  });
+
+  it('refuses to accept an invite that was declined', async () => {
+    await seedClaim({ ...pending, declined: true });
+    await assertFails(updateDoc(doc(authed('carol'), path('taskClaims/1_t1')), { accepted: true }));
+  });
+
+  it('frees a declined claim for anyone to take over with their own', async () => {
+    await seedClaim({ ...pending, declined: true });
+    await assertSucceeds(setDoc(doc(authed('alice'), path('taskClaims/1_t1')), ownClaim));
+  });
+
+  it('keeps a pending claim from being taken over', async () => {
+    await seedClaim(pending);
+    await assertFails(setDoc(doc(authed('alice'), path('taskClaims/1_t1')), ownClaim));
+  });
+});
+
 describe('a player cannot tamper with their own document', () => {
   it('denies raising their own coins', async () => {
     await assertFails(updateDoc(doc(authed('alice'), path('players/p1')), { coins: 9999 }));

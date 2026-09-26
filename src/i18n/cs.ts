@@ -231,6 +231,8 @@ export const cs = {
   },
   pair: {
     inviteChip: 'Pozvánka',
+    reservationChip: 'Rezervace na příští kolo',
+    todayChip: 'Výběr na probíhající kolo',
     youInvited: '{names} byl(a) pozván(a) na „{task}“',
     invitedBy: '{name} tě zve na úkol „{task}“',
     accept: 'Přijmout',
@@ -239,12 +241,6 @@ export const cs = {
     declinedResult: 'Odmítnuto',
     pending: 'Čeká na odpověď',
     cancelInvite: 'Zrušit pro oba',
-  },
-  todayPick: {
-    chip: 'Dvojice na probíhající kolo',
-    youInvited: 'Pozval(a) jsi {name} na úkol „{task}“ v probíhajícím kole',
-    invited: '{name} tě zve na úkol „{task}“ v probíhajícím kole',
-    waiting: 'Čeká na potvrzení',
   },
   rewards: {
     forms: {

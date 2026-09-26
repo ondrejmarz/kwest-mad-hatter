@@ -217,7 +217,7 @@ export const rulesCs: RulesContent = {
       detail: {
         title: 'Pozvánka do dvojice',
         blocks: [
-          'U úkolu pro dvojici vyber parťáka a dej „Rezervovat na příští kolo“ nebo „Vzít na probíhající kolo“. Parťák uvidí nahoře kartu s pozvánkou a tlačítky „Přijmout“ a „Odmítnout“. Odpověď se nedá vzít zpět. Kdo přijal, může už jen dvojici zrušit pro oba.',
+          'U úkolu pro dvojici vyber parťáka a dej „Rezervovat na příští kolo“ nebo „Vzít na probíhající kolo“. Parťák uvidí nahoře kartu s pozvánkou a tlačítky „Přijmout“ a „Odmítnout“. Odpověď se nedá vzít zpět. Oba ji uvidíte na kartě, dokud ji křížkem neschováte.',
           [
             'Pozvat můžeš jen hráče, který ten úkol ještě nedělal.',
             'Pozvánek můžeš dostat víc, přijmout ale jen jednu. Přijetím další se ta předchozí zruší, a to oběma.',

@@ -138,9 +138,13 @@ Hard rules:
   self-inflation); `taskClaims` is create-only for players. UI: "Vzít na probíhající kolo" in
   `TaskActionDialog` when the task is open in the current round. A pending same-round pair invite
   already locks its task, so the list's `takenBy` (`features/tasks/taskList.takenInRoundBy`) counts
-  it as taken for everyone but its two members. A claim whose holders have all moved on may be
-  deleted by anyone (`claimAbandoned` rule; `acceptPairPick` releases the members' old claims), so
-  a left task never stays blocked. Task-action failures map to their own message
+  it as taken for everyone but its two members. Declining marks the claim `declined` instead of
+  deleting it, so the initiator sees the answer too; a declined claim no longer holds the task
+  (`schemas/taskClaim.holdsTask`), and the next claim simply overwrites it (a rules update branch
+  that acts as a create). A claim whose holders have all moved on may be deleted by anyone
+  (`claimAbandoned` rule; `acceptPairPick` releases the members' old claims), so a left task never
+  stays blocked. Both invite kinds render through one `PairInviteCard`; an answered card stays
+  until its ✕, and the dismissal is remembered per device (`features/tasks/useDismissedInvites`). Task-action failures map to their own message
   (`features/tasks/taskErrorKey`), never a blanket "offline".
 - **Rewards are a sealed-bid auction.** Min price = starting bid, players may bid higher, only
   the interest _count_ is public. One sealed bid per (player, reward), keyed

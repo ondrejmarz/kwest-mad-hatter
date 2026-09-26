@@ -229,6 +229,8 @@ export const en: Dictionary = {
   },
   pair: {
     inviteChip: 'Invite',
+    reservationChip: 'Reservation for the next round',
+    todayChip: 'Pick for the current round',
     youInvited: '{names} was invited to “{task}”',
     invitedBy: '{name} invites you to “{task}”',
     accept: 'Accept',
@@ -237,12 +239,6 @@ export const en: Dictionary = {
     declinedResult: 'Declined',
     pending: 'Waiting for an answer',
     cancelInvite: 'Cancel for both',
-  },
-  todayPick: {
-    chip: 'Pair for the current round',
-    youInvited: 'You invited {name} to “{task}” in the current round',
-    invited: '{name} invites you to “{task}” in the current round',
-    waiting: 'Waiting for confirmation',
   },
   rewards: {
     forms: {

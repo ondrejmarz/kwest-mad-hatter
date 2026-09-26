@@ -1,4 +1,4 @@
-import type { TaskClaim } from '../../data/schemas/taskClaim';
+import { holdsTask, type TaskClaim } from '../../data/schemas/taskClaim';
 import type { PlayerId, TaskId } from '../../domain/ids';
 import type { LocalizedText, Player, Task } from '../../domain/types';
 import { localize } from '../../i18n/localize';
@@ -51,8 +51,9 @@ export function taskCategories(tasks: readonly Task[], locale: Locale): readonly
  * Which tasks someone else holds in the current round, with the holder's name (spec 7) — it powers
  * the "taken" chip and gates taking a task for the round. A task is taken when another player has it
  * as their active task, and also while another player's same-round pair invite on it waits for an
- * answer, since its claim marker already locks the task. Invites this player sent or received don't
- * count: those are theirs to answer. Derived from live public data, not a separate listener.
+ * answer, since its claim marker already locks the task; a declined one frees it. Invites this player
+ * sent or received don't count: those are theirs to answer. Derived from live public data, not a
+ * separate listener.
  */
 export function takenInRoundBy(
   players: readonly Player[],
@@ -68,7 +69,8 @@ export function takenInRoundBy(
   }
   const nameById = new Map(players.map((player) => [player.id, player.name] as const));
   for (const claim of claims) {
-    const pending = claim.day === currentDay && claim.invitee !== null && !claim.accepted;
+    const pending =
+      claim.day === currentDay && claim.invitee !== null && !claim.accepted && holdsTask(claim);
     const mine = claim.playerId === myPlayerId || claim.invitee === myPlayerId;
     if (pending && !mine && !taken.has(claim.taskId)) {
       taken.set(claim.taskId, nameById.get(claim.playerId) ?? '');

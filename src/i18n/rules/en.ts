@@ -216,7 +216,7 @@ export const rulesEn: RulesContent = {
       detail: {
         title: 'Pair invites',
         blocks: [
-          'On a pair task, choose a partner and tap “Reserve for the next round” or “Take for the current round”. Your partner sees an invite card at the top with “Accept” and “Decline”. The answer can’t be taken back. After accepting, the only way out is cancelling the pair for both.',
+          'On a pair task, choose a partner and tap “Reserve for the next round” or “Take for the current round”. Your partner sees an invite card at the top with “Accept” and “Decline”. The answer can’t be taken back. You both see it on the card until you hide it with the cross.',
           [
             'You can only invite someone who hasn’t done that task yet.',
             'You can receive several invites but accept only one. Accepting another cancels the previous pair, for both of you.',

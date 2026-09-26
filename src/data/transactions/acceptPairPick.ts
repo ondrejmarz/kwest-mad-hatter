@@ -35,7 +35,7 @@ export async function acceptPairPick(
     const claimRef = taskClaimDoc(db, t, turnus.currentDay, taskId);
     const claimSnap = await tx.get(claimRef);
     const claim = claimSnap.exists() ? parseTaskClaim(claimSnap.id, claimSnap.data() ?? {}) : null;
-    if (claim === null || claim.invitee !== myPlayerId || claim.accepted) {
+    if (claim === null || claim.invitee !== myPlayerId || claim.accepted || claim.declined) {
       return err({ code: 'TASK_TAKEN_TODAY', byPlayerName: '' });
     }
 

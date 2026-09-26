@@ -49,7 +49,11 @@ function rewardComparator(sort: RewardSort, locale: Locale): (a: Reward, b: Rewa
   }
 }
 
-/** Reward catalog (spec 9.3): sort, filter by form, admin add/edit, tap to bid (hidden auction). */
+/**
+ * Reward catalog (spec 9.3): sort, filter by form, admin add/edit, tap to bid (hidden auction).
+ * Players see only active rewards; an admin also sees the inactive ones, greyed out at the end, so a
+ * deactivated reward can be reopened and switched back on.
+ */
 export function RewardsScreen() {
   const { t, locale } = useTranslation();
   const { role } = useSession();
@@ -100,13 +104,15 @@ export function RewardsScreen() {
     if (rewardsState.status !== 'ready') return [];
     const compare = rewardComparator(sort, locale);
     return rewardsState.data
-      .filter((reward) => reward.active)
+      .filter((reward) => isAdmin || reward.active)
       .filter((reward) => formFilter === '' || reward.form === formFilter)
       .sort(
         (a, b) =>
-          compare(a, b) || csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
+          Number(!a.active) - Number(!b.active) ||
+          compare(a, b) ||
+          csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
       );
-  }, [rewardsState, sort, formFilter, locale]);
+  }, [rewardsState, isAdmin, sort, formFilter, locale]);
 
   if (rewardsState.status === 'loading') {
     return (

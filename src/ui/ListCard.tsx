@@ -8,7 +8,8 @@ import { CardLayout } from './CardLayout';
  * A list row for players, tasks and rewards (spec 9): the shared `CardLayout` in a card frame.
  * A row with `onClick` behaves as a button (players open a detail, a claimed player reserves a
  * task); without it, it is static. The detail dialogs reuse the same `CardLayout`, so a row and
- * its opened detail line up exactly.
+ * its opened detail line up exactly. A `muted` row is greyed out — an inactive catalog item that only
+ * an admin still sees.
  */
 export function ListCard({
   title,
@@ -19,6 +20,7 @@ export function ListCard({
   footerRight,
   onClick,
   highlighted = false,
+  muted = false,
   children,
 }: {
   title: ReactNode;
@@ -29,6 +31,7 @@ export function ListCard({
   footerRight?: ReactNode;
   onClick?: () => void;
   highlighted?: boolean;
+  muted?: boolean;
   children?: ReactNode;
 }) {
   const className = cx(
@@ -37,6 +40,7 @@ export function ListCard({
     'w-full rounded-xl border p-4 text-left',
     highlighted ? 'border-accent bg-accent/5' : 'border-border bg-surface-raised',
     onClick !== undefined && 'tap-target cursor-pointer',
+    muted && 'opacity-60',
   );
 
   const body = (

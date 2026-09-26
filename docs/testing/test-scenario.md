@@ -32,7 +32,7 @@ počítači.
      (string, stejné jako id), `archived` = `false`, `currentDay` = `1`, `dayLocked` = `false`,
      `publicProfiles` = `false`, `startingCoins` = `0`, `failPenalty` = `100`, `noPickPenalty` =
      `100`, `allowNegativeBalance` = `true`, `maxActiveRewardsPerPlayer` = `1`,
-     `maxActivePunishesPerPlayer` = `1`, `currentDayCategories` a `nextDayCategories` (prázdná pole).
+     `maxActivePunishesPerPlayer` = `1`, `allowTaskSwitch` = `true`, `currentDayCategories` a `nextDayCategories` (prázdná pole).
      Čísla zadej jako typ `number`, ne `string`. Na hodnotách nezáleží, v kroku 3.2 je
      organizátor přepíše. (V kódu se kolu říká `day`, proto `currentDay` a `dayLocked`.)
    - dokument `turnuses/test-20260926/private/config` s poli `playerCode` (např. `TEST1`) a
@@ -50,7 +50,7 @@ vynese `80 + 20 × obtížnost`, takže obtížnost 1 dá 100 a obtížnost 4 d�
 | Po kroku                 | Adam (A) | Bára (B) | Cyril (C) |
 | ------------------------ | -------: | -------: | --------: |
 | 3.3 schválení            |      100 |      100 |       100 |
-| K1.13 vyhodnocení kola 1 |      200 |      220 |       240 |
+| K1.14 vyhodnocení kola 1 |      200 |      220 |       240 |
 | K2.12 bonus +40          |      240 |      260 |       280 |
 | K2.17 vyhodnocení kola 2 |      290 |      260 |       150 |
 | K3.6 vyhodnocení kola 3  |      410 |      280 |       270 |
@@ -128,7 +128,7 @@ Když se po vyhodnocení zůstatek liší, zastav se a zjisti proč. Další kol
 - [ ] **3.2** · C — **Nastavení turnusu**. Musí to být **před** schválením hráčů, protože
       počáteční mince se připisují v okamžiku schválení.
   - Nastav: Počáteční mince **100**, Pokuta za nesplnění **50**, Pokuta bez úkolu **30**, Hráč max
-    odměn za kolo **1**, Hráč max terčem za kolo **1**, ✓ Povolit záporný zůstatek, ☐ Veřejné
+    odměn za kolo **1**, Hráč max terčem za kolo **1**, ✓ Povolit záporný zůstatek, ✓ Lze měnit probíhající úkoly, ☐ Veřejné
     profily → **Uložit**.
   - Po znovuotevření jsou hodnoty uložené.
 - [ ] **3.3** · C — **Schválit** Adama, Báru a Cyrila, **Zamítnout** Omyl.
@@ -207,31 +207,37 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
 - [ ] **K1.5** · C — Vezmi si **H1 Hádanka**. Pak otevři **S3 Plank**, kde stojí „Chceš jiný úkol?
       Přepni se na tenhle, dokud je volný.“ a ťukni **Přepnout na tenhle**.
   - C má S3. H1 už u nikoho nemá „Zabraný“, uvolnil se.
-- [ ] **K1.6** · A — ✓ **Jen na příští kolo**.
+- [ ] **K1.6** · C, B — Měnění úkolů jde vypnout. C: **Nastavení turnusu** → odškrtni **Lze měnit
+      probíhající úkoly** → **Uložit**.
+  - B otevře **H1 Hádanka**. Tlačítko **Přepnout na tenhle** tam není, místo něj stojí „Úkol v
+    probíhajícím kole teď měnit nejde.“ Hráč bez úkolu by si úkol vzít mohl, zakázané je jen
+    měnění.
+  - C nastavení zase zaškrtne. U B se **Přepnout na tenhle** vrátí, neťukej na něj.
+- [ ] **K1.7** · A — ✓ **Jen na příští kolo**.
   - Zbudou jen S2–S6. S1 máš v tomhle kole, takže ho rezervovat nejde. Filtr vypni.
-- [ ] **K1.7** · A — Otevři **H2 Básnička**, pak **S1 Dřepy**.
+- [ ] **K1.8** · A — Otevři **H2 Básnička**, pak **S1 Dřepy**.
   - H2: „Tahle kategorie není v příštím kole otevřená.“
   - S1: „Tenhle úkol už si měl.“
-- [ ] **K1.8** · A — **S5 Kliky** → **Rezervovat na příští kolo**.
+- [ ] **K1.9** · A — **S5 Kliky** → **Rezervovat na příští kolo**.
   - A: S5 má chip „Rezervováno“. Na Profilu je „Tvoje rezervace na příští kolo: S5 Kliky“.
   - B, C: S5 má „Má zájemce“, ale bez jména. Na Hráčích má Adam „Má rezervaci“.
-- [ ] **K1.9** · A — Otevři **S4 Schody**. Stojí tam „Nahradí tvoji rezervaci: S5 Kliky“ →
+- [ ] **K1.10** · A — Otevři **S4 Schody**. Stojí tam „Nahradí tvoji rezervaci: S5 Kliky“ →
       **Rezervovat na příští kolo**.
   - U B a C zájemce ze S5 zmizel a je teď na S4.
-- [ ] **K1.10** · B, C — B rezervuje **S5 Kliky**, C **S6 Švihadlo**.
-- [ ] **K1.11** · C — Otevři S6: „Rezervováno na příští kolo“ → **Zrušit rezervaci**.
+- [ ] **K1.11** · B, C — B rezervuje **S5 Kliky**, C **S6 Švihadlo**.
+- [ ] **K1.12** · C — Otevři S6: „Rezervováno na příští kolo“ → **Zrušit rezervaci**.
   - Cyril má „Nemá rezervaci“, S6 nemá zájemce. Pak S6 zase rezervuj.
-- [ ] **K1.12** · C — Zkouška zámku: **Profil+** → **Zamknout kolo**. Dialog nech otevřený.
+- [ ] **K1.13** · C — Zkouška zámku: **Profil+** → **Zamknout kolo**. Dialog nech otevřený.
   - A otevře libovolný úkol: „Kolo je zamčené, teď to měnit nejde.“ a žádná tlačítka.
   - B otevře libovolnou odměnu: „Kolo je zamčené, teď přihazovat nejde.“
   - C zavře dialog (✕ pod ním) bez vyhodnocení. U A se tlačítka v úkolu vrátí.
-- [ ] **K1.13** · C — **Zamknout kolo**. Otevře se „Vyhodnocení kola“, „Kolo 1“ a seznam Adam,
+- [ ] **K1.14** · C — **Zamknout kolo**. Otevře se „Vyhodnocení kola“, „Kolo 1“ a seznam Adam,
       Bára, Cyril s popisem jejich úkolu.
   - Dokud nic nezaškrtneš, ukazuje náhled všem „Nesplněno −50“. Nezaškrtnutý hráč úkol nesplnil.
   - Zaškrtni všechny tři. **Zúčtování**: Adam Splněno +100, Bára +120, Cyril +140. **Přiděleno
     na příští kolo**: Adam → S4 Schody, Bára → S5 Kliky, Cyril → S6 Švihadlo.
   - **Vyhodnotit kolo** → dialog se sám zavře.
-- [ ] **K1.14** · všichni — Kontrola.
+- [ ] **K1.15** · všichni — Kontrola.
   - Hráči: **200 / 220 / 240**. Každý má „Má úkol“ (S4 / S5 / S6) a „Nemá rezervaci“.
   - Profil, Statistiky: Splněné úkoly 1, Vydělané mince 100 / 120 / 140, zbytek 0.
   - Historie: „Splněno: S1 Dřepy“, „Kolo 1“, +100 a zůstatek 200. **Zobrazit víc** ukáže nahoře
@@ -395,11 +401,14 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
   - A má kartu „Dvojice na probíhající kolo“: „Pozval(a) jsi Cyril na úkol „P4 Duet“ v
     probíhajícím kole“, „Čeká na potvrzení“ a **Zrušit pro oba**.
   - C: „Adam tě zve na úkol „P4 Duet“ v probíhajícím kole“.
+  - B vidí u P4 chip „Zabraný“, dokud Cyril neodpoví.
 - [ ] **K6.3** · C — **Odmítnout**.
-  - Obě karty zmizí.
+  - Obě karty zmizí a P4 u B už „Zabraný“ nemá.
 - [ ] **K6.4** · A — **P4 Duet** → parťák Bára → **Vzít na probíhající kolo**.
-- [ ] **K6.5** · C — Než Bára odpoví, zkus P4 taky: parťák Bára → **Vzít na probíhající kolo**.
-  - Aplikace odmítne s „Tenhle úkol už si v tomhle kole někdo vzal.“
+- [ ] **K6.5** · C — Než Bára odpoví, otevři **P4 Duet**.
+  - P4 má chip „Zabraný“ a dialog **Vzít na probíhající kolo** nenabízí, čekající pozvánka úkol
+    drží. Kdyby C ťukl přesně ve chvíli, kdy A zve, dostane „Tenhle úkol už si v tomhle kole někdo
+    vzal.“, ne „Jsi offline!“.
 - [ ] **K6.6** · B — **Přijmout**.
   - Adam i Bára mají „Má úkol“ P4 Duet ve dvojici. Cyril si v tomhle kole schválně nic nebere.
 - [ ] **K6.7** · rezervace — B a C rezervují **stejný** úkol **H3 Kvíz**, A rezervuje **H1
@@ -449,8 +458,11 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
     úpravu z 3.8.
 - [ ] **Z.5** · C, B, A — Dvojice se ruší oběma i v probíhajícím kole. C: Kategorie pro
       probíhající kolo přidej ✓ **Dvojice**. B: **P2 Zrcadlo** → parťák Adam → **Vzít na
-      probíhající kolo**. A: na kartě „Dvojice na probíhající kolo“ **Přijmout**.
-  - Adam i Bára mají úkol P2 ve dvojici. Adam tím pustil H1 a nikomu jinému se nic nestalo, H1 je
+      probíhající kolo**.
+  - C v nastavení odškrtne **Lze měnit probíhající úkoly**. A má na kartě „Dvojice na probíhající
+    kolo“ „Úkol v probíhajícím kole teď měnit nejde.“ a **Přijmout** je šedé, protože už má H1. C
+    nastavení zase zaškrtne.
+  - A: **Přijmout**. Adam i Bára mají úkol P2 ve dvojici. Adam tím pustil H1 a nikomu jinému se nic nestalo, H1 je
     úkol pro jednoho.
   - B otevře **H4 Origami**. Pod „Chceš jiný úkol?…“ stojí „Tvůj parťák Adam tím o společný úkol
     taky přijde.“ → **Přepnout na tenhle**.
@@ -458,10 +470,13 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
 - [ ] **Z.6** · C — Přejmenuj Báru na „Barbora“.
   - Změna se ukáže na všech zařízeních. Pak ji vrať.
 - [ ] **Z.7** · C — U **H2 Básnička** odškrtni **Aktivní** → **Uložit**.
-  - Úkol všem zmizí ze seznamu. Ověř, že ho organizátor umí zase aktivovat.
+  - A a B úkol v seznamu nevidí. C ho vidí dál, zašedlý s chipem „Neaktivní“ na konci seznamu.
+  - C: tužka u H2 → ✓ **Aktivní** → **Uložit**. Úkol se všem vrátí na své místo.
 - [ ] **Z.8** · A — Druhý organizátor: 3 s drž název aplikace → admin kód → **Profil+**.
-  - C otevře **Zamknout kolo** a nechá ho otevřený. U A je **Zamknout kolo** zašedlé.
-  - C dialog zavře a u A je tlačítko zase aktivní.
+  - C otevře **Zamknout kolo** a nechá ho otevřený. U A je **Zamknout kolo** zašedlé a pod ním
+    „Kolo je zamčené. Jestli ho teď nevyhodnocuje jiný organizátor, můžeš ho odemknout.“ s
+    **Odemknout kolo**. Neťukej na něj, C právě vyhodnocuje.
+  - C dialog zavře. U A je **Zamknout kolo** zase aktivní a upozornění zmizí.
   - A → **Odhlásit z admina**: vrátí se **Profil** a zmizí admin tlačítka, tužky i **+**.
 - [ ] **Z.9** · B — Ťukni na Báru → **Odhlásit se od postavy**.
   - Profil ukazuje „Nemáš vybranou postavu“. **Přejít na Hráče** → Bára → PIN 2222. Karta,
@@ -477,10 +492,12 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
   - Aplikace je anglicky: S1 je „S1 Squats“, R1 „R1 Extra dessert“, štítky „Movement“ / „Head“,
     tlačítko rezervace „Reserve for the next round“. Úkoly bez překladu zůstanou česky.
   - V DE je „S1 Kniebeugen“ a „Für die nächste Runde reservieren“. Pak zpět na CS.
-- [ ] **Z.13** · C — Pád během vyhodnocení. Dělej to jako poslední, skupina může zůstat zamčená.
-      **Zamknout kolo**, dialog nezavírej a zavři celé okno aplikace. Pak ji znovu otevři.
-  - Kolo jde odemknout: hráči mohou rezervovat a **Zamknout kolo** je aktivní. Pokud ne, je to
-    chyba. Skupinu pak ručně odemkneš v konzoli (`dayLocked` = `false`).
+- [ ] **Z.13** · C — Pád během vyhodnocení. **Zamknout kolo**, dialog nezavírej a zavři celé okno
+      aplikace. Pak ji znovu otevři.
+  - Kolo zůstalo zamčené: **Zamknout kolo** je zašedlé a pod ním stojí „Kolo je zamčené. Jestli ho
+    teď nevyhodnocuje jiný organizátor, můžeš ho odemknout.“
+  - **Odemknout kolo** → upozornění zmizí, **Zamknout kolo** je zase aktivní a hráči mohou
+    rezervovat.
 - [ ] **Z.14** · Úklid — V konzoli nastav skupině `archived` = `true`.
   - Skupina zmizí z výběru.
 
@@ -491,7 +508,7 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
 Na drobná vydání, zhruba 15 minut na nové testovací skupině. Zůstatky nemusí přesně sedět s
 tahákem.
 
-0.1 (verze) → 1.2 → 2.1–2.2 → 3.1–3.4 → 3.6–3.7 → K1.1 → K1.3–K1.4 → K1.8 → K1.10 → K1.13 → K2.2
+0.1 (verze) → 1.2 → 2.1–2.2 → 3.1–3.4 → 3.6–3.7 → K1.1 → K1.3–K1.4 → K1.9 → K1.11 → K1.14 → K2.2
 → K2.3 + K2.6 (dvojice) → K2.9 (dvojice se zruší oběma) → K2.13 + K2.16 (přihozy) → K2.17–K2.18 →
 Z.10 (návrat bez kódu).
 

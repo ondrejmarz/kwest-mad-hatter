@@ -36,19 +36,27 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/turnuses/$(t)).data.get('dayLocked', false) == false;
     }
 
+    // The admin setting "tasks can be changed mid-round" (spec 7). Missing on older turnus docs,
+    // where switching was always allowed.
+    function switchAllowed(t) {
+      return get(/databases/$(database)/documents/turnuses/$(t)).data.get('allowTaskSwitch', true) == true;
+    }
+
     function taskRef(t, taskId) {
       return /databases/$(database)/documents/turnuses/$(t)/tasks/$(taskId);
     }
     // A same-day pick (spec 7): the player sets only their own `activeTask` (and clears needsPick)
     // while the day is open. Only a solo task (maxPlayers <= 1) may be taken this way — pairs and
     // groups are reservation-only. The stored coin values must equal the catalog task's, so a client
-    // cannot hand itself a fatter reward that day evaluation would then pay out.
+    // cannot hand itself a fatter reward that day evaluation would then pay out. Swapping a task the
+    // player already holds needs the turnus to allow switching.
     function picksTaskNow(t) {
       let at = request.resource.data.activeTask;
       return onlyChanged(['activeTask', 'needsPick'])
         && request.resource.data.needsPick == false
         && at.taskId is string
         && dayUnlocked(t)
+        && (resource.data.activeTask == null || switchAllowed(t))
         && exists(taskRef(t, at.taskId))
         && get(taskRef(t, at.taskId)).data.active == true
         && get(taskRef(t, at.taskId)).data.maxPlayers <= 1
@@ -58,7 +66,8 @@ service cloud.firestore {
     // Accepting a same-day pair pick (spec 7): the invited partner is the only writer, so they set
     // BOTH members' `activeTask` — `pid` is the doc being written (the initiator's or their own).
     // Allowed only against a real claim that invited them for this task, with the catalog coins, so a
-    // player can never hand someone else an arbitrary task.
+    // player can never hand someone else an arbitrary task. A member who already holds a task may
+    // only be moved to the pair when the turnus allows switching.
     function picksPairTask(t, pid) {
       let at = request.resource.data.activeTask;
       let day = get(/databases/$(database)/documents/turnuses/$(t)).data.currentDay;
@@ -66,6 +75,7 @@ service cloud.firestore {
       return onlyChanged(['activeTask', 'needsPick'])
         && request.resource.data.needsPick == false
         && dayUnlocked(t)
+        && (resource.data.activeTask == null || switchAllowed(t))
         && exists(claimPath)
         && get(claimPath).data.invitee == myPlayerId(t)
         && (get(claimPath).data.playerId == pid || get(claimPath).data.invitee == pid)
@@ -84,11 +94,21 @@ service cloud.firestore {
         && request.resource.data.needsPick == true
         && dayUnlocked(t)
         && resource.data.activeTask.get('partnerIds', []).size() == 1
-        && partnerLeftTask(t, resource.data.activeTask.partnerIds[0], resource.data.activeTask.taskId);
+        && leftTask(t, resource.data.activeTask.partnerIds[0], resource.data.activeTask.taskId);
     }
-    function partnerLeftTask(t, partnerId, taskId) {
-      let after = getAfter(/databases/$(database)/documents/turnuses/$(t)/players/$(partnerId)).data;
+    // Whether a player no longer holds a task once this write lands.
+    function leftTask(t, playerId, taskId) {
+      let after = getAfter(/databases/$(database)/documents/turnuses/$(t)/players/$(playerId)).data;
       return after.activeTask == null || after.activeTask.taskId != taskId;
+    }
+    // A same-round claim marker whose holders have all moved on (spec 7) — a solo pick, or a pair
+    // that was accepted, left by everyone on it after this write. Releasing it frees the task for
+    // others; a pending pair invite is never "abandoned", so nobody can cancel someone else's invite.
+    function claimAbandoned(t) {
+      let invitee = resource.data.get('invitee', null);
+      return (invitee == null || resource.data.get('accepted', true) == true)
+        && leftTask(t, resource.data.playerId, resource.data.taskId)
+        && (invitee == null || leftTask(t, invitee, resource.data.taskId));
     }
 
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
@@ -300,11 +320,13 @@ service cloud.firestore {
           && request.resource.data.playerId == myPlayerId(t)
           && dayUnlocked(t);
         // Either member releases the claim — the initiator switching or cancelling, the invitee
-        // declining — freeing the task; admins may clear any.
+        // declining — freeing the task; so may anyone once every holder has left it (a partner
+        // accepting another pair moves the initiator off their old task); admins may clear any.
         allow delete: if isAdmin(t)
           || (hasPlayer(t) && dayUnlocked(t)
               && (resource.data.playerId == myPlayerId(t)
-                  || resource.data.get('invitee', '') == myPlayerId(t)));
+                  || resource.data.get('invitee', '') == myPlayerId(t)
+                  || claimAbandoned(t)));
         // The invited partner accepts by flipping only `accepted` to true.
         allow update: if isAdmin(t)
           || (hasPlayer(t) && resource.data.get('invitee', '') == myPlayerId(t)

@@ -16,8 +16,9 @@ import { ListCard } from '../../../ui/ListCard';
  * A task card (spec 9.2): the name, then top-right the coin reward with the difficulty dots directly
  * beneath it and (for an admin) the edit pencil furthest right; chips (category without its emoji,
  * pair/group, and live status) and the description below. The status chips are the concrete facts the
- * screen computes: who holds it today (mine vs. someone else) and whether it carries a reservation
- * for tomorrow (mine vs. another player's interest).
+ * screen computes: who holds it in the current round (mine vs. someone else) and whether it carries a
+ * reservation for the next round (mine vs. another player's interest). An inactive task reaches only
+ * an admin's list — greyed out with an "inactive" chip, so it can be reopened and reactivated.
  */
 export const TaskCard = memo(function TaskCard({
   task,
@@ -47,6 +48,7 @@ export const TaskCard = memo(function TaskCard({
     <ListCard
       {...(onOpen ? { onClick: onOpen } : {})}
       title={localize(task.name, locale)}
+      muted={!task.active}
       topRight={
         <CardTopRight
           coins={<CoinAmount amount={task.coinReward} signed />}
@@ -56,6 +58,7 @@ export const TaskCard = memo(function TaskCard({
       }
       chips={
         <>
+          {!task.active && <Chip>{t('common.inactive')}</Chip>}
           {task.categories.map((category) => (
             <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
           ))}

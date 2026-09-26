@@ -16,6 +16,7 @@ export interface TurnusSettingsFields {
   readonly maxActiveRewardsPerPlayer: number;
   readonly maxActivePunishesPerPlayer: number;
   readonly publicProfiles: boolean;
+  readonly allowTaskSwitch: boolean;
 }
 
 export const updateTurnusSettings = (

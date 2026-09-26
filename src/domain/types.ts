@@ -136,4 +136,6 @@ export interface TurnusSettings {
   readonly nextDayCategories: readonly string[];
   readonly currentDayCategories: readonly string[];
   readonly dayLocked: boolean;
+  /** Whether a player who already holds a task this round may swap it for another (spec 7). */
+  readonly allowTaskSwitch: boolean;
 }

@@ -2,20 +2,13 @@ import { useMemo, useState } from 'react';
 
 import { toTurnusSettings } from '../../data/schemas/turnus';
 import { canInitiatePairPick, canPickTaskNow, canReserveTask } from '../../domain/eligibility';
-import type { TaskId } from '../../domain/ids';
-import type { LocalizedText, Task } from '../../domain/types';
+import type { Task } from '../../domain/types';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { localize } from '../../i18n/localize';
-import type { Locale } from '../../i18n/translate';
-import { categoryLabel } from '../../lib/category';
 import { csCollator } from '../../lib/collator';
-import { taskTypeKey, TYPE_OPTIONS } from '../../lib/group';
-import { byNumber, byText } from '../../lib/sort';
+import { taskTypeKey } from '../../lib/group';
 import { usePersistentState } from '../../platform/storage/usePersistentState';
-import { Button } from '../../ui/Button';
-import { Checkbox } from '../../ui/Checkbox';
 import { EmptyState } from '../../ui/EmptyState';
-import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
 import {
   useCatalogTasks,
@@ -25,47 +18,28 @@ import {
   usePlayers,
   useReservationCounts,
   useSession,
+  useTaskClaims,
   useTurnus,
 } from '../session';
 
 import { TaskActionDialog } from './components/TaskActionDialog';
 import { TaskCard } from './components/TaskCard';
 import { TaskEditDialog } from './components/TaskEditDialog';
+import { TaskListToolbar } from './components/TaskListToolbar';
+import { takenInRoundBy, taskCategories, taskComparator, type TaskSort } from './taskList';
 
-const TASK_SORTS = [
-  'nameAsc',
-  'nameDesc',
-  'difficultyAsc',
-  'difficultyDesc',
-  'coinsDesc',
-  'coinsAsc',
-] as const;
-type TaskSort = (typeof TASK_SORTS)[number];
-
-function taskComparator(sort: TaskSort, locale: Locale): (a: Task, b: Task) => number {
-  switch (sort) {
-    case 'nameAsc':
-      return byText((task) => localize(task.name, locale), 'asc');
-    case 'nameDesc':
-      return byText((task) => localize(task.name, locale), 'desc');
-    case 'difficultyAsc':
-      return byNumber((task) => task.difficulty, 'asc');
-    case 'difficultyDesc':
-      return byNumber((task) => task.difficulty, 'desc');
-    case 'coinsDesc':
-      return byNumber((task) => task.coinReward, 'desc');
-    case 'coinsAsc':
-      return byNumber((task) => task.coinReward, 'asc');
-  }
-}
-
-/** Task catalog (spec 9.2): category filter, sort, available-only toggle, admin add/edit. */
+/**
+ * Task catalog (spec 9.2): category filter, sort, availability toggles, admin add/edit. Players see
+ * only active tasks; an admin also sees the inactive ones, greyed out at the end, so a deactivated
+ * task can be reopened and switched back on.
+ */
 export function TasksScreen() {
   const { t, locale } = useTranslation();
   const { role } = useSession();
   const tasksState = useCatalogTasks();
   const turnusState = useTurnus();
   const playersState = usePlayers();
+  const claimsState = useTaskClaims();
   const myPlayer = useMyPlayer();
   const reservationState = useMyReservation();
   const invitesState = useMyInvites();
@@ -76,10 +50,10 @@ export function TasksScreen() {
   // One filter value: '' (all), a task-type key (`@type:*`), or a category tag's `cs` — types and
   // categories share the one dropdown (spec 9.2).
   const [category, setCategory] = usePersistentState('kwest.tasks.category', '');
-  // Two independent availability filters (spec 9.2): reservable tomorrow (`canReserveTask`) and
-  // pickable today. "Today" covers both same-day paths — a solo grab (`canPickTaskNow`) and a pair
-  // invite (`canInitiatePairPick`) — so pairs aren't wrongly hidden; groups stay reservation-only.
-  // Checked together, a task must pass both.
+  // Two independent availability filters (spec 9.2): reservable for the next round
+  // (`canReserveTask`) and takeable in the current one. The current round covers both paths — a solo
+  // grab (`canPickTaskNow`) and a pair invite (`canInitiatePairPick`) — so pairs aren't wrongly
+  // hidden; groups stay reservation-only. Checked together, a task must pass both.
   const [availToday, setAvailToday] = usePersistentState('kwest.tasks.availToday', false);
   const [availTomorrow, setAvailTomorrow] = usePersistentState('kwest.tasks.availTomorrow', false);
   const [editing, setEditing] = useState<Task | null | undefined>(undefined);
@@ -88,49 +62,38 @@ export function TasksScreen() {
   const turnus = turnusState.status === 'ready' ? turnusState.data : null;
   const settings = turnus !== null ? toTurnusSettings(turnus) : null;
   const myReservation = reservationState.status === 'ready' ? reservationState.data : null;
-  // A pair/group task counts as reserved for an accepted invitee too, so both members see it as
-  // theirs — not as someone else's "interest" (spec 7).
+  // A pair task counts as reserved for an accepted invitee too, so both members see it as theirs —
+  // not as someone else's "interest" (spec 7).
   const myInvites = invitesState.status === 'ready' ? invitesState.data : [];
   const acceptedInvite =
     myPlayer !== null
       ? (myInvites.find((invite) => invite.responses[myPlayer.id] === 'accepted') ?? null)
       : null;
   const myReservedTaskId = myReservation?.taskId ?? acceptedInvite?.taskId ?? null;
-  const candidates =
-    myPlayer !== null && playersState.status === 'ready'
-      ? playersState.data.filter(
-          (player) => player.status === 'approved' && player.id !== myPlayer.id,
-        )
-      : [];
-  // Which tasks are already held today (by someone other than me) — powers the "taken today" chip
-  // and gates the same-day "Vzít teď" pick. Derived from live players, not a separate listener.
-  const takenBy = useMemo(() => {
-    const map = new Map<TaskId, string>();
-    if (playersState.status === 'ready') {
-      for (const player of playersState.data) {
-        if (player.activeTask !== null && player.id !== myPlayer?.id) {
-          map.set(player.activeTask.taskId, player.name);
-        }
-      }
-    }
-    return map;
-  }, [playersState, myPlayer]);
-  const allTasks = useMemo(
-    () => (tasksState.status === 'ready' ? tasksState.data.filter((task) => task.active) : []),
-    [tasksState],
+  const players = useMemo(
+    () => (playersState.status === 'ready' ? playersState.data : []),
+    [playersState],
   );
-  // Distinct category tags across the catalog, keyed by their canonical `cs` identity.
-  const categories = useMemo(() => {
-    const byCs = new Map<string, LocalizedText>();
-    for (const task of allTasks) {
-      for (const category of task.categories) {
-        if (!byCs.has(category.cs)) byCs.set(category.cs, category);
-      }
-    }
-    return [...byCs.values()].sort((a, b) =>
-      csCollator.compare(localize(a, locale), localize(b, locale)),
-    );
-  }, [allTasks, locale]);
+  const candidates =
+    myPlayer !== null
+      ? players.filter((player) => player.status === 'approved' && player.id !== myPlayer.id)
+      : [];
+  const takenBy = useMemo(
+    () =>
+      takenInRoundBy(
+        players,
+        claimsState.status === 'ready' ? claimsState.data : [],
+        myPlayer?.id ?? null,
+        turnus?.currentDay ?? null,
+      ),
+    [players, claimsState, myPlayer, turnus],
+  );
+  const allTasks = useMemo(
+    () =>
+      tasksState.status === 'ready' ? tasksState.data.filter((task) => isAdmin || task.active) : [],
+    [tasksState, isAdmin],
+  );
+  const categories = useMemo(() => taskCategories(allTasks, locale), [allTasks, locale]);
 
   const filtered = useMemo(() => {
     const compare = taskComparator(sort, locale);
@@ -155,7 +118,9 @@ export function TasksScreen() {
       })
       .sort(
         (a, b) =>
-          compare(a, b) || csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
+          Number(!a.active) - Number(!b.active) ||
+          compare(a, b) ||
+          csCollator.compare(localize(a.name, locale), localize(b.name, locale)),
       );
   }, [allTasks, category, availToday, availTomorrow, sort, settings, myPlayer, takenBy, locale]);
 
@@ -170,9 +135,9 @@ export function TasksScreen() {
     return <EmptyState title={t('common.somethingWrong')} description={t('common.retry')} />;
   }
 
-  // Live status of a task, all from public data: who holds it today and whether it carries a
-  // reservation for tomorrow (mine vs. another player's interest, the latter an existence-only
-  // count with my own reservation subtracted).
+  // Live status of a task, all from public data: who holds it in the current round and whether it
+  // carries a reservation for the next one (mine vs. another player's interest, the latter an
+  // existence-only count with my own reservation subtracted).
   const reservationCounts =
     countsState.status === 'ready' && countsState.data ? countsState.data.counts : {};
   const statusFor = (
@@ -189,59 +154,19 @@ export function TasksScreen() {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
-        {/* Sort + filter share a row with the admin add (+), which lines up with them; the two
-            availability toggles sit below, each on its own line. */}
-        <div className="flex items-center gap-2">
-          <div className="flex flex-1 flex-wrap items-center gap-2">
-            <Select value={sort} onChange={(event) => setSort(event.target.value as TaskSort)}>
-              {TASK_SORTS.map((value) => (
-                <option key={value} value={value}>
-                  {t(`sort.${value}`)}
-                </option>
-              ))}
-            </Select>
-            <Select value={category} onChange={(event) => setCategory(event.target.value)}>
-              <option value="">{t('tasks.allCategories')}</option>
-              {TYPE_OPTIONS.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {t(`tasks.${option.labelKey}`)}
-                </option>
-              ))}
-              {categories.map((category) => (
-                <option key={category.cs} value={category.cs}>
-                  {categoryLabel(localize(category, locale))}
-                </option>
-              ))}
-            </Select>
-          </div>
-          {isAdmin && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="shrink-0"
-              aria-label={t('tasks.add')}
-              onClick={() => setEditing(null)}
-            >
-              +
-            </Button>
-          )}
-        </div>
-        {myPlayer !== null && (
-          <div className="flex flex-col gap-1">
-            <Checkbox
-              label={t('tasks.onlyAvailableToday')}
-              checked={availToday}
-              onChange={setAvailToday}
-            />
-            <Checkbox
-              label={t('tasks.onlyAvailableTomorrow')}
-              checked={availTomorrow}
-              onChange={setAvailTomorrow}
-            />
-          </div>
-        )}
-      </div>
+      <TaskListToolbar
+        sort={sort}
+        onSortChange={setSort}
+        category={category}
+        onCategoryChange={setCategory}
+        categories={categories}
+        availToday={availToday}
+        onAvailTodayChange={setAvailToday}
+        availTomorrow={availTomorrow}
+        onAvailTomorrowChange={setAvailTomorrow}
+        showAvailability={myPlayer !== null}
+        {...(isAdmin ? { onAdd: () => setEditing(null) } : {})}
+      />
 
       {filtered.length === 0 ? (
         <EmptyState title={t('nav.tasks')} description={t('tasks.empty')} />

@@ -91,7 +91,10 @@ Hard rules:
   rules, freezes every task and reward action for the day until evaluation: task selection,
   reward purchases, and reservation changes alike — reserving, answering an invite, and
   cancelling a reservation are all blocked. The UI hides the frozen actions rather than
-  offering ones the rules would reject.
+  offering ones the rules would reject. The lock lives exactly as long as the evaluation dialog
+  (`EvaluationDialog` locks on mount, unlocks on unmount), so if the evaluating device dies with
+  it open the round would stay locked forever: Profil+ therefore offers an explicit
+  "Odemknout kolo" whenever the round is locked and no evaluation dialog is open on this device.
 - **Reservations and bids are secret.** During the day only the public interest count is
   visible; who won a contested task or reward is revealed at evaluation.
 - **Group tasks (supersedes "pairs").** A task has `minPlayers`/`maxPlayers` (1/1 solo, 2/2
@@ -120,8 +123,13 @@ Hard rules:
   solo `ActiveTask`; the transaction reads the marker → domain check → creates the marker +
   sets the player's `activeTask` + `needsPick=false`. The rule lets a player write ONLY their
   own `activeTask`+`needsPick` and validates the stored coins against the catalog task (no
-  self-inflation); `taskClaims` is create-only for players. UI: "Vzít teď" in
-  `TaskActionDialog` when the player `needsPick` and the task is open today.
+  self-inflation); `taskClaims` is create-only for players. UI: "Vzít na probíhající kolo" in
+  `TaskActionDialog` when the task is open in the current round. A pending same-round pair invite
+  already locks its task, so the list's `takenBy` (`features/tasks/taskList.takenInRoundBy`) counts
+  it as taken for everyone but its two members. A claim whose holders have all moved on may be
+  deleted by anyone (`claimAbandoned` rule; `acceptPairPick` releases the members' old claims), so
+  a left task never stays blocked. Task-action failures map to their own message
+  (`features/tasks/taskErrorKey`), never a blanket "offline".
 - **Rewards are a sealed-bid auction.** Min price = starting bid, players may bid higher, only
   the interest _count_ is public. One sealed bid per (player, reward), keyed
   `rewardBids/{playerId}_{rewardId}` (secret like a reservation), so a player may bid on several
@@ -156,9 +164,13 @@ Hard rules:
 - **Purchase coins deduct atomically** in one transaction (instant balance, no overdraft),
   with rules linking the coin decrease to a matching `purchase`.
 - **Turnus settings** are admin-editable (`startingCoins`, `failPenalty`, `noPickPenalty`,
-  `allowNegativeBalance`, `maxActiveRewardsPerPlayer`, `maxActivePunishesPerPlayer`) via
-  `updateTurnusSettings` (plain `updateDoc`; rules already allow `isAdmin` to update the turnus
-  doc). Turnus **creation** is still gated off (`turnuses` create is `if false`) pending a
+  `allowNegativeBalance`, `maxActiveRewardsPerPlayer`, `maxActivePunishesPerPlayer`,
+  `publicProfiles`, `allowTaskSwitch`) via `updateTurnusSettings` (plain `updateDoc`; rules
+  already allow `isAdmin` to update the turnus doc). `allowTaskSwitch` ("Lze měnit probíhající
+  úkoly", schema default ON = the old behaviour): when off, a player who already holds a task this
+  round can't swap it — no switch, no same-round pair to initiate or accept. Players without a task
+  still take one. Enforced by domain (`TASK_SWITCH_DISABLED`, checked last in `canTakeToday` so the
+  UI can say "free, but switching is off"; `canJoinPairPick`) and rules (`switchAllowed`). Turnus **creation** is still gated off (`turnuses` create is `if false`) pending a
   decision on who may create groups — see "Not yet built".
 - **Admin self-downgrade (`leaveAdmin`).** An admin can drop back to player (a batch removes
   their `members`+`roles` admin→player), allowed by a dedicated self-downgrade rule.
@@ -178,6 +190,9 @@ Hard rules:
   ties so a settlement sorts before the reward it paid for. The own-card detail shows a 2×2 stats
   grid (`derivePlayerStats`: tasks completed, rewards won, coins earned, coins spent) then the
   history. Rules let only the character's owner (and admins) read the ledger — Phase 2 widens it.
+- **Inactive catalog items stay visible to admins.** Players see only active tasks and rewards; an
+  admin also sees the inactive ones, greyed out (`ListCard muted`) with a "Neaktivní" chip and
+  sorted last, so the pencil can switch them back on. The TSV re-import never touches `active`.
 
 ## Platform & build notes
 

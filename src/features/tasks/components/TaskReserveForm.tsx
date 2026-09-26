@@ -95,11 +95,7 @@ export function TaskReserveForm({
         </>
       )}
       {canReserve && (
-        <Button
-          type="submit"
-          variant={canPairToday ? 'secondary' : 'primary'}
-          disabled={busy || partnerMissing || (isPair && !hasPartners)}
-        >
+        <Button type="submit" disabled={busy || partnerMissing || (isPair && !hasPartners)}>
           {t('tasks.reserve')}
         </Button>
       )}

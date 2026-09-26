@@ -219,7 +219,7 @@ export const rulesDe: RulesContent = {
       detail: {
         title: 'Paar-Einladungen',
         blocks: [
-          'Wähle bei einer Paar-Aufgabe einen Partner und tippe auf „Für die nächste Runde reservieren“ oder „Für die laufende Runde nehmen“. Dein Partner sieht oben eine Karte mit der Einladung und den Knöpfen „Annehmen“ und „Ablehnen“. Die Antwort lässt sich nicht zurücknehmen. Wer angenommen hat, kann das Paar nur noch für beide abbrechen.',
+          'Wähle bei einer Paar-Aufgabe einen Partner und tippe auf „Für die nächste Runde reservieren“ oder „Für die laufende Runde nehmen“. Dein Partner sieht oben eine Karte mit der Einladung und den Knöpfen „Annehmen“ und „Ablehnen“. Die Antwort lässt sich nicht zurücknehmen. Ihr seht sie beide auf der Karte, bis ihr sie mit dem Kreuz ausblendet.',
           [
             'Einladen kannst du nur jemanden, der diese Aufgabe noch nicht gemacht hat.',
             'Du kannst mehrere Einladungen bekommen, aber nur eine annehmen. Nimmst du eine weitere an, wird das vorherige Paar abgebrochen, und zwar für beide.',

@@ -78,6 +78,7 @@ service cloud.firestore {
         && (resource.data.activeTask == null || switchAllowed(t))
         && exists(claimPath)
         && get(claimPath).data.invitee == myPlayerId(t)
+        && get(claimPath).data.get('declined', false) == false
         && (get(claimPath).data.playerId == pid || get(claimPath).data.invitee == pid)
         && at.taskId == get(claimPath).data.taskId
         && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
@@ -313,7 +314,8 @@ service cloud.firestore {
 
       // First-come marker for a same-day task pick (spec 7): create-only per (day, task), so the
       // first writer wins the task for the day. A solo claim binds the task to its player; a pair
-      // claim also names an `invitee` and stays `accepted: false` until they confirm. The paired
+      // claim also names an `invitee` and stays `accepted: false` until they confirm, or is marked
+      // `declined` (kept so both members see the answer, but no longer holding the task). The paired
       // activeTask writes are checked by `picksTaskNow` / `picksPairTask`. Admin may clear any.
       match /taskClaims/{id} {
         allow read: if isMember(t);
@@ -328,10 +330,22 @@ service cloud.firestore {
               && (resource.data.playerId == myPlayerId(t)
                   || resource.data.get('invitee', '') == myPlayerId(t)
                   || claimAbandoned(t)));
-        // The invited partner accepts by flipping only `accepted` to true.
+        // The invited partner answers a pending invite: accepting flips only `accepted`, declining
+        // only `declined`. A declined marker no longer holds the task, so any player may overwrite
+        // it with a fresh claim of their own, as if creating it.
         allow update: if isAdmin(t)
           || (hasPlayer(t) && resource.data.get('invitee', '') == myPlayerId(t)
-              && onlyChanged(['accepted']) && request.resource.data.accepted == true);
+              && resource.data.get('declined', false) == false
+              && onlyChanged(['accepted']) && request.resource.data.accepted == true)
+          || (hasPlayer(t) && dayUnlocked(t)
+              && resource.data.get('invitee', '') == myPlayerId(t)
+              && resource.data.get('accepted', true) == false
+              && resource.data.get('declined', false) == false
+              && onlyChanged(['declined']) && request.resource.data.declined == true)
+          || (hasPlayer(t) && dayUnlocked(t)
+              && resource.data.get('declined', false) == true
+              && request.resource.data.playerId == myPlayerId(t)
+              && request.resource.data.get('declined', false) == false);
       }
 
       // Owned rewards: created by day evaluation, which runs as admin. Members

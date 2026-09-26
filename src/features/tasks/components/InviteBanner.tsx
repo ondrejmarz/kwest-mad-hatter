@@ -4,11 +4,10 @@ import { db } from '../../../data/firebase';
 import { cancelReservation } from '../../../data/transactions/cancelReservation';
 import { respondToInvite } from '../../../data/transactions/respondToInvite';
 import type { PlayerId, TaskId } from '../../../domain/ids';
-import type { Reservation, ReservationResponse } from '../../../domain/types';
+import type { Reservation } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { Button } from '../../../ui/Button';
-import { Chip } from '../../../ui/Chip';
 import {
   useCatalogTasks,
   useMyInvites,
@@ -17,17 +16,25 @@ import {
   usePlayers,
   useSession,
 } from '../../session';
+import { useDismissedInvites } from '../useDismissedInvites';
 
-const CARD = 'rounded-2xl border border-border bg-surface-raised p-4';
+import { PairInviteCard } from './PairInviteCard';
+
+/** A card's identity for dismissal: the reservation, the invited partner and the answer. */
+function cardKey(reservation: Reservation, inviteeId: PlayerId | undefined): string {
+  const answer = inviteeId !== undefined ? reservation.responses[inviteeId] : undefined;
+  return [reservation.day, reservation.taskId, reservation.playerId, inviteeId, answer ?? ''].join(
+    '_',
+  );
+}
 
 /**
- * Pair invites follow the player across every screen (spec 7), styled as cards so they sit with the
- * rest of the app. Both sides see the same "Pozvánka" chip, the task's description, and the same
- * bottom row — a name-and-status on the left, the action on the right. The inviter offers a
- * cancel-for-both, the invited player a Confirm/Decline. Once the partner answers, the check or
- * cross pops in and a ✕ appears to tuck the settled card away. A pair is done together or not at
- * all, so once it has formed EITHER member can still cancel it for both. Names and descriptions come
- * from the roster and catalog (the reservation stores only ids and the task name).
+ * Pair invites for the next round follow the player across every screen (spec 7), as cards: the
+ * initiator's own pair and every invite aimed at this player. Both sides see who invites whom to
+ * what and the task's description. The inviter can cancel the pair for both; the invited player
+ * accepts or declines, and once they accept, can still cancel it for both. An answered card stays
+ * until its ✕ hides it. Names and descriptions come from the roster and catalog (the reservation
+ * stores only ids and the task name).
  */
 export function InviteBanner() {
   const { turnus } = useSession();
@@ -37,12 +44,12 @@ export function InviteBanner() {
   const playersState = usePlayers();
   const tasksState = useCatalogTasks();
   const { locale } = useTranslation();
+  const { isDismissed, dismiss } = useDismissedInvites('kwest.invites.dismissed');
 
   if (turnus === null || myPlayer === null) return null;
   const invites = invitesState.status === 'ready' ? invitesState.data : [];
   const mine = mineState.status === 'ready' ? mineState.data : null;
   const myGroup = mine !== null && mine.invitees.length > 0 ? mine : null;
-  if (invites.length === 0 && myGroup === null) return null;
 
   const nameById =
     playersState.status === 'ready'
@@ -63,17 +70,25 @@ export function InviteBanner() {
     .filter((invite) => invite.responses[myPlayer.id] === 'accepted')
     .map((invite) => invite.playerId);
 
+  const myGroupKey = myGroup !== null ? cardKey(myGroup, myGroup.invitees[0]) : null;
+  const inviteKeys = invites.map((invite) => cardKey(invite, myPlayer.id));
+  const liveKeys = [...(myGroupKey !== null ? [myGroupKey] : []), ...inviteKeys];
+  const showMyGroup = myGroup !== null && myGroupKey !== null && !isDismissed(myGroupKey);
+  const shownInvites = invites.filter((_, index) => !isDismissed(inviteKeys[index] ?? ''));
+  if (!showMyGroup && shownInvites.length === 0) return null;
+
   return (
     <div className="mb-3 flex flex-col gap-2">
-      {myGroup !== null && (
+      {showMyGroup && (
         <InitiatorCard
           reservation={myGroup}
           description={descOf(myGroup.taskId)}
           nameOf={nameOf}
           turnusId={turnus.id}
+          onDismiss={() => dismiss(myGroupKey, liveKeys)}
         />
       )}
-      {invites.map((invite) => (
+      {shownInvites.map((invite) => (
         <InviteCard
           key={invite.playerId}
           invite={invite}
@@ -82,91 +97,44 @@ export function InviteBanner() {
           myPlayerId={myPlayer.id}
           leaveInviterIds={acceptedInviterIds}
           turnusId={turnus.id}
+          onDismiss={() => dismiss(cardKey(invite, myPlayer.id), liveKeys)}
         />
       ))}
     </div>
   );
 }
 
-/** The animated outcome of one answer: a green check, a red cross, or a muted "waiting". */
-function ResultBadge({ answer }: { answer: ReservationResponse | undefined }) {
-  const { t } = useTranslation();
-  if (answer === 'accepted') {
-    return (
-      <span
-        key="accepted"
-        className="result-pop inline-flex items-center gap-1 text-sm text-success"
-      >
-        <span aria-hidden>✓</span>
-        {t('pair.acceptedResult')}
-      </span>
-    );
-  }
-  if (answer === 'declined') {
-    return (
-      <span
-        key="declined"
-        className="result-pop inline-flex items-center gap-1 text-sm text-danger"
-      >
-        <span aria-hidden>✗</span>
-        {t('pair.declinedResult')}
-      </span>
-    );
-  }
-  return <span className="text-sm text-content-muted">{t('pair.pending')}</span>;
-}
-
-/** A ✕ in the card's top-right that tucks a settled invite away (until it is loaded afresh). */
-function DismissButton({ onClick }: { onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      aria-label={t('common.close')}
-      onClick={onClick}
-      className="-mr-1 -mt-1 shrink-0 rounded-lg px-2 text-lg leading-none text-content-muted"
-    >
-      ✕
-    </button>
-  );
-}
-
-/** The inviter's own pair: the partner's answer on the left (like the invitee sees), cancel right. */
+/** The inviter's own pair: the partner's answer on the left, cancel-for-both on the right. */
 function InitiatorCard({
   reservation,
   description,
   nameOf,
   turnusId,
+  onDismiss,
 }: {
   reservation: Reservation;
   description: string;
   nameOf: (id: PlayerId) => string;
   turnusId: string;
+  onDismiss: () => void;
 }) {
   const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const answered = reservation.invitees.every((id) => reservation.responses[id] !== undefined);
   // A pair has a single invited partner; show their answer, the same badge the partner sees.
   const partner = reservation.invitees[0];
   const answer = partner !== undefined ? reservation.responses[partner] : undefined;
-  if (dismissed) return null;
 
   return (
-    <div className={CARD}>
-      <div className="flex items-start justify-between gap-2">
-        <Chip tone="accent">{t('pair.inviteChip')}</Chip>
-        {answered && <DismissButton onClick={() => setDismissed(true)} />}
-      </div>
-      <p className="mt-2 text-sm text-content">
-        {t('pair.youInvited', {
-          names: reservation.invitees.map(nameOf).join(', '),
-          task: localize(reservation.taskName, locale),
-        })}
-      </p>
-      {description !== '' && <p className="mt-1 text-sm text-content-muted">{description}</p>}
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <ResultBadge answer={answer} />
+    <PairInviteCard
+      kind="reservation"
+      text={t('pair.youInvited', {
+        names: reservation.invitees.map(nameOf).join(', '),
+        task: localize(reservation.taskName, locale),
+      })}
+      description={description}
+      answer={answer}
+      {...(answer !== undefined ? { onDismiss } : {})}
+      actions={
         <Button
           variant="danger"
           disabled={busy}
@@ -183,14 +151,14 @@ function InitiatorCard({
         >
           {t('pair.cancelInvite')}
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
 /**
- * An invite to this player: their answer on the left, a Confirm/Decline on the right. A refusal
- * locks the card; an acceptance swaps the buttons for a cancel-for-both, since the pair has formed.
+ * An invite to this player: Decline and Accept while it waits. An acceptance swaps them for a
+ * cancel-for-both, since the pair has formed; a refusal leaves just the answer.
  */
 function InviteCard({
   invite,
@@ -199,6 +167,7 @@ function InviteCard({
   myPlayerId,
   leaveInviterIds,
   turnusId,
+  onDismiss,
 }: {
   invite: Reservation;
   inviterName: string;
@@ -207,13 +176,11 @@ function InviteCard({
   /** Initiators of every other pair this player accepted — accepting cancels those (spec 7). */
   leaveInviterIds: readonly PlayerId[];
   turnusId: string;
+  onDismiss: () => void;
 }) {
   const { t, locale } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const myAnswer = invite.responses[myPlayerId];
-  const answered = myAnswer !== undefined;
-  if (dismissed) return null;
 
   const act = (action: () => Promise<unknown>): void => {
     if (busy) return;
@@ -232,41 +199,34 @@ function InviteCard({
       ),
     );
 
+  const actions =
+    myAnswer === 'accepted' ? (
+      <Button
+        variant="danger"
+        disabled={busy}
+        onClick={() => act(() => cancelReservation(db, turnusId, invite.playerId, myPlayerId))}
+      >
+        {t('pair.cancelInvite')}
+      </Button>
+    ) : myAnswer === undefined ? (
+      <div className="flex gap-2">
+        <Button variant="secondary" disabled={busy} onClick={() => respond(false)}>
+          {t('pair.decline')}
+        </Button>
+        <Button disabled={busy} onClick={() => respond(true)}>
+          {t('pair.accept')}
+        </Button>
+      </div>
+    ) : null;
+
   return (
-    <div className={CARD}>
-      <div className="flex items-start justify-between gap-2">
-        <Chip tone="accent">{t('pair.inviteChip')}</Chip>
-        {answered && <DismissButton onClick={() => setDismissed(true)} />}
-      </div>
-      <p className="mt-2 text-sm text-content">
-        {t('pair.invitedBy', { name: inviterName, task: localize(invite.taskName, locale) })}
-      </p>
-      {description !== '' && <p className="mt-1 text-sm text-content-muted">{description}</p>}
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <ResultBadge answer={myAnswer} />
-        {myAnswer === 'accepted' ? (
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() => act(() => cancelReservation(db, turnusId, invite.playerId, myPlayerId))}
-          >
-            {t('pair.cancelInvite')}
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              variant={myAnswer === 'declined' ? 'danger' : 'secondary'}
-              disabled={busy || answered}
-              onClick={() => respond(false)}
-            >
-              {t('pair.decline')}
-            </Button>
-            <Button variant="secondary" disabled={busy || answered} onClick={() => respond(true)}>
-              {t('pair.accept')}
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+    <PairInviteCard
+      kind="reservation"
+      text={t('pair.invitedBy', { name: inviterName, task: localize(invite.taskName, locale) })}
+      description={description}
+      answer={myAnswer}
+      {...(myAnswer !== undefined ? { onDismiss } : {})}
+      actions={actions}
+    />
   );
 }

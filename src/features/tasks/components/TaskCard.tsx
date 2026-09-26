@@ -13,8 +13,8 @@ import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
 /**
- * A task card (spec 9.2): the name, then top-right the coin reward with the difficulty dots directly
- * beneath it and (for an admin) the edit pencil furthest right; chips (category without its emoji,
+ * A task card (spec 9.2): the name, the difficulty dots centred on the same line, the coin reward
+ * top-right and (for an admin) the edit pencil furthest right; chips (category without its emoji,
  * pair/group, and live status) and the description below. The status chips are the concrete facts the
  * screen computes: who holds it in the current round (mine vs. someone else) and whether it carries a
  * reservation for the next round (mine vs. another player's interest). An inactive task reaches only
@@ -49,10 +49,10 @@ export const TaskCard = memo(function TaskCard({
       {...(onOpen ? { onClick: onOpen } : {})}
       title={localize(task.name, locale)}
       muted={!task.active}
+      topCenter={<DifficultyDots value={task.difficulty} />}
       topRight={
         <CardTopRight
           coins={<CoinAmount amount={task.coinReward} signed />}
-          below={<DifficultyDots value={task.difficulty} />}
           {...(isAdmin ? { edit: <EditButton onClick={onEdit} /> } : {})}
         />
       }

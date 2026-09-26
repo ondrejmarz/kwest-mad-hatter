@@ -259,15 +259,19 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
   - Pro příští kolo zaškrtni **Dvojice** a **Hlava**.
 - [ ] **K2.3** · A — **P1 Tichá dohoda** → „Vyber parťáka“.
   - V nabídce jsou Bára a Cyril, ne Adam. Vyber Cyrila → **Rezervovat na příští kolo**.
-  - A má na každé záložce nahoře kartu „Pozvánka“: „Cyril byl(a) pozván(a) na „P1 Tichá dohoda““,
-    „Čeká na odpověď“ a **Zrušit pro oba**.
-  - C: „Adam tě zve na úkol „P1 Tichá dohoda““ s **Odmítnout** / **Přijmout**.
+  - A má na každé záložce nahoře kartu s modrými chipy „Pozvánka“ a „Rezervace na příští kolo“:
+    „Cyril byl(a) pozván(a) na „P1 Tichá dohoda““, pod tím popis úkolu, „Čeká na odpověď“ a
+    **Zrušit pro oba**.
+  - C: stejná karta s „Adam tě zve na úkol „P1 Tichá dohoda““, **Odmítnout** a modrým
+    **Přijmout**.
   - B z toho nevidí nic, jen „Má zájemce“ u P1.
 - [ ] **K2.4** · C — **Odmítnout**.
-  - C i A vidí „✗ Odmítnuto“. Tlačítka u C jsou zamčená a vpravo nahoře je ✕ na schování karty.
+  - C i A vidí „✗ Odmítnuto“. U C tlačítka zmizí a vpravo nahoře je ✕ na schování karty. A má dál
+    **Zrušit pro oba**.
+  - C ťukne na ✕: karta zmizí a nevrátí se ani po zavření a novém spuštění aplikace.
 - [ ] **K2.5** · A — Otevři P1: „Rezervováno na příští kolo“ → **Zrušit rezervaci**. Pak P1 znovu,
       tentokrát s Bárou → **Rezervovat na příští kolo**.
-  - Pozvánka u C zmizí a objeví se u B.
+  - Pozvánka se objeví u B.
 - [ ] **K2.6** · B — **Přijmout**.
   - A i B vidí „✓ Přijato“. U B se místo Odmítnout / Přijmout objeví **Zrušit pro oba**.
   - B: Profil ukazuje „Tvoje rezervace na příští kolo: P1 Tichá dohoda“, v seznamu má P1 chip
@@ -404,12 +408,14 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
       ✓ **Hlava**.
 - [ ] **K6.2** · A — **P4 Duet** → parťák Cyril → **Vzít na probíhající kolo**. Rezervace se
       nenabízí, protože Dvojice nejsou v příštím kole otevřené.
-  - A má kartu „Dvojice na probíhající kolo“: „Pozval(a) jsi Cyril na úkol „P4 Duet“ v
-    probíhajícím kole“, „Čeká na potvrzení“ a **Zrušit pro oba**.
-  - C: „Adam tě zve na úkol „P4 Duet“ v probíhajícím kole“.
+  - A má kartu s chipy „Pozvánka“ a „Výběr na probíhající kolo“: „Cyril byl(a) pozván(a) na „P4
+    Duet““, pod tím popis úkolu, „Čeká na odpověď“ a **Zrušit pro oba**.
+  - C: „Adam tě zve na úkol „P4 Duet““ s popisem, **Odmítnout** a modrým **Přijmout**.
   - B vidí u P4 chip „Zabraný“, dokud Cyril neodpoví.
 - [ ] **K6.3** · C — **Odmítnout**.
-  - Obě karty zmizí a P4 u B už „Zabraný“ nemá.
+  - Obě karty zůstanou s „✗ Odmítnuto“, bez tlačítek a s ✕ vpravo nahoře. P4 u B už „Zabraný“
+    nemá.
+  - A i C kartu ťuknutím na ✕ schovají.
 - [ ] **K6.4** · A — **P4 Duet** → parťák Bára → **Vzít na probíhající kolo**.
 - [ ] **K6.5** · C — Než Bára odpoví, otevři **P4 Duet**.
   - P4 má chip „Zabraný“ a dialog **Vzít na probíhající kolo** nenabízí, čekající pozvánka úkol
@@ -417,6 +423,7 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
     vzal.“, ne „Jsi offline!“.
 - [ ] **K6.6** · B — **Přijmout**.
   - Adam i Bára mají „Má úkol“ P4 Duet ve dvojici. Cyril si v tomhle kole schválně nic nebere.
+  - A i B mají kartu s „✓ Přijato“ a jen ✕, žádné tlačítko. Schovají ji.
 - [ ] **K6.7** · rezervace — B a C rezervují **stejný** úkol **H3 Kvíz**, A rezervuje **H1
       Hádanka**.
   - B vidí u H3 „Má zájemce“, ale ne kdo.
@@ -465,7 +472,7 @@ se v probíhajícím kole přepne na jiný úkol, zruší dvojici i parťákovi.
 - [ ] **Z.5** · C, B, A — Dvojice se ruší oběma i v probíhajícím kole. C: Kategorie pro
       probíhající kolo přidej ✓ **Dvojice**. B: **P2 Zrcadlo** → parťák Adam → **Vzít na
       probíhající kolo**.
-  - C v nastavení odškrtne **Lze měnit probíhající úkoly**. A má na kartě „Dvojice na probíhající
+  - C v nastavení odškrtne **Lze měnit probíhající úkoly**. A má na kartě „Výběr na probíhající
     kolo“ „Úkol v probíhajícím kole teď měnit nejde.“ a **Přijmout** je šedé, protože už má H1. C
     nastavení zase zaškrtne.
   - A: **Přijmout**. Adam i Bára mají úkol P2 ve dvojici. Adam tím pustil H1 a nikomu jinému se nic nestalo, H1 je

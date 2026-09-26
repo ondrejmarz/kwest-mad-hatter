@@ -7,6 +7,7 @@ import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
 import { taskClaimDoc, taskDoc } from '../paths';
 import { parseTask } from '../schemas/catalog';
+import { holdsTask, parseTaskClaim } from '../schemas/taskClaim';
 
 import { readPlayer, readTurnus } from './shared';
 
@@ -33,9 +34,11 @@ export async function initiatePairPick(
 
     const claimRef = taskClaimDoc(db, t, turnus.currentDay, taskId);
     const claimSnap = await tx.get(claimRef);
+    // A declined pair invite no longer holds the task; anything else on the marker still does.
+    const claim = claimSnap.exists() ? parseTaskClaim(claimSnap.id, claimSnap.data()) : null;
     const takenBy = new Map<TaskId, string>();
-    if (claimSnap.exists()) {
-      takenBy.set(TaskId(taskId), (claimSnap.data().playerId as string) ?? '');
+    if (claimSnap.exists() && (claim === null || holdsTask(claim))) {
+      takenBy.set(TaskId(taskId), claim?.playerId ?? '');
     }
 
     const eligible = canInitiatePairPick(initiator, task, turnus, takenBy);

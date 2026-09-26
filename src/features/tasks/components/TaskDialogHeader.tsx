@@ -9,8 +9,9 @@ import { CoinAmount } from '../../../ui/CoinAmount';
 import { DifficultyDots } from '../../../ui/DifficultyDots';
 
 /**
- * The top of the task dialog (spec 9.2): the same card layout as the list row — name, difficulty,
- * category and pair/group chips, the full (unclamped) description and the coin reward.
+ * The top of the task dialog (spec 9.2): the same card layout as the list row — name, difficulty
+ * centred and the coin reward top-right, category and pair/group chips, and the full (unclamped)
+ * description.
  */
 export function TaskDialogHeader({ task }: { task: Task }) {
   const { t, locale } = useTranslation();
@@ -18,7 +19,8 @@ export function TaskDialogHeader({ task }: { task: Task }) {
   return (
     <CardLayout
       title={localize(task.name, locale)}
-      topRight={<DifficultyDots value={task.difficulty} />}
+      topCenter={<DifficultyDots value={task.difficulty} />}
+      topRight={<CoinAmount amount={task.coinReward} signed />}
       chips={
         <>
           {task.categories.map((category) => (
@@ -33,7 +35,6 @@ export function TaskDialogHeader({ task }: { task: Task }) {
         </>
       }
       {...(task.description.cs !== '' ? { description: localize(task.description, locale) } : {})}
-      footerRight={<CoinAmount amount={task.coinReward} signed />}
       clampDescription={false}
     />
   );

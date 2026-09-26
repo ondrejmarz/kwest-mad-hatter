@@ -18,6 +18,8 @@ import { approvePlayer } from '../../src/data/transactions/approvePlayer';
 import { bidReward } from '../../src/data/transactions/bidReward';
 import { cancelReservation } from '../../src/data/transactions/cancelReservation';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
+import { declinePairPick } from '../../src/data/transactions/declinePairPick';
+import { initiatePairPick } from '../../src/data/transactions/initiatePairPick';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
 import { pickTaskNow } from '../../src/data/transactions/pickTaskNow';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
@@ -530,6 +532,24 @@ describe('switching tasks mid-round', () => {
     expect(result.ok).toBe(true);
     expect((await read('players/free'))?.activeTask).toMatchObject({ taskId: 'tq' });
     expect(await read('taskClaims/1_t3')).toBeUndefined();
+  });
+
+  // Declining keeps the claim, so the initiator sees the answer, but the task is free again at once.
+  it('keeps a declined same-round invite visible and frees its task', async () => {
+    await seedPairInvite();
+    expect((await declinePairPick(asDb('alice'), T, 'tq', 1)).ok).toBe(true);
+    expect(await read('taskClaims/1_tq')).toMatchObject({
+      playerId: 'free',
+      invitee: 'p1',
+      declined: true,
+    });
+    expect((await acceptPairPick(asDb('alice'), T, 'tq', PlayerId('p1'))).ok).toBe(false);
+
+    const result = await initiatePairPick(asDb('alice'), T, 'p1', 'tq', PlayerId('p2'));
+    expect(result.ok).toBe(true);
+    const claim = await read('taskClaims/1_tq');
+    expect(claim).toMatchObject({ playerId: 'p1', invitee: 'p2', accepted: false });
+    expect(claim?.declined).toBeUndefined();
   });
 });
 

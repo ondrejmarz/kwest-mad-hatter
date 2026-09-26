@@ -45,4 +45,4 @@ export const RULE_LINKS: Partial<Record<RuleId, readonly RuleId[]>> = {
  * rules, list what changed since:
  * `git log --oneline <commit>..HEAD -- src/domain src/data/transactions firestore.rules`
  */
-export const RULES_CHECKED_AT = { commit: '571f456', date: '2026-09-26' } as const;
+export const RULES_CHECKED_AT = { commit: '4693541', date: '2026-09-26' } as const;

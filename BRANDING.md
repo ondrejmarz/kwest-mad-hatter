@@ -4,8 +4,9 @@ Kwest speaks in one voice: a cool cobalt-to-magenta spectrum, warmed by a single
 Every screen is built from the same small, deliberate set of colours — status, currency and
 action all drawn from it. Only the neutral greys stay slate.
 
-For the full, styled brand sheet — the gradient, swatches and live components in light and dark —
-open [`docs/brand.html`](docs/brand.html) in a browser (or serve it with GitHub Pages).
+The full brand sheet, with the gradient, swatches and live components in light and dark, is live
+on [GitHub Pages](https://ondrejmarz.github.io/kwest-mad-hatter/brand.html). Its source is
+[`docs/brand.html`](docs/brand.html).
 
 ## Palette
 

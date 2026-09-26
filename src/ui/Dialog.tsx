@@ -45,7 +45,9 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black/40 px-2"
+      // A strong dim plus a light blur pushes the app behind well back, so the dialog reads as the
+      // only thing on screen.
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black/60 px-2 backdrop-blur-sm"
       // Centered when it fits; a full-height dialog fills the space (capped by the panel's max-height)
       // and so rides up to just below the safe area, covering the app name but not the header's top
       // edge. The bottom inset keeps the ✕ off the home indicator.

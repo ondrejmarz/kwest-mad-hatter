@@ -25,8 +25,9 @@ const CARD = 'rounded-2xl border border-border bg-surface-raised p-4';
  * rest of the app. Both sides see the same "Pozvánka" chip, the task's description, and the same
  * bottom row — a name-and-status on the left, the action on the right. The inviter offers a
  * cancel-for-both, the invited player a Confirm/Decline. Once the partner answers, the check or
- * cross pops in, both cards lock, and a ✕ appears to tuck the settled card away. Names and
- * descriptions come from the roster and catalog (the reservation stores only ids and the task name).
+ * cross pops in and a ✕ appears to tuck the settled card away. A pair is done together or not at
+ * all, so once it has formed EITHER member can still cancel it for both. Names and descriptions come
+ * from the roster and catalog (the reservation stores only ids and the task name).
  */
 export function InviteBanner() {
   const { turnus } = useSession();
@@ -55,6 +56,12 @@ export function InviteBanner() {
       : new Map<TaskId, string>();
   const nameOf = (id: PlayerId): string => nameById.get(id) ?? '?';
   const descOf = (id: TaskId): string => descById.get(id) ?? '';
+  // Every pair this player has already accepted — accepting a new one cancels them (for both of their
+  // members), so the player never ends up committed to two pairs at once (spec 7). The initiator id
+  // is the doc id.
+  const acceptedInviterIds = invites
+    .filter((invite) => invite.responses[myPlayer.id] === 'accepted')
+    .map((invite) => invite.playerId);
 
   return (
     <div className="mb-3 flex flex-col gap-2">
@@ -73,6 +80,7 @@ export function InviteBanner() {
           inviterName={nameOf(invite.playerId)}
           description={descOf(invite.taskId)}
           myPlayerId={myPlayer.id}
+          leaveInviterIds={acceptedInviterIds}
           turnusId={turnus.id}
         />
       ))}
@@ -161,13 +169,16 @@ function InitiatorCard({
         <ResultBadge answer={answer} />
         <Button
           variant="danger"
-          disabled={busy || answered}
+          disabled={busy}
           onClick={() => {
             if (busy) return;
             setBusy(true);
-            void cancelReservation(db, turnusId, reservation.playerId).finally(() =>
-              setBusy(false),
-            );
+            void cancelReservation(
+              db,
+              turnusId,
+              reservation.playerId,
+              reservation.playerId,
+            ).finally(() => setBusy(false));
           }}
         >
           {t('pair.cancelInvite')}
@@ -177,18 +188,24 @@ function InitiatorCard({
   );
 }
 
-/** An invite to this player: their answer on the left, a Confirm/Decline that locks once given. */
+/**
+ * An invite to this player: their answer on the left, a Confirm/Decline on the right. A refusal
+ * locks the card; an acceptance swaps the buttons for a cancel-for-both, since the pair has formed.
+ */
 function InviteCard({
   invite,
   inviterName,
   description,
   myPlayerId,
+  leaveInviterIds,
   turnusId,
 }: {
   invite: Reservation;
   inviterName: string;
   description: string;
   myPlayerId: PlayerId;
+  /** Initiators of every other pair this player accepted — accepting cancels those (spec 7). */
+  leaveInviterIds: readonly PlayerId[];
   turnusId: string;
 }) {
   const { t, locale } = useTranslation();
@@ -198,13 +215,22 @@ function InviteCard({
   const answered = myAnswer !== undefined;
   if (dismissed) return null;
 
-  const respond = (accept: boolean): void => {
+  const act = (action: () => Promise<unknown>): void => {
     if (busy) return;
     setBusy(true);
-    void respondToInvite(db, turnusId, invite.playerId, myPlayerId, accept).finally(() =>
-      setBusy(false),
-    );
+    void action().finally(() => setBusy(false));
   };
+  const respond = (accept: boolean): void =>
+    act(() =>
+      respondToInvite(
+        db,
+        turnusId,
+        invite.playerId,
+        myPlayerId,
+        accept,
+        accept ? leaveInviterIds : [],
+      ),
+    );
 
   return (
     <div className={CARD}>
@@ -218,22 +244,28 @@ function InviteCard({
       {description !== '' && <p className="mt-1 text-sm text-content-muted">{description}</p>}
       <div className="mt-3 flex items-center justify-between gap-2">
         <ResultBadge answer={myAnswer} />
-        <div className="flex gap-2">
+        {myAnswer === 'accepted' ? (
           <Button
-            variant={myAnswer === 'declined' ? 'danger' : 'secondary'}
-            disabled={busy || answered}
-            onClick={() => respond(false)}
+            variant="danger"
+            disabled={busy}
+            onClick={() => act(() => cancelReservation(db, turnusId, invite.playerId, myPlayerId))}
           >
-            {t('pair.decline')}
+            {t('pair.cancelInvite')}
           </Button>
-          <Button
-            variant={myAnswer === 'accepted' ? 'primary' : 'secondary'}
-            disabled={busy || answered}
-            onClick={() => respond(true)}
-          >
-            {t('pair.accept')}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant={myAnswer === 'declined' ? 'danger' : 'secondary'}
+              disabled={busy || answered}
+              onClick={() => respond(false)}
+            >
+              {t('pair.decline')}
+            </Button>
+            <Button variant="secondary" disabled={busy || answered} onClick={() => respond(true)}>
+              {t('pair.accept')}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

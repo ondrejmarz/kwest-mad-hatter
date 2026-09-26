@@ -12,6 +12,9 @@ export const activeTaskSchema = z.object({
   description: zLocalizedText,
   difficulty: z.number(),
   coinReward: z.number(),
+  // Defaulted so a task handed out before partner ids were stored still parses (it just can't be
+  // released for its partner — spec 7).
+  partnerIds: z.array(zPlayerId).readonly().default([]),
   partnerNames: z.array(z.string()).readonly(),
   detail: z.string().optional(),
 });

@@ -73,9 +73,13 @@ export function ProfileScreen() {
     turnusState.status === 'ready' && turnusState.data !== null
       ? turnusState.data.publicProfiles
       : false;
+  const currentDay =
+    turnusState.status === 'ready' && turnusState.data !== null
+      ? turnusState.data.currentDay
+      : null;
   const { won, targetedBy } =
     myPlayer !== null && purchasesState.status === 'ready'
-      ? selectPlayerFacts(purchasesState.data, myPlayer.id)
+      ? selectPlayerFacts(purchasesState.data, myPlayer.id, currentDay)
       : { won: [], targetedBy: [] };
   const hasReservation =
     myPlayer !== null && countsState.status === 'ready' && countsState.data !== null

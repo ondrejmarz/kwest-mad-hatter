@@ -12,11 +12,14 @@ import {
 } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { acceptPairPick } from '../../src/data/transactions/acceptPairPick';
 import { adjustCoins } from '../../src/data/transactions/adjustCoins';
 import { approvePlayer } from '../../src/data/transactions/approvePlayer';
 import { bidReward } from '../../src/data/transactions/bidReward';
+import { cancelReservation } from '../../src/data/transactions/cancelReservation';
 import { claimPlayer } from '../../src/data/transactions/claimPlayer';
 import { joinTurnus } from '../../src/data/transactions/joinTurnus';
+import { pickTaskNow } from '../../src/data/transactions/pickTaskNow';
 import { reserveTask } from '../../src/data/transactions/reserveTask';
 import { respondToInvite } from '../../src/data/transactions/respondToInvite';
 import { runRollover } from '../../src/data/transactions/runRollover';
@@ -44,7 +47,33 @@ const activeTaskFor = (taskId: string, name: string): ActiveTask => ({
   description: L(''),
   difficulty: 1,
   coinReward: 150,
+  partnerIds: [],
   partnerNames: [],
+});
+
+/** One member's side of a pair task: the same task, the other member as the single partner. */
+const pairTaskWith = (taskId: string, partnerId: string, partnerName: string): ActiveTask => ({
+  ...activeTaskFor(taskId, taskId),
+  partnerIds: [PlayerId(partnerId)],
+  partnerNames: [partnerName],
+});
+
+/** A pair reservation for day 2 under its initiator, as the fixtures seed it (rules disabled). */
+const pairReservation = (
+  initiator: string,
+  taskId: string,
+  invitee: string,
+  responses: Record<string, string> = {},
+): Record<string, unknown> => ({
+  playerId: initiator,
+  day: 2,
+  taskId,
+  taskName: L(taskId),
+  minPlayers: 2,
+  maxPlayers: 2,
+  invitees: [invitee],
+  responses,
+  createdAt: Timestamp.now(),
 });
 
 const turnusSettings = {
@@ -265,6 +294,166 @@ describe('respondToInvite', () => {
     const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), false);
     expect(result.ok).toBe(true);
     expect((await read('reservations/p2'))?.responses).toEqual({ p1: 'declined' });
+  });
+
+  // Accepting a second pair must break the first: p1 has already accepted free's pair on t3; when p1
+  // accepts p2's pair on t2, free's pair is cancelled for both of its members — a pair is done
+  // together or not at all — so p1 is never committed to two pairs at once (spec 7).
+  it('cancels every other accepted pair when the invitee accepts a new one', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const put = (suffix: string, data: Record<string, unknown>): Promise<void> =>
+        setDoc(doc(db, `turnuses/${T}/${suffix}`), data);
+      await put('reservations/free', pairReservation('free', 't3', 'p1', { p1: 'accepted' }));
+      await put('reservations/p2', pairReservation('p2', 't2', 'p1'));
+      await put('reservationCounts/2', {
+        counts: { t3: 1, t2: 1 },
+        players: { free: true, p1: true, p2: true },
+      });
+    });
+
+    const result = await respondToInvite(asDb('alice'), T, 'p2', PlayerId('p1'), true, [
+      PlayerId('free'),
+    ]);
+    expect(result.ok).toBe(true);
+    expect((await read('reservations/p2'))?.responses).toEqual({ p1: 'accepted' });
+    expect(await read('reservations/free')).toBeUndefined();
+    const counts = await read('reservationCounts/2');
+    expect(counts?.counts).toMatchObject({ t3: 0, t2: 1 });
+    expect(counts?.players).toMatchObject({ free: false, p1: true, p2: true });
+  });
+});
+
+describe('a pair is cancelled for both', () => {
+  // p1 (alice) accepted p2's pair on t2 for the next round.
+  const seedAcceptedPair = (): Promise<void> =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `turnuses/${T}/reservations/p2`),
+        pairReservation('p2', 't2', 'p1', { p1: 'accepted' }),
+      );
+      await setDoc(doc(db, `turnuses/${T}/reservationCounts/2`), {
+        counts: { t2: 1 },
+        players: { p1: true, p2: true },
+      });
+    });
+
+  it('lets the accepted partner cancel the pair reservation for both members', async () => {
+    await seedAcceptedPair();
+    const result = await cancelReservation(asDb('alice'), T, 'p2', PlayerId('p1'));
+    expect(result.ok).toBe(true);
+    expect(await read('reservations/p2')).toBeUndefined();
+    const counts = await read('reservationCounts/2');
+    expect(counts?.counts).toMatchObject({ t2: 0 });
+    expect(counts?.players).toMatchObject({ p1: false, p2: false });
+  });
+
+  it('refuses an invitee who has not accepted', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(
+        doc(ctx.firestore(), `turnuses/${T}/reservations/p2`),
+        pairReservation('p2', 't2', 'p1'),
+      ),
+    );
+    const result = await cancelReservation(asDb('alice'), T, 'p2', PlayerId('p1'));
+    expect(result).toEqual({ ok: false, error: { code: 'NOT_RESERVATION_MEMBER' } });
+    expect(await read('reservations/p2')).toBeDefined();
+  });
+
+  it('cancels the pair for both when the partner reserves something else', async () => {
+    await seedAcceptedPair();
+    const result = await reserveTask(asDb('alice'), T, 'p1', 't3', [], [PlayerId('p2')]);
+    expect(result.ok).toBe(true);
+    expect(await read('reservations/p2')).toBeUndefined();
+    expect((await read('reservations/p1'))?.taskId).toBe('t3');
+    const counts = await read('reservationCounts/2');
+    expect(counts?.counts).toMatchObject({ t2: 0, t3: 1 });
+    expect(counts?.players).toMatchObject({ p1: true, p2: false });
+  });
+
+  it('takes the pair from the partner when the initiator replaces it', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `turnuses/${T}/reservations/p1`),
+        pairReservation('p1', 't2', 'p2', { p2: 'accepted' }),
+      );
+      await setDoc(doc(db, `turnuses/${T}/reservationCounts/2`), {
+        counts: { t2: 1 },
+        players: { p1: true, p2: true },
+      });
+    });
+    const result = await reserveTask(asDb('alice'), T, 'p1', 't3');
+    expect(result.ok).toBe(true);
+    expect((await read('reservations/p1'))?.invitees).toEqual([]);
+    const counts = await read('reservationCounts/2');
+    expect(counts?.counts).toMatchObject({ t2: 0, t3: 1 });
+    expect(counts?.players).toMatchObject({ p1: true, p2: false });
+  });
+
+  // p1 (alice) and p2 do pair task tp together in the current round.
+  const seedPairToday = (): Promise<void> =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const pairTask = {
+        name: L('Pair'),
+        description: L(''),
+        categories: [L('c')],
+        difficulty: 1,
+        minPlayers: 2,
+        maxPlayers: 2,
+        coinReward: 150,
+        usedByPlayerIds: [],
+        active: true,
+        manualCoins: false,
+      };
+      await setDoc(doc(db, `turnuses/${T}/tasks/tp`), pairTask);
+      await setDoc(doc(db, `turnuses/${T}/tasks/tq`), pairTask);
+      await setDoc(
+        doc(db, `turnuses/${T}/players/p1`),
+        { activeTask: pairTaskWith('tp', 'p2', 'B') },
+        { merge: true },
+      );
+      await setDoc(
+        doc(db, `turnuses/${T}/players/p2`),
+        { activeTask: pairTaskWith('tp', 'p1', 'A') },
+        { merge: true },
+      );
+    });
+
+  it('releases the partner when a member switches away from their pair task', async () => {
+    await seedPairToday();
+    const result = await pickTaskNow(asDb('alice'), T, 'p1', 't3');
+    expect(result.ok).toBe(true);
+    expect((await read('players/p1'))?.activeTask).toMatchObject({ taskId: 't3' });
+    expect((await read('players/p2'))?.activeTask).toBeNull();
+    expect((await read('players/p2'))?.needsPick).toBe(true);
+  });
+
+  it('releases the old partner when a member joins another same-round pair', async () => {
+    await seedPairToday();
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `turnuses/${T}/taskClaims/1_tq`), {
+        day: 1,
+        taskId: 'tq',
+        playerId: 'free',
+        invitee: 'p1',
+        accepted: false,
+        createdAt: Timestamp.now(),
+      }),
+    );
+    const result = await acceptPairPick(asDb('alice'), T, 'tq', PlayerId('p1'));
+    expect(result.ok).toBe(true);
+    expect((await read('players/p1'))?.activeTask).toMatchObject({
+      taskId: 'tq',
+      partnerIds: ['free'],
+    });
+    expect((await read('players/free'))?.activeTask).toMatchObject({
+      taskId: 'tq',
+      partnerIds: ['p1'],
+    });
+    expect((await read('players/p2'))?.activeTask).toBeNull();
   });
 });
 

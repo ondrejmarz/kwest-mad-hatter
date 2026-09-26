@@ -9,6 +9,7 @@ import {
   useMyInvites,
   useMyReservation,
   usePurchases,
+  useTurnus,
 } from '../session';
 
 /**
@@ -24,10 +25,13 @@ export function ProfilePlans({ player }: { player: Player }) {
   const bidsState = useMyBids();
   const rewardsState = useCatalogRewards();
   const purchasesState = usePurchases();
+  const turnusState = useTurnus();
+  const currentDay =
+    turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay : null;
 
   const { won, targetedBy } =
     purchasesState.status === 'ready'
-      ? selectPlayerFacts(purchasesState.data, player.id)
+      ? selectPlayerFacts(purchasesState.data, player.id, currentDay)
       : { won: [], targetedBy: [] };
 
   const ownReservation = reservationState.status === 'ready' ? reservationState.data : null;

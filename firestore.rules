@@ -73,6 +73,24 @@ service cloud.firestore {
         && at.coinReward == get(taskRef(t, at.taskId)).data.coinReward;
     }
 
+    // A pair is done together or not at all (spec 7): when one member leaves a pair task for another
+    // task, the partner loses it too. Any player may clear someone's task — to nothing, needing a
+    // pick again — but only a pair task whose single partner no longer holds it after this write, so
+    // it can never strip a task from a pair that is still together.
+    function releasesAbandonedPair(t) {
+      return resource.data.activeTask != null
+        && onlyChanged(['activeTask', 'needsPick'])
+        && request.resource.data.activeTask == null
+        && request.resource.data.needsPick == true
+        && dayUnlocked(t)
+        && resource.data.activeTask.get('partnerIds', []).size() == 1
+        && partnerLeftTask(t, resource.data.activeTask.partnerIds[0], resource.data.activeTask.taskId);
+    }
+    function partnerLeftTask(t, partnerId, taskId) {
+      let after = getAfter(/databases/$(database)/documents/turnuses/$(t)/players/$(partnerId)).data;
+      return after.activeTask == null || after.activeTask.taskId != taskId;
+    }
+
     // A device claims a character by adding its uid to `ownerUids`. Every claim — even the first
     // on an empty character — needs a claimAttempt whose PIN matches, so nobody grabs the wrong
     // character (spec 3b, 11).
@@ -192,7 +210,8 @@ service cloud.firestore {
         allow update: if isAdmin(t)
           || (isMember(t) && (claimsOwnership(t, pid) || releasesOwnership(t, pid)))
           || (hasPlayer(t) && pid == myPlayerId(t) && picksTaskNow(t))
-          || (hasPlayer(t) && picksPairTask(t, pid));
+          || (hasPlayer(t) && picksPairTask(t, pid))
+          || (hasPlayer(t) && releasesAbandonedPair(t));
         // Reject a pending character (spec 9.4); approved players are never hard-deleted.
         allow delete: if isAdmin(t) && resource.data.status == 'pending';
 
@@ -217,7 +236,9 @@ service cloud.firestore {
 
       // Reservations are secret: readable only by the initiator, the invited players and admins.
       // A locked day freezes them (players can't reserve, answer or cancel until evaluation);
-      // admins still write them — day evaluation deletes them at rollover.
+      // admins still write them — day evaluation deletes them at rollover. A pair is done together or
+      // not at all, so the partner who accepted may delete the pair's reservation too — cancelling
+      // it, or reserving something else, cancels it for both (spec 7).
       match /reservations/{pid} {
         allow read: if isAdmin(t)
           || (hasPlayer(t) && (pid == myPlayerId(t) || myPlayerId(t) in resource.data.invitees));
@@ -225,7 +246,10 @@ service cloud.firestore {
         allow update: if (hasPlayer(t) && dayUnlocked(t)
             && (pid == myPlayerId(t) || respondsToInvite(t, pid)))
           || isAdmin(t);
-        allow delete: if (hasPlayer(t) && pid == myPlayerId(t) && dayUnlocked(t)) || isAdmin(t);
+        allow delete: if (hasPlayer(t) && dayUnlocked(t)
+            && (pid == myPlayerId(t)
+              || resource.data.get('responses', {}).get(myPlayerId(t), '') == 'accepted'))
+          || isAdmin(t);
       }
 
       // Public aggregate interest — counts only, no names (spec 7). Cosmetic, so member-trusted.

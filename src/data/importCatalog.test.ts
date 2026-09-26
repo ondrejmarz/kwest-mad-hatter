@@ -84,7 +84,8 @@ describe('parseGroupSize', () => {
 });
 
 describe('parseRewards', () => {
-  it('maps the Czech forms, parses price, keeps trilingual name + tags', () => {
+  it('maps the Czech forms, parses price, keeps the trilingual name; a reward has no tags', () => {
+    // A reward's form is its category — any cell past the form is ignored, never parsed into tags.
     const tsv = 'Dezert|Dessert|Dessert\tNavíc\t150\tOdměna\tJídlo|Food|Essen';
     expect(parseRewards(tsv)).toEqual([
       {
@@ -92,14 +93,13 @@ describe('parseRewards', () => {
         description: L('Navíc'),
         price: 150,
         form: 'reward',
-        categories: [L('Jídlo', 'Food', 'Essen')],
       },
     ]);
   });
 
   it('falls back to reward for an unknown form and 0 for a bad price', () => {
     expect(parseRewards('X\td\tabc\tNěco')).toEqual([
-      { name: L('X'), description: L('d'), price: 0, form: 'reward', categories: [] },
+      { name: L('X'), description: L('d'), price: 0, form: 'reward' },
     ]);
   });
 });

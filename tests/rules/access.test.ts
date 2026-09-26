@@ -17,6 +17,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 
@@ -247,6 +248,79 @@ describe('reservations are secret', () => {
 
   it('does not let an uninvolved member delete a reservation', async () => {
     await assertFails(deleteDoc(doc(authed('carol'), path('reservations/p1'))));
+  });
+
+  // A pair is done together or not at all: once the partner has accepted, either member cancels it.
+  it('lets the partner who accepted cancel the pair for both', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('bob'), path('reservations/p1')), { responses: { p2: 'accepted' } }),
+    );
+    await assertSucceeds(deleteDoc(doc(authed('bob'), path('reservations/p1'))));
+  });
+
+  it('does not let an invitee who has not accepted delete the pair', async () => {
+    await assertFails(deleteDoc(doc(authed('bob'), path('reservations/p1'))));
+  });
+});
+
+describe('leaving a pair task releases the partner', () => {
+  const pairTask = (partnerId: string): Record<string, unknown> => ({
+    taskId: 'pr',
+    name: 'P',
+    description: '',
+    difficulty: 1,
+    coinReward: 150,
+    partnerIds: [partnerId],
+    partnerNames: ['X'],
+  });
+  const soloT1 = {
+    taskId: 't1',
+    name: 'T',
+    description: '',
+    difficulty: 1,
+    coinReward: 150,
+    partnerIds: [],
+    partnerNames: [],
+  };
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await updateDoc(doc(db, path('players/p1')), { activeTask: pairTask('p2') });
+      await updateDoc(doc(db, path('players/p2')), { activeTask: pairTask('p1') });
+      await updateDoc(doc(db, path('players/p4')), { activeTask: soloT1 });
+    });
+  });
+
+  it('lets a member switch away and clear the partner in the same commit', async () => {
+    const db = authed('alice');
+    const batch = writeBatch(db);
+    batch.update(doc(db, path('players/p1')), { activeTask: soloT1, needsPick: false });
+    batch.update(doc(db, path('players/p2')), { activeTask: null, needsPick: true });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('refuses to clear a partner who is still on the pair task', async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p2')), { activeTask: null, needsPick: true }),
+    );
+    await assertFails(
+      updateDoc(doc(authed('carol'), path('players/p2')), { activeTask: null, needsPick: true }),
+    );
+  });
+
+  it("refuses to clear someone's solo task", async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p4')), { activeTask: null, needsPick: true }),
+    );
+  });
+
+  it('refuses to hand the released partner anything but an empty task', async () => {
+    const db = authed('alice');
+    const batch = writeBatch(db);
+    batch.update(doc(db, path('players/p1')), { activeTask: soloT1, needsPick: false });
+    batch.update(doc(db, path('players/p2')), { activeTask: soloT1, needsPick: false });
+    await assertFails(batch.commit());
   });
 });
 

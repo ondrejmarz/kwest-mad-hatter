@@ -35,6 +35,7 @@ export const makeActiveTask = (over: Partial<ActiveTask> = {}): ActiveTask => ({
   description: loc(''),
   difficulty: 1,
   coinReward: 150,
+  partnerIds: [],
   partnerNames: [],
   ...over,
 });

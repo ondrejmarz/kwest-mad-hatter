@@ -305,6 +305,7 @@ describe('resolveRollover — groups and pairs (step 3)', () => {
     expect(pu(result, 'a').activeTask?.taskId).toBe('g1');
     expect(pu(result, 'b').activeTask?.taskId).toBe('g1');
     expect(pu(result, 'a').activeTask?.partnerNames).toEqual(['Bob']);
+    expect(pu(result, 'a').activeTask?.partnerIds).toEqual(['b']);
   });
 
   it('expires a pooled group below its lower bound', () => {

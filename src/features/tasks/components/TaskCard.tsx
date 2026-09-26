@@ -5,6 +5,7 @@ import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
 import { categoryLabel } from '../../../lib/category';
 import { formatGroupSize, taskType } from '../../../lib/group';
+import { CardTopRight } from '../../../ui/CardTopRight';
 import { Chip } from '../../../ui/Chip';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { DifficultyDots } from '../../../ui/DifficultyDots';
@@ -12,10 +13,11 @@ import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
 /**
- * A task card (spec 9.2): name + difficulty dots on the first line, chips (category without its
- * emoji, pair/group, and live status), the description, then coins and the admin pencil. The status
- * chips are the concrete facts the screen computes: who holds it today (mine vs. someone else) and
- * whether it carries a reservation for tomorrow (mine vs. another player's interest).
+ * A task card (spec 9.2): the name, then top-right the coin reward with the difficulty dots directly
+ * beneath it and (for an admin) the edit pencil furthest right; chips (category without its emoji,
+ * pair/group, and live status) and the description below. The status chips are the concrete facts the
+ * screen computes: who holds it today (mine vs. someone else) and whether it carries a reservation
+ * for tomorrow (mine vs. another player's interest).
  */
 export const TaskCard = memo(function TaskCard({
   task,
@@ -45,7 +47,13 @@ export const TaskCard = memo(function TaskCard({
     <ListCard
       {...(onOpen ? { onClick: onOpen } : {})}
       title={localize(task.name, locale)}
-      topRight={<DifficultyDots value={task.difficulty} />}
+      topRight={
+        <CardTopRight
+          coins={<CoinAmount amount={task.coinReward} signed />}
+          below={<DifficultyDots value={task.difficulty} />}
+          {...(isAdmin ? { edit: <EditButton onClick={onEdit} /> } : {})}
+        />
+      }
       chips={
         <>
           {task.categories.map((category) => (
@@ -72,8 +80,6 @@ export const TaskCard = memo(function TaskCard({
         </>
       }
       description={localize(task.description, locale)}
-      footerLeft={isAdmin ? <EditButton onClick={onEdit} /> : undefined}
-      footerRight={<CoinAmount amount={task.coinReward} signed />}
     />
   );
 });

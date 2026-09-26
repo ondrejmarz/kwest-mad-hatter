@@ -21,6 +21,7 @@ describe('pickTaskNow', () => {
         description: task.description,
         difficulty: task.difficulty,
         coinReward: task.coinReward,
+        partnerIds: [],
         partnerNames: [],
       },
     });

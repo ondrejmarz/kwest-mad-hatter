@@ -11,7 +11,7 @@ import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
 import { FormError } from '../../../ui/FormError';
 import { TextInput } from '../../../ui/TextInput';
-import { usePurchases, useSession } from '../../session';
+import { usePurchases, useSession, useTurnus } from '../../session';
 
 import { PlayerChips } from './PlayerChips';
 import { selectPlayerFacts } from './PlayerFacts';
@@ -41,11 +41,14 @@ export function PlayerDetailDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const purchasesState = usePurchases();
+  const turnusState = useTurnus();
+  const currentDay =
+    turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay : null;
   // Won rewards and incoming punishments are public — shown for every player, split the same way as
   // the roster row so a row and its detail agree (`selectPlayerFacts`).
   const { won, targetedBy } =
     purchasesState.status === 'ready'
-      ? selectPlayerFacts(purchasesState.data, player.id)
+      ? selectPlayerFacts(purchasesState.data, player.id, currentDay)
       : { won: [], targetedBy: [] };
 
   const submit = async (event: FormEvent): Promise<void> => {

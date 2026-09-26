@@ -3,7 +3,7 @@ import { err, ok, type Result } from '../lib/result';
 
 import type { DomainError } from './errors';
 import type { Day, PlayerId } from './ids';
-import type { Player, Reservation, Task } from './types';
+import type { Player, Reservation, Task, TurnusSettings } from './types';
 
 /**
  * Reservations by task type (spec 7, revised). A solo task (1/1) is reserved alone. A pair (2/2)
@@ -60,6 +60,28 @@ export function reservationMembers(reservation: Reservation): readonly PlayerId[
     reservation.playerId,
     ...reservation.invitees.filter((id) => reservation.responses[id] === 'accepted'),
   ];
+}
+
+/** Whether `playerId` accepted this reservation's invite — a confirmed partner, not just invited. */
+export function hasAccepted(reservation: Reservation, playerId: PlayerId): boolean {
+  return reservation.responses[playerId] === 'accepted';
+}
+
+/**
+ * Who may call a reservation off (spec 7): its initiator, or a partner who accepted it. A pair is
+ * done together or not at all, so either member cancelling — or reserving something else — cancels
+ * it for both. Frozen while the round is locked, like every reservation change.
+ */
+export function canCancelReservation(
+  reservation: Reservation,
+  playerId: PlayerId,
+  turnus: TurnusSettings,
+): Result<void, DomainError> {
+  if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
+  if (reservation.playerId === playerId || hasAccepted(reservation, playerId)) {
+    return ok(undefined);
+  }
+  return err({ code: 'NOT_RESERVATION_MEMBER' });
 }
 
 /** A group reservation is valid once its members reach the lower bound (spec 7). */

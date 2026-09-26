@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { useState } from 'react';
 
 import { db } from '../../../data/firebase';
 import { cancelReservation } from '../../../data/transactions/cancelReservation';
@@ -12,30 +12,32 @@ import {
   canReserveTask,
   hasUsedTask,
 } from '../../../domain/eligibility';
+import type { DomainError } from '../../../domain/errors';
 import type { PlayerId, TaskId } from '../../../domain/ids';
 import { reservationMembers } from '../../../domain/reservation';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
-import { categoryLabel } from '../../../lib/category';
-import { formatGroupSize, taskType } from '../../../lib/group';
+import { taskType } from '../../../lib/group';
+import type { Result } from '../../../lib/result';
 import { Button } from '../../../ui/Button';
-import { CardLayout } from '../../../ui/CardLayout';
-import { Chip } from '../../../ui/Chip';
-import { CoinAmount } from '../../../ui/CoinAmount';
 import { Dialog } from '../../../ui/Dialog';
-import { DifficultyDots } from '../../../ui/DifficultyDots';
 import { FormError } from '../../../ui/FormError';
-import { Select } from '../../../ui/Select';
+import { taskErrorKey } from '../taskErrorKey';
+
+import { TakeNowSection } from './TakeNowSection';
+import { TaskDialogHeader } from './TaskDialogHeader';
+import { TaskReserveForm } from './TaskReserveForm';
 
 /**
  * Tap a task, reserve it for the next round (spec 7). Solo and group tasks are reserved individually
- * — a group is pooled with the other reservers at evaluation. A pair picks one partner from a
- * dropdown, who still has to accept. A solo task can also be taken for the current round
- * (first-come), a pair too once the partner confirms; groups are reservation-only. If this task is
- * already the player's reservation — their own, or a pair they accepted — the dialog offers to
- * cancel it. A pair is done together or not at all, so cancelling or replacing a pair reservation,
- * or switching away from a pair task, cancels it for the partner too; the dialog says so up front.
+ * — a group is pooled with the other reservers at evaluation. A pair picks one partner, who still has
+ * to accept. A solo task can also be taken for the current round (first-come), a pair too once the
+ * partner confirms; groups are reservation-only. If this task is already the player's reservation —
+ * their own, or a pair they accepted — the dialog offers to cancel it. A pair is done together or
+ * not at all, so cancelling or replacing a pair reservation, or switching away from a pair task,
+ * cancels it for the partner too; the dialog says so up front. When the turnus forbids swapping a
+ * task mid-round, a player who already holds one is told so instead of being offered the swap.
  */
 export function TaskActionDialog({
   task,
@@ -60,22 +62,40 @@ export function TaskActionDialog({
   onClose: () => void;
 }) {
   const { t, locale } = useTranslation();
-  const [invitees, setInvitees] = useState<readonly PlayerId[]>([]);
+  const [partnerId, setPartnerId] = useState<PlayerId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Only a pair invites a partner; solo and group tasks are reserved individually (spec 7).
+  const isPair = taskType(task.minPlayers, task.maxPlayers) === 'pair';
+  const invitees = isPair && partnerId !== null ? [partnerId] : [];
   const eligible = canReserveTask(myPlayer, task, settings);
-  const type = taskType(task.minPlayers, task.maxPlayers);
-  // Only a pair invites a partner; solo and group tasks are reserved individually (a group is pooled
-  // at evaluation, spec 7).
-  const isPair = type === 'pair';
-  const countOk = isPair ? invitees.length === 1 : invitees.length === 0;
   // The player's reservation for the next round: their own, or a pair they accepted (spec 7).
   const current = reservation ?? acceptedInvite;
   const mine = current !== null && current.taskId === task.id;
-  // A formed pair is cancelled for both members when either one cancels or replaces it.
-  const currentIsPair = current !== null && reservationMembers(current).length > 1;
-  // Switching away from a pair task in the current round takes it from the partner too.
+  // Any player may take an open, free task for the current round first-come — a solo one at once, a
+  // pair once the partner accepts — unless it is already their own task this round (spec 7).
+  const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
+  const pickToday = canPickTaskNow(myPlayer, task, settings, takenBy);
+  const pairToday = canInitiatePairPick(myPlayer, task, settings, takenBy);
+  const canPickToday = !isMyTaskToday && pickToday.ok;
+  const canPairToday = isPair && !isMyTaskToday && pairToday.ok;
+  // Free to take, but the turnus forbids swapping the task this player already holds this round.
+  const switchBlocked =
+    !isMyTaskToday &&
+    [pickToday, pairToday].some(
+      (check) => !check.ok && check.error.code === 'TASK_SWITCH_DISABLED',
+    );
+  // A partner can't be someone who has already had this task — doing it now or on a past round — so
+  // the same player can never end up doing it twice (spec 7).
+  const partnerCandidates = candidates.filter((candidate) => !hasUsedTask(candidate, task));
+
+  // A formed pair is cancelled for both members when either one cancels or replaces it, and leaving
+  // a pair task in the current round takes it from the partner too — say so before it happens.
+  const pairCancelNote =
+    current !== null && reservationMembers(current).length > 1 ? (
+      <p className="text-sm text-warning">{t('tasks.pairCancelsBoth')}</p>
+    ) : null;
   const leftPartnerName =
     pairPartnerOf(myPlayer.activeTask) !== null
       ? (myPlayer.activeTask?.partnerNames[0] ?? null)
@@ -86,70 +106,44 @@ export function TaskActionDialog({
         {t('tasks.switchLeavesPair', { name: leftPartnerName })}
       </p>
     ) : null;
-  const pairCancelNote = currentIsPair ? (
-    <p className="text-sm text-warning">{t('tasks.pairCancelsBoth')}</p>
-  ) : null;
-  // Any player may take an open, free SOLO task for today first-come — whether they have no task or
-  // are switching from one — as long as it is not already their own task today (spec 7).
-  const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
-  const canPickToday = !isMyTaskToday && canPickTaskNow(myPlayer, task, settings, takenBy).ok;
-  // A pair can be taken for today too, but the chosen partner has to accept first (spec 7).
-  const canPairToday =
-    isPair && !isMyTaskToday && canInitiatePairPick(myPlayer, task, settings, takenBy).ok;
-  // A partner can't be someone who has already had this task — doing it now or on a past day — so
-  // the same player can never end up doing it twice (spec 7). Filtered per task, so they never show.
-  const partnerCandidates = candidates.filter((candidate) => !hasUsedTask(candidate, task));
 
-  const initiateToday = (): void => {
-    const partner = invitees[0];
-    if (partner === undefined) {
-      setError(t('tasks.choosePartner'));
-      return;
-    }
-    void run(initiatePairPick(db, turnusId, myPlayer.id, task.id, partner));
-  };
-
-  const takeNow = async (): Promise<void> => {
+  // Every action runs the same way: one at a time, closing on success, and turning a failure into
+  // its own message (a taken task, a locked round…) rather than a blanket "you're offline".
+  const run = async (action: () => Promise<Result<void, DomainError>>): Promise<void> => {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await pickTaskNow(db, turnusId, myPlayer.id, task.id);
+    try {
+      const result = await action();
+      if (result.ok) {
+        onClose();
+        return;
+      }
+      setError(t(taskErrorKey(result.error)));
+    } catch {
+      setError(t('common.somethingWrong'));
+    }
     setBusy(false);
-    if (result.ok) onClose();
-    else if (result.error.code === 'TASK_TAKEN_TODAY') setError(t('tasks.takenToday'));
-    else setError(t('entry.offline'));
   };
 
-  const run = async (action: Promise<{ ok: boolean }>): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const result = await action;
-    setBusy(false);
-    if (result.ok) onClose();
-    else setError(t('entry.offline'));
-  };
-
-  const reserve = (event: FormEvent): void => {
-    event.preventDefault();
-    if (!countOk) {
+  const takePairToday = (): void => {
+    if (partnerId === null) {
       setError(t('tasks.choosePartner'));
       return;
     }
-    void run(reserveWithLeave());
+    void run(() => initiatePairPick(db, turnusId, myPlayer.id, task.id, partnerId));
   };
 
-  // Reserving a different task while committed to someone else's pair cancels that pair for both
-  // (in the same transaction), so the player never holds two reservations at once (spec 7).
-  const reserveWithLeave = (): Promise<{ ok: boolean }> =>
-    reserveTask(
-      db,
-      turnusId,
-      myPlayer.id,
-      task.id,
-      invitees,
-      acceptedInvite !== null ? [acceptedInvite.playerId] : [],
-    );
+  // Reserving while committed to someone else's pair cancels that pair for both (in the same
+  // transaction), so the player never holds two reservations at once (spec 7).
+  const reserve = (): void => {
+    if (isPair && partnerId === null) {
+      setError(t('tasks.choosePartner'));
+      return;
+    }
+    const leave = acceptedInvite !== null ? [acceptedInvite.playerId] : [];
+    void run(() => reserveTask(db, turnusId, myPlayer.id, task.id, invitees, leave));
+  };
 
   const reasonKey =
     eligible.ok || eligible.error.code === 'TASK_ALREADY_USED_BY_PLAYER'
@@ -160,30 +154,11 @@ export function TaskActionDialog({
 
   return (
     <Dialog open onClose={onClose} ariaLabel={localize(task.name, locale)}>
-      <CardLayout
-        title={localize(task.name, locale)}
-        topRight={<DifficultyDots value={task.difficulty} />}
-        chips={
-          <>
-            {task.categories.map((category) => (
-              <Chip key={category.cs}>{categoryLabel(localize(category, locale))}</Chip>
-            ))}
-            {isPair && <Chip tone="accent">{t('tasks.pairChip')}</Chip>}
-            {type === 'group' && (
-              <Chip tone="accent">
-                {t('tasks.groupSize', { size: formatGroupSize(task.minPlayers, task.maxPlayers) })}
-              </Chip>
-            )}
-          </>
-        }
-        {...(task.description.cs !== '' ? { description: localize(task.description, locale) } : {})}
-        footerRight={<CoinAmount amount={task.coinReward} signed />}
-        clampDescription={false}
-      />
+      <TaskDialogHeader task={task} />
 
       <div className="mt-4 border-t border-border pt-4">
         {settings.dayLocked ? (
-          // A locked day allows no task action — not a reservation, a pick, or even a cancel (spec
+          // A locked round allows no task action — not a reservation, a pick, or even a cancel (spec
           // 7). Show only the state and why nothing can be done, never a button that would fail.
           <div className="flex flex-col gap-2">
             {mine && <p className="text-sm text-content">{t('tasks.reserved')}</p>}
@@ -192,15 +167,17 @@ export function TaskActionDialog({
         ) : (
           <>
             {canPickToday && (
-              <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
-                <p className="text-sm text-content-muted">
-                  {myPlayer.activeTask !== null ? t('tasks.switchNowHint') : t('tasks.takeNowHint')}
-                </p>
-                {leavesPairNote}
-                <Button disabled={busy} onClick={() => void takeNow()}>
-                  {myPlayer.activeTask !== null ? t('tasks.switchNow') : t('tasks.takeNow')}
-                </Button>
-              </div>
+              <TakeNowSection
+                switching={myPlayer.activeTask !== null}
+                leavesPairNote={leavesPairNote}
+                busy={busy}
+                onTake={() => void run(() => pickTaskNow(db, turnusId, myPlayer.id, task.id))}
+              />
+            )}
+            {switchBlocked && (
+              <p className="mb-4 border-b border-border pb-4 text-sm text-content-muted">
+                {t('tasks.switchDisabled')}
+              </p>
             )}
             {mine && current !== null ? (
               <div className="flex flex-col gap-3">
@@ -210,63 +187,27 @@ export function TaskActionDialog({
                   variant="danger"
                   disabled={busy}
                   onClick={() =>
-                    void run(cancelReservation(db, turnusId, current.playerId, myPlayer.id))
+                    void run(() => cancelReservation(db, turnusId, current.playerId, myPlayer.id))
                   }
                 >
                   {t('tasks.cancelReservation')}
                 </Button>
               </div>
             ) : eligible.ok || canPairToday ? (
-              <form onSubmit={reserve} className="flex flex-col gap-3">
-                {current !== null && eligible.ok && (
-                  <>
-                    <p className="text-sm text-content-muted">
-                      {t('tasks.replaceHint', { name: localize(current.taskName, locale) })}
-                    </p>
-                    {pairCancelNote}
-                  </>
-                )}
-                {isPair &&
-                  (partnerCandidates.length === 0 ? (
-                    <p className="text-sm text-content-muted">{t('tasks.noPartners')}</p>
-                  ) : (
-                    <label className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-content-muted">
-                        {t('tasks.choosePartner')}
-                      </span>
-                      <Select
-                        value={invitees[0] ?? ''}
-                        onChange={(event) =>
-                          setInvitees(event.target.value ? [event.target.value as PlayerId] : [])
-                        }
-                      >
-                        <option value="">{t('tasks.choosePartner')}</option>
-                        {partnerCandidates.map((player) => (
-                          <option key={player.id} value={player.id}>
-                            {player.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                  ))}
-                {canPairToday && partnerCandidates.length > 0 && (
-                  <>
-                    {leavesPairNote}
-                    <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
-                      {t('tasks.takePairToday')}
-                    </Button>
-                  </>
-                )}
-                {eligible.ok && (
-                  <Button
-                    type="submit"
-                    variant={canPairToday ? 'secondary' : 'primary'}
-                    disabled={busy || !countOk || (isPair && partnerCandidates.length === 0)}
-                  >
-                    {t('tasks.reserve')}
-                  </Button>
-                )}
-              </form>
+              <TaskReserveForm
+                isPair={isPair}
+                partnerCandidates={partnerCandidates}
+                partnerId={partnerId}
+                onPartnerChange={setPartnerId}
+                canReserve={eligible.ok}
+                canPairToday={canPairToday}
+                replaces={current?.taskName ?? null}
+                pairCancelNote={pairCancelNote}
+                leavesPairNote={leavesPairNote}
+                busy={busy}
+                onReserve={reserve}
+                onTakePairToday={takePairToday}
+              />
             ) : (
               <p className="text-sm text-content-muted">{t(reasonKey)}</p>
             )}

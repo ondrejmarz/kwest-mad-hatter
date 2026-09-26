@@ -32,6 +32,7 @@ export const de: Dictionary = {
     close: 'Schließen',
     edit: 'Bearbeiten',
     rotateDevice: 'Dreh dein Telefon hochkant',
+    inactive: 'Inaktiv',
   },
   entry: {
     pickTitle: 'Welches Abenteuer erwartet dich?',
@@ -96,6 +97,7 @@ export const de: Dictionary = {
     maxPunishes: 'Max. als Ziel pro Runde',
     allowNegative: 'Negatives Guthaben erlauben',
     publicProfiles: 'Öffentliche Profile',
+    allowTaskSwitch: 'Aufgaben in der laufenden Runde änderbar',
     save: 'Speichern',
     invalid: 'Gib gültige Werte ein.',
   },
@@ -224,6 +226,7 @@ export const de: Dictionary = {
     reasonUsed: 'Diese Aufgabe hattest du schon.',
     reasonInactive: 'Diese Aufgabe ist nicht aktiv.',
     dayLocked: 'Die Runde ist gesperrt, Änderungen sind geschlossen.',
+    switchDisabled: 'Aufgaben lassen sich in der laufenden Runde nicht ändern.',
   },
   pair: {
     inviteChip: 'Einladung',
@@ -308,6 +311,8 @@ export const de: Dictionary = {
     lock: 'Runde sperren',
     unlock: 'Runde entsperren',
     lockHint: 'Sperre zuerst die Runde, dann kannst du abschließen.',
+    stuckHint:
+      'Die Runde ist gesperrt. Wenn gerade kein anderer Organisator sie abschließt, kannst du sie entsperren.',
     noActiveTasks: 'Niemand hat eine aktive Aufgabe.',
     evaluate: 'Runde abschließen',
     settlements: 'Abrechnung',

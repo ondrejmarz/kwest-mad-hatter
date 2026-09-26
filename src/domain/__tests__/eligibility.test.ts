@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { TYPE_KEYS } from '../../lib/group';
-import { canInitiatePairPick, canPickTaskNow, canReserveTask, hasUsedTask } from '../eligibility';
+import {
+  canInitiatePairPick,
+  canJoinPairPick,
+  canPickTaskNow,
+  canReserveTask,
+  hasUsedTask,
+} from '../eligibility';
 import { TaskId } from '../ids';
 
 import { loc, makeActiveTask, makePlayer, makeTask, makeTurnus } from './fixtures';
@@ -153,6 +159,55 @@ describe('canPickTaskNow', () => {
     expect(canPickTaskNow(makePlayer(), task, turnus, taken)).toEqual({
       ok: false,
       error: { code: 'TASK_TAKEN_TODAY', byPlayerName: 'Kuba' },
+    });
+  });
+});
+
+describe('switching the task mid-round', () => {
+  const noSwitch = makeTurnus({ currentDayCategories: ['chores'], allowTaskSwitch: false });
+  const noneTaken = new Map<TaskId, string>();
+  const busy = makePlayer({ activeTask: makeActiveTask({ taskId: TaskId('other') }) });
+  const pair = makeTask({ categories: [loc('chores')], minPlayers: 2, maxPlayers: 2 });
+  const refused = { ok: false, error: { code: 'TASK_SWITCH_DISABLED' } };
+
+  it('still lets a player without a task take one', () => {
+    expect(canPickTaskNow(makePlayer(), makeTask(), noSwitch, noneTaken).ok).toBe(true);
+    expect(canInitiatePairPick(makePlayer(), pair, noSwitch, noneTaken).ok).toBe(true);
+  });
+
+  it('refuses a player who already holds a task, when switching is turned off', () => {
+    expect(canPickTaskNow(busy, makeTask(), noSwitch, noneTaken)).toEqual(refused);
+    expect(canInitiatePairPick(busy, pair, noSwitch, noneTaken)).toEqual(refused);
+  });
+
+  it('reports a more basic reason first, so the switch notice only shows for a free task', () => {
+    expect(canPickTaskNow(busy, makeTask({ active: false }), noSwitch, noneTaken)).toEqual({
+      ok: false,
+      error: { code: 'TASK_INACTIVE' },
+    });
+  });
+});
+
+describe('canJoinPairPick', () => {
+  const idle = makePlayer();
+  const busy = makePlayer({ activeTask: makeActiveTask() });
+
+  it('lets a pair form when switching is allowed, even over a held task', () => {
+    expect(canJoinPairPick([idle, busy], makeTurnus()).ok).toBe(true);
+  });
+
+  it('refuses when switching is off and a member already holds a task', () => {
+    expect(canJoinPairPick([idle, busy], makeTurnus({ allowTaskSwitch: false }))).toEqual({
+      ok: false,
+      error: { code: 'TASK_SWITCH_DISABLED' },
+    });
+    expect(canJoinPairPick([idle, idle], makeTurnus({ allowTaskSwitch: false })).ok).toBe(true);
+  });
+
+  it('is frozen while the round is locked', () => {
+    expect(canJoinPairPick([idle, idle], makeTurnus({ dayLocked: true }))).toEqual({
+      ok: false,
+      error: { code: 'DAY_LOCKED' },
     });
   });
 });

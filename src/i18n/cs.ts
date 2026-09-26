@@ -34,6 +34,7 @@ export const cs = {
     close: 'Zavřít',
     edit: 'Upravit',
     rotateDevice: 'Otoč telefon na výšku',
+    inactive: 'Neaktivní',
   },
   entry: {
     pickTitle: 'Na jaké dobrodružství se vydáš?',
@@ -98,6 +99,7 @@ export const cs = {
     maxPunishes: 'Hráč max terčem za kolo',
     allowNegative: 'Povolit záporný zůstatek',
     publicProfiles: 'Veřejné profily',
+    allowTaskSwitch: 'Lze měnit probíhající úkoly',
     save: 'Uložit',
     invalid: 'Zadej platné hodnoty.',
   },
@@ -225,6 +227,7 @@ export const cs = {
     reasonUsed: 'Tenhle úkol už si měl.',
     reasonInactive: 'Úkol není aktivní.',
     dayLocked: 'Kolo je zamčené, teď to měnit nejde.',
+    switchDisabled: 'Úkol v probíhajícím kole teď měnit nejde.',
   },
   pair: {
     inviteChip: 'Pozvánka',
@@ -308,6 +311,7 @@ export const cs = {
     lock: 'Zamknout kolo',
     unlock: 'Odemknout kolo',
     lockHint: 'Nejdřív zamkni kolo, pak můžeš vyhodnocovat.',
+    stuckHint: 'Kolo je zamčené. Jestli ho teď nevyhodnocuje jiný organizátor, můžeš ho odemknout.',
     noActiveTasks: 'Nikdo nemá aktivní úkol.',
     evaluate: 'Vyhodnotit kolo',
     settlements: 'Zúčtování',

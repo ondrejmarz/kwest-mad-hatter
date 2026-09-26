@@ -26,6 +26,7 @@ export const makeTurnus = (over: Partial<TurnusSettings> = {}): TurnusSettings =
   nextDayCategories: [],
   currentDayCategories: [],
   dayLocked: false,
+  allowTaskSwitch: true,
   ...over,
 });
 

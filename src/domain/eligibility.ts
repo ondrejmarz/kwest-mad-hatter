@@ -71,6 +71,26 @@ function canTakeToday(
   if (holder !== undefined) {
     return err({ code: 'TASK_TAKEN_TODAY', byPlayerName: holder });
   }
+  // Checked last, so this error means "free for you, were switching allowed" — the UI says so.
+  if (!turnus.allowTaskSwitch && player.activeTask !== null) {
+    return err({ code: 'TASK_SWITCH_DISABLED' });
+  }
+  return ok(undefined);
+}
+
+/**
+ * The partner accepting a same-round pair pick hands the task to BOTH members at once (spec 7). The
+ * round must be open, and with task switching turned off neither member may already hold a task this
+ * round — accepting would swap it for the pair.
+ */
+export function canJoinPairPick(
+  members: readonly Player[],
+  turnus: TurnusSettings,
+): Result<void, DomainError> {
+  if (turnus.dayLocked) return err({ code: 'DAY_LOCKED' });
+  if (!turnus.allowTaskSwitch && members.some((member) => member.activeTask !== null)) {
+    return err({ code: 'TASK_SWITCH_DISABLED' });
+  }
   return ok(undefined);
 }
 

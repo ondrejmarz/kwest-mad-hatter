@@ -1,8 +1,9 @@
 import { type Firestore, runTransaction } from 'firebase/firestore';
 
 import { buildActiveTask, pairPartnerOf, partnerToRelease } from '../../domain/activeTask';
+import { canJoinPairPick } from '../../domain/eligibility';
 import type { DomainError } from '../../domain/errors';
-import type { PlayerId } from '../../domain/ids';
+import type { PlayerId, TaskId } from '../../domain/ids';
 import { invariant } from '../../lib/invariant';
 import { err, ok, type Result } from '../../lib/result';
 import { isOnline } from '../../platform/connectivity/isOnline';
@@ -16,8 +17,11 @@ import { readPlayer, readPlayerOrNull, readTurnus } from './shared';
  * The invited partner accepts a same-round pair pick (spec 7): one commit marks the claim accepted
  * and hands the task to BOTH members, each with the other as their partner. The partner is the only
  * writer, so the rules let them set the initiator's `activeTask` too, validated against this claim.
- * A pair is done together or not at all, so a member who leaves another pair task for this one takes
- * it from their old partner as well (`partnerToRelease`).
+ * With task switching turned off, neither member may already hold a task (`canJoinPairPick`).
+ *
+ * Either member may be leaving a task they held this round. Its claim marker is released so the task
+ * is free for others again, and a pair is done together or not at all, so an old pair partner loses
+ * that task too (`partnerToRelease`).
  */
 export async function acceptPairPick(
   db: Firestore,
@@ -42,13 +46,26 @@ export async function acceptPairPick(
     const me = await readPlayer(tx, db, t, myPlayerId);
     invariant(claim.invitee !== null, 'a pair claim always names its invitee');
 
-    // Either member may be leaving another pair task for this one; its old partner loses it too.
+    const allowed = canJoinPairPick([initiator, me], turnus);
+    if (!allowed.ok) return allowed;
+
+    // Every read precedes the writes: the claims of the tasks the members leave, and their old pair
+    // partners, who lose those tasks too.
     const members = [initiator.id, me.id];
+    const leftTaskIds = new Set<TaskId>();
     const released = new Set<PlayerId>();
     for (const member of [initiator, me]) {
-      const partner = await readPlayerOrNull(tx, db, t, pairPartnerOf(member.activeTask));
-      const leftBehind = partnerToRelease(member.activeTask, task.id, members, partner);
+      const previous = member.activeTask;
+      if (previous === null || previous.taskId === task.id) continue;
+      leftTaskIds.add(previous.taskId);
+      const partner = await readPlayerOrNull(tx, db, t, pairPartnerOf(previous));
+      const leftBehind = partnerToRelease(previous, task.id, members, partner);
       if (leftBehind !== null) released.add(leftBehind);
+    }
+    const leftClaims: ReturnType<typeof taskClaimDoc>[] = [];
+    for (const leftTaskId of leftTaskIds) {
+      const ref = taskClaimDoc(db, t, turnus.currentDay, leftTaskId);
+      if ((await tx.get(ref)).exists()) leftClaims.push(ref);
     }
 
     tx.update(claimRef, { accepted: true });
@@ -63,6 +80,7 @@ export async function acceptPairPick(
     for (const id of released) {
       tx.update(playerDoc(db, t, id), { activeTask: null, needsPick: true });
     }
+    for (const ref of leftClaims) tx.delete(ref);
     return ok(undefined);
   });
 }

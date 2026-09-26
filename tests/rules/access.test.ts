@@ -467,6 +467,80 @@ describe('same-day task pick', () => {
   });
 });
 
+describe('task switching can be turned off', () => {
+  const solo = (taskId: string): Record<string, unknown> => ({
+    taskId,
+    name: 'T',
+    description: '',
+    difficulty: 1,
+    coinReward: 150,
+    partnerIds: [],
+    partnerNames: [],
+  });
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `turnuses/${T}`), { allowTaskSwitch: false }, { merge: true });
+      await setDoc(doc(db, path('tasks/t2')), {
+        name: 'T2',
+        category: 'c',
+        difficulty: 1,
+        active: true,
+        coinReward: 150,
+        minPlayers: 1,
+        maxPlayers: 1,
+      });
+    });
+  });
+
+  it('refuses a player who already holds a task a swap', async () => {
+    await assertFails(
+      updateDoc(doc(authed('alice'), path('players/p1')), {
+        activeTask: solo('t2'),
+        needsPick: false,
+      }),
+    );
+  });
+
+  it('still lets a player without a task take one', async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed('bob'), path('players/p2')), {
+        activeTask: solo('t1'),
+        needsPick: false,
+      }),
+    );
+  });
+});
+
+describe('an abandoned claim marker can be released', () => {
+  const claim = (over: Record<string, unknown>): Record<string, unknown> => ({
+    day: 1,
+    taskId: 't1',
+    playerId: 'p2',
+    ...over,
+  });
+  const seedClaim = (data: Record<string, unknown>): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), path('taskClaims/1_t1')), data),
+    );
+
+  it('lets anyone release a solo claim whose holder no longer has the task', async () => {
+    await seedClaim(claim({}));
+    await assertSucceeds(deleteDoc(doc(authed('carol'), path('taskClaims/1_t1'))));
+  });
+
+  it('keeps a claim whose holder still has the task', async () => {
+    await seedClaim(claim({ playerId: 'p1' }));
+    await assertFails(deleteDoc(doc(authed('carol'), path('taskClaims/1_t1'))));
+  });
+
+  it("never lets an outsider cancel someone else's pending pair invite", async () => {
+    await seedClaim(claim({ invitee: 'p4', accepted: false }));
+    await assertFails(deleteDoc(doc(authed('alice'), path('taskClaims/1_t1'))));
+  });
+});
+
 describe('a player cannot tamper with their own document', () => {
   it('denies raising their own coins', async () => {
     await assertFails(updateDoc(doc(authed('alice'), path('players/p1')), { coins: 9999 }));

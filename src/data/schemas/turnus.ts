@@ -26,6 +26,9 @@ export const turnusSchema = z.object({
   // When on, a turnus reveals every player's stats/history to the group (spec, "Not yet built" #1).
   // Defaulted so turnus docs written before this field still parse (they read as private).
   publicProfiles: z.boolean().default(false),
+  // Whether a player holding a task this round may swap it (spec 7). Defaulted on, the behaviour
+  // before the setting existed, so older turnus docs keep working.
+  allowTaskSwitch: z.boolean().default(true),
   nextDayCategories: z.array(z.string()).readonly(),
   currentDayCategories: z.array(z.string()).readonly(),
 });
@@ -45,6 +48,7 @@ export function toTurnusSettings(t: Turnus): TurnusSettings {
     nextDayCategories: t.nextDayCategories,
     currentDayCategories: t.currentDayCategories,
     dayLocked: t.dayLocked,
+    allowTaskSwitch: t.allowTaskSwitch,
   };
 }
 

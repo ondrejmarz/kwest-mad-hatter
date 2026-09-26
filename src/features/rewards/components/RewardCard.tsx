@@ -13,7 +13,8 @@ import { ListCard } from '../../../ui/ListCard';
 /**
  * A reward card (spec 9.3): name, then top-right the starting price with (for an admin) the edit
  * pencil furthest right; form chip, interest count and my-bid marker, and the description below.
- * Tapping it opens the hidden-auction bid dialog (spec 8).
+ * Tapping it opens the hidden-auction bid dialog (spec 8). An inactive reward reaches only an admin's
+ * list — greyed out with an "inactive" chip, so it can be reopened and reactivated.
  */
 export const RewardCard = memo(function RewardCard({
   reward,
@@ -35,6 +36,7 @@ export const RewardCard = memo(function RewardCard({
     <ListCard
       {...(onOpen ? { onClick: onOpen } : {})}
       title={localize(reward.name, locale)}
+      muted={!reward.active}
       topRight={
         <CardTopRight
           coins={<CoinAmount amount={reward.price} />}
@@ -43,6 +45,7 @@ export const RewardCard = memo(function RewardCard({
       }
       chips={
         <>
+          {!reward.active && <Chip>{t('common.inactive')}</Chip>}
           <Chip
             tone={
               reward.form === 'reward'

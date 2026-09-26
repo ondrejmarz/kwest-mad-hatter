@@ -457,6 +457,82 @@ describe('a pair is cancelled for both', () => {
   });
 });
 
+describe('switching tasks mid-round', () => {
+  const pairTaskDoc = {
+    name: L('Pair'),
+    description: L(''),
+    categories: [L('c')],
+    difficulty: 1,
+    minPlayers: 2,
+    maxPlayers: 2,
+    coinReward: 150,
+    usedByPlayerIds: [],
+    active: true,
+    manualCoins: false,
+  };
+  // Merges into a turnus doc (`''` is the turnus itself), bypassing the rules.
+  const seed = (suffix: string, data: Record<string, unknown>): Promise<void> =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(
+        doc(ctx.firestore(), suffix === '' ? `turnuses/${T}` : `turnuses/${T}/${suffix}`),
+        data,
+        { merge: true },
+      ),
+    );
+  // free (owned by dan) invites p1 (alice) to pair task tq for the current round.
+  const seedPairInvite = async (): Promise<void> => {
+    await seed('tasks/tq', pairTaskDoc);
+    await seed('taskClaims/1_tq', {
+      day: 1,
+      taskId: 'tq',
+      playerId: 'free',
+      invitee: 'p1',
+      accepted: false,
+      createdAt: Timestamp.now(),
+    });
+  };
+
+  it('refuses to swap a held task when the turnus turns switching off', async () => {
+    await seed('', { allowTaskSwitch: false });
+    const result = await pickTaskNow(asDb('alice'), T, 'p1', 't3');
+    expect(result).toEqual({ ok: false, error: { code: 'TASK_SWITCH_DISABLED' } });
+    expect((await read('players/p1'))?.activeTask).toMatchObject({ taskId: 't1' });
+  });
+
+  it('still lets a player without a task take one when switching is off', async () => {
+    await seed('', { allowTaskSwitch: false });
+    await seed('ownerIndex/dan', { playerId: 'free' });
+    const result = await pickTaskNow(asDb('dan'), T, 'free', 't3');
+    expect(result.ok).toBe(true);
+    expect((await read('players/free'))?.activeTask).toMatchObject({ taskId: 't3' });
+  });
+
+  it('refuses to join a same-round pair over a held task when switching is off', async () => {
+    await seed('', { allowTaskSwitch: false });
+    await seedPairInvite();
+    const result = await acceptPairPick(asDb('alice'), T, 'tq', PlayerId('p1'));
+    expect(result).toEqual({ ok: false, error: { code: 'TASK_SWITCH_DISABLED' } });
+    expect((await read('taskClaims/1_tq'))?.accepted).toBe(false);
+  });
+
+  // free took solo t3 first-come, then invited p1 to tq; accepting moves free off t3, so its claim
+  // must go too — otherwise t3 stays locked for everyone although nobody holds it any more.
+  it("releases the initiator's old claim when their same-round pair is accepted", async () => {
+    await seedPairInvite();
+    await seed('players/free', { activeTask: activeTaskFor('t3', 'Task 3'), needsPick: false });
+    await seed('taskClaims/1_t3', {
+      day: 1,
+      taskId: 't3',
+      playerId: 'free',
+      createdAt: Timestamp.now(),
+    });
+    const result = await acceptPairPick(asDb('alice'), T, 'tq', PlayerId('p1'));
+    expect(result.ok).toBe(true);
+    expect((await read('players/free'))?.activeTask).toMatchObject({ taskId: 'tq' });
+    expect(await read('taskClaims/1_t3')).toBeUndefined();
+  });
+});
+
 describe('bidReward', () => {
   it('places a sealed bid for the current day and bumps the interest count', async () => {
     const result = await bidReward(asDb('alice'), T, 'p1', 'r1', 70);
@@ -520,6 +596,7 @@ describe('runRollover', () => {
       nextDayCategories: [],
       currentDayCategories: ['c'],
       dayLocked: false,
+      allowTaskSwitch: true,
     },
     players: [
       player('p1', activeTaskFor('t1', 'Task 1')),

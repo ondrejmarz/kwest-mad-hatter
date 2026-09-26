@@ -32,6 +32,7 @@ export const en: Dictionary = {
     close: 'Close',
     edit: 'Edit',
     rotateDevice: 'Rotate your phone upright',
+    inactive: 'Inactive',
   },
   entry: {
     pickTitle: 'What adventure awaits you?',
@@ -96,6 +97,7 @@ export const en: Dictionary = {
     maxPunishes: 'Max times targeted per round',
     allowNegative: 'Allow negative balance',
     publicProfiles: 'Public profiles',
+    allowTaskSwitch: 'Tasks can be changed mid-round',
     save: 'Save',
     invalid: 'Enter valid values.',
   },
@@ -223,6 +225,7 @@ export const en: Dictionary = {
     reasonUsed: 'You have already had this task.',
     reasonInactive: 'This task is not active.',
     dayLocked: 'The round is locked, task changes are closed.',
+    switchDisabled: 'Tasks can’t be changed during the current round.',
   },
   pair: {
     inviteChip: 'Invite',
@@ -306,6 +309,8 @@ export const en: Dictionary = {
     lock: 'Lock the round',
     unlock: 'Unlock the round',
     lockHint: 'Lock the round first, then you can evaluate.',
+    stuckHint:
+      'The round is locked. If no other organizer is evaluating it right now, you can unlock it.',
     noActiveTasks: 'No one has an active task.',
     evaluate: 'Evaluate the round',
     settlements: 'Settlement',

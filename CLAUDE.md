@@ -64,6 +64,9 @@ Hard rules:
 - Branded id types (`PlayerId`, `TaskId`, ...). `readonly` in domain types. No `any`.
 - One component per file; ~200 lines is a split signal.
 - No `useEffect` for derived data — compute in render / `useMemo`.
+- **Manual E2E scenario:** `docs/testing/test-scenario.md` walks the whole game on three devices
+  with exact expected balances (test catalog in `docs/testing/*.tsv`). New or changed user-facing
+  behaviour extends it in the step where players meet it, keeping the balance table in sync.
 - Conventional commits. **Propose commits; the human runs them.**
 - Keep the repo looking hand-written. `CLAUDE.md` is fine; avoid other "AI wrote this" traces.
 
@@ -78,6 +81,11 @@ Hard rules:
   `manualCoins`. Failing a task costs a flat, turnus-wide `failPenalty` (same for everyone,
   independent of the task); not picking one at all costs `noPickPenalty`. Both applied at
   settlement. Kept in one place so it can be rebalanced.
+- **The UI says "kolo" (round), the code says day.** An evaluation need not happen once a day, so
+  every user-facing string speaks of the current / next round (cs `probíhající` / `příští kolo`,
+  en current / next round, de laufende / nächste Runde) — never today / tomorrow. Identifiers
+  (`currentDay`, `dayLocked`, `nextDayCategories`, `todayPick`, …) keep "day" to spare a data
+  migration.
 - **Daily lock is admin-controlled**, not clock-driven (no backend, never trust the client
   clock). A boolean `dayLocked` on the turnus, flipped by an admin action and enforced by
   rules, freezes every task and reward action for the day until evaluation: task selection,
@@ -92,6 +100,15 @@ Hard rules:
   evaluation, rules let them touch only their own key). At evaluation the members are the
   initiator + accepted invitees; the group competes only if it reaches `minPlayers` (else it
   expires), balance = poorest member.
+- **A pair is done together or not at all.** Once the partner has accepted, either member
+  cancelling the pair's reservation, reserving something else, or accepting another pair cancels
+  it for BOTH (the reservation doc is deleted; the rules let the accepted partner delete the
+  initiator's doc; `dropReservation` also clears both "has a reservation" flags). In the current
+  round, a member switching away from a pair task (`pickTaskNow`, or joining another pair via
+  `acceptPairPick`) clears the partner's `activeTask` too: `ActiveTask.partnerIds` (defaulted `[]`
+  for old docs) names the partner, domain `partnerToRelease` decides, and the
+  `releasesAbandonedPair` rule allows clearing a task only when its single partner no longer holds
+  it after the write. Groups of 3+ are not cascaded.
 - **Task types are synthetic categories.** The three types (solo/pair/group, derived from the
   size interval by `lib/group.taskType`) double as reserved category keys
   `@type:{solo,pair,group}` (`TYPE_KEYS`). The admin's open-day set

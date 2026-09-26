@@ -5,7 +5,7 @@ import { cancelReservation } from '../../../data/transactions/cancelReservation'
 import { initiatePairPick } from '../../../data/transactions/initiatePairPick';
 import { pickTaskNow } from '../../../data/transactions/pickTaskNow';
 import { reserveTask } from '../../../data/transactions/reserveTask';
-import { respondToInvite } from '../../../data/transactions/respondToInvite';
+import { pairPartnerOf } from '../../../domain/activeTask';
 import {
   canInitiatePairPick,
   canPickTaskNow,
@@ -13,6 +13,7 @@ import {
   hasUsedTask,
 } from '../../../domain/eligibility';
 import type { PlayerId, TaskId } from '../../../domain/ids';
+import { reservationMembers } from '../../../domain/reservation';
 import type { Player, Reservation, Task, TurnusSettings } from '../../../domain/types';
 import { useTranslation } from '../../../i18n/LocaleProvider';
 import { localize } from '../../../i18n/localize';
@@ -28,11 +29,13 @@ import { FormError } from '../../../ui/FormError';
 import { Select } from '../../../ui/Select';
 
 /**
- * Tap a task, reserve it for tomorrow (spec 7). Solo and group tasks are reserved individually — a
- * group is pooled with the other reservers at evaluation. A pair picks one partner from a dropdown,
- * who still has to accept. A solo task can also be taken for today (first-come); pairs and groups
- * are reservation-only. If this task is already the player's own reservation, the dialog offers to
- * cancel it.
+ * Tap a task, reserve it for the next round (spec 7). Solo and group tasks are reserved individually
+ * — a group is pooled with the other reservers at evaluation. A pair picks one partner from a
+ * dropdown, who still has to accept. A solo task can also be taken for the current round
+ * (first-come), a pair too once the partner confirms; groups are reservation-only. If this task is
+ * already the player's reservation — their own, or a pair they accepted — the dialog offers to
+ * cancel it. A pair is done together or not at all, so cancelling or replacing a pair reservation,
+ * or switching away from a pair task, cancels it for the partner too; the dialog says so up front.
  */
 export function TaskActionDialog({
   task,
@@ -50,7 +53,7 @@ export function TaskActionDialog({
   settings: TurnusSettings;
   candidates: readonly Player[];
   reservation: Reservation | null;
-  /** A pair this player accepted — reserving a different task leaves it (spec 7). */
+  /** A pair this player accepted — reserving a different task cancels it for both (spec 7). */
   acceptedInvite: Reservation | null;
   takenBy: ReadonlyMap<TaskId, string>;
   turnusId: string;
@@ -67,7 +70,25 @@ export function TaskActionDialog({
   // at evaluation, spec 7).
   const isPair = type === 'pair';
   const countOk = isPair ? invitees.length === 1 : invitees.length === 0;
-  const mine = reservation !== null && reservation.taskId === task.id;
+  // The player's reservation for the next round: their own, or a pair they accepted (spec 7).
+  const current = reservation ?? acceptedInvite;
+  const mine = current !== null && current.taskId === task.id;
+  // A formed pair is cancelled for both members when either one cancels or replaces it.
+  const currentIsPair = current !== null && reservationMembers(current).length > 1;
+  // Switching away from a pair task in the current round takes it from the partner too.
+  const leftPartnerName =
+    pairPartnerOf(myPlayer.activeTask) !== null
+      ? (myPlayer.activeTask?.partnerNames[0] ?? null)
+      : null;
+  const leavesPairNote =
+    leftPartnerName !== null ? (
+      <p className="text-sm text-warning">
+        {t('tasks.switchLeavesPair', { name: leftPartnerName })}
+      </p>
+    ) : null;
+  const pairCancelNote = currentIsPair ? (
+    <p className="text-sm text-warning">{t('tasks.pairCancelsBoth')}</p>
+  ) : null;
   // Any player may take an open, free SOLO task for today first-come — whether they have no task or
   // are switching from one — as long as it is not already their own task today (spec 7).
   const isMyTaskToday = myPlayer.activeTask?.taskId === task.id;
@@ -118,14 +139,17 @@ export function TaskActionDialog({
     void run(reserveWithLeave());
   };
 
-  // Reserving a different task while committed to a pair leaves that pair first (it then falls short
-  // for the initiator at evaluation), so the player never holds two reservations at once (spec 7).
-  const reserveWithLeave = async (): Promise<{ ok: boolean }> => {
-    if (acceptedInvite !== null && acceptedInvite.taskId !== task.id) {
-      await respondToInvite(db, turnusId, acceptedInvite.playerId, myPlayer.id, false);
-    }
-    return reserveTask(db, turnusId, myPlayer.id, task.id, invitees);
-  };
+  // Reserving a different task while committed to someone else's pair cancels that pair for both
+  // (in the same transaction), so the player never holds two reservations at once (spec 7).
+  const reserveWithLeave = (): Promise<{ ok: boolean }> =>
+    reserveTask(
+      db,
+      turnusId,
+      myPlayer.id,
+      task.id,
+      invitees,
+      acceptedInvite !== null ? [acceptedInvite.playerId] : [],
+    );
 
   const reasonKey =
     eligible.ok || eligible.error.code === 'TASK_ALREADY_USED_BY_PLAYER'
@@ -172,28 +196,35 @@ export function TaskActionDialog({
                 <p className="text-sm text-content-muted">
                   {myPlayer.activeTask !== null ? t('tasks.switchNowHint') : t('tasks.takeNowHint')}
                 </p>
+                {leavesPairNote}
                 <Button disabled={busy} onClick={() => void takeNow()}>
                   {myPlayer.activeTask !== null ? t('tasks.switchNow') : t('tasks.takeNow')}
                 </Button>
               </div>
             )}
-            {mine && reservation !== null ? (
+            {mine && current !== null ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-content">{t('tasks.reserved')}</p>
+                {pairCancelNote}
                 <Button
                   variant="danger"
                   disabled={busy}
-                  onClick={() => void run(cancelReservation(db, turnusId, myPlayer.id))}
+                  onClick={() =>
+                    void run(cancelReservation(db, turnusId, current.playerId, myPlayer.id))
+                  }
                 >
                   {t('tasks.cancelReservation')}
                 </Button>
               </div>
             ) : eligible.ok || canPairToday ? (
               <form onSubmit={reserve} className="flex flex-col gap-3">
-                {reservation !== null && eligible.ok && (
-                  <p className="text-sm text-content-muted">
-                    {t('tasks.replaceHint', { name: localize(reservation.taskName, locale) })}
-                  </p>
+                {current !== null && eligible.ok && (
+                  <>
+                    <p className="text-sm text-content-muted">
+                      {t('tasks.replaceHint', { name: localize(current.taskName, locale) })}
+                    </p>
+                    {pairCancelNote}
+                  </>
                 )}
                 {isPair &&
                   (partnerCandidates.length === 0 ? (
@@ -219,9 +250,12 @@ export function TaskActionDialog({
                     </label>
                   ))}
                 {canPairToday && partnerCandidates.length > 0 && (
-                  <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
-                    {t('tasks.takePairToday')}
-                  </Button>
+                  <>
+                    {leavesPairNote}
+                    <Button type="button" disabled={busy || !countOk} onClick={initiateToday}>
+                      {t('tasks.takePairToday')}
+                    </Button>
+                  </>
                 )}
                 {eligible.ok && (
                   <Button

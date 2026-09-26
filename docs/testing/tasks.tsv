@@ -1,0 +1,15 @@
+S1 Dřepy|S1 Squats|S1 Kniebeugen	Udělej 20 dřepů.|Do 20 squats.|Mach 20 Kniebeugen.	1	Pohyb|Movement|Bewegung
+S2 Běh kolem budovy	Oběhni jednou celou budovu.	2	Pohyb|Movement|Bewegung
+S3 Plank	Vydrž minutu v planku.	3	Pohyb|Movement|Bewegung
+S4 Schody	Dvakrát vyjdi všechna patra.	3	Pohyb|Movement|Bewegung
+S5 Kliky	Udělej 15 kliků.	2	Pohyb|Movement|Bewegung
+S6 Švihadlo	Minutu skákej přes švihadlo.	4	Pohyb|Movement|Bewegung
+H1 Hádanka	Vymysli hádanku a nech ostatní hádat.	1	Hlava|Head|Kopf
+H2 Básnička	Napiš čtyřverší o dnešním dni.	2	Hlava|Head|Kopf
+H3 Kvíz	Připrav pro ostatní tři otázky.	3	Hlava|Head|Kopf
+P1 Tichá dohoda	Hodinu spolu nepromluvíte.	2	2	Spolupráce|Teamwork|Teamarbeit
+P2 Zrcadlo	Deset minut po sobě opakujete každý pohyb.	3	2	Spolupráce|Teamwork|Teamarbeit
+P3 Tandem	Ujdete kus cesty se svázanýma nohama.	2	2	Spolupráce|Teamwork|Teamarbeit
+P4 Duet	Zazpíváte spolu jednu písničku.	1	2	Spolupráce|Teamwork|Teamarbeit
+G1 Týmová stavba	Postavíte společně věž z toho, co najdete.	3	3-4	Tým|Team|Team
+G2 Velká výprava	Vyrazíte všichni na krátký výlet.	4	4-6	Tým|Team|Team

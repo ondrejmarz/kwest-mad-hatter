@@ -15,17 +15,21 @@ import {
   usePurchases,
   useReservationCounts,
   useSession,
+  useTurnus,
 } from '../session';
 
 import { CreatePlayerDialog } from './components/CreatePlayerDialog';
 import { PendingPlayersSection } from './components/PendingPlayersSection';
 import { PlayerDetailDialog } from './components/PlayerDetailDialog';
 import { PlayerEditDialog } from './components/PlayerEditDialog';
+import type { FactFilter } from './components/PlayerFactCards';
 import { selectPlayerFacts } from './components/PlayerFacts';
 import { PlayerRow } from './components/PlayerRow';
 
 const PLAYER_SORTS = ['nameAsc', 'nameDesc', 'coinsDesc', 'coinsAsc'] as const;
 type PlayerSort = (typeof PLAYER_SORTS)[number];
+
+const FACT_FILTERS: readonly FactFilter[] = ['all', 'tasks', 'rewards'];
 
 function playerComparator(sort: PlayerSort): (a: Player, b: Player) => number {
   switch (sort) {
@@ -44,6 +48,7 @@ function playerComparator(sort: PlayerSort): (a: Player, b: Player) => number {
 export function PlayersScreen() {
   const { t } = useTranslation();
   const { turnus, role } = useSession();
+  const turnusState = useTurnus();
   const playersState = usePlayers();
   const purchasesState = usePurchases();
   const countsState = useReservationCounts();
@@ -51,6 +56,7 @@ export function PlayersScreen() {
   const isAdmin = role === 'admin';
 
   const [sort, setSort] = usePersistentState<PlayerSort>('kwest.players.sort', 'nameAsc');
+  const [factFilter, setFactFilter] = usePersistentState<FactFilter>('kwest.players.facts', 'all');
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Player | null>(null);
   const [editing, setEditing] = useState<Player | null>(null);
@@ -74,6 +80,10 @@ export function PlayersScreen() {
   // public purchases (spec 9.1). `selectPlayerFacts` reads a player's slice; the row also derives
   // its "má odměnu" / "je terčem" chips from whether those slices are non-empty.
   const purchases = purchasesState.status === 'ready' ? purchasesState.data : [];
+  // Only the latest evaluation's rewards belong on a card — `selectPlayerFacts` filters on the live
+  // day, so a reward won yesterday shows today and then rolls off (the ledger keeps the history).
+  const currentDay =
+    turnusState.status === 'ready' && turnusState.data ? turnusState.data.currentDay : null;
   // Who holds a reservation for tomorrow — a public existence flag, no task revealed (spec 7).
   const reservedPlayers =
     countsState.status === 'ready' && countsState.data ? countsState.data.players : {};
@@ -97,6 +107,16 @@ export function PlayersScreen() {
               </option>
             ))}
           </Select>
+          <Select
+            value={factFilter}
+            onChange={(event) => setFactFilter(event.target.value as FactFilter)}
+          >
+            {FACT_FILTERS.map((value) => (
+              <option key={value} value={value}>
+                {t(`players.facts.${value}`)}
+              </option>
+            ))}
+          </Select>
         </div>
         <Button
           variant="secondary"
@@ -115,7 +135,8 @@ export function PlayersScreen() {
           mine
           isAdmin={isAdmin}
           hasReservation={reservedPlayers[myPlayer.id] === true}
-          {...selectPlayerFacts(purchases, myPlayer.id)}
+          factFilter={factFilter}
+          {...selectPlayerFacts(purchases, myPlayer.id, currentDay)}
           onOpen={() => setSelected(myPlayer)}
           onEdit={() => setEditing(myPlayer)}
         />
@@ -132,7 +153,8 @@ export function PlayersScreen() {
               mine={false}
               isAdmin={isAdmin}
               hasReservation={reservedPlayers[player.id] === true}
-              {...selectPlayerFacts(purchases, player.id)}
+              factFilter={factFilter}
+              {...selectPlayerFacts(purchases, player.id, currentDay)}
               onOpen={() => setSelected(player)}
               onEdit={() => setEditing(player)}
             />

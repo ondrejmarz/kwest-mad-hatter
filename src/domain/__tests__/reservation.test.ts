@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { Day, PlayerId } from '../ids';
 import {
+  canCancelReservation,
   createReservation,
+  hasAccepted,
   isInvitee,
   isReservationValid,
   reservationMembers,
@@ -10,7 +12,7 @@ import {
   withResponse,
 } from '../reservation';
 
-import { loc, makePlayer, makeReservation, makeTask } from './fixtures';
+import { loc, makePlayer, makeReservation, makeTask, makeTurnus } from './fixtures';
 
 const day = Day(2);
 
@@ -125,5 +127,40 @@ describe('responses and membership', () => {
   it('knows who was invited', () => {
     expect(isInvitee(base, PlayerId('p2'))).toBe(true);
     expect(isInvitee(base, PlayerId('p9'))).toBe(false);
+  });
+});
+
+describe('cancelling a pair reservation', () => {
+  const pair = makeReservation({
+    playerId: PlayerId('p1'),
+    minPlayers: 2,
+    maxPlayers: 2,
+    invitees: [PlayerId('p2')],
+  });
+  const accepted = withResponse(pair, PlayerId('p2'), true);
+  const open = makeTurnus();
+
+  it('knows who accepted the invite', () => {
+    expect(hasAccepted(accepted, PlayerId('p2'))).toBe(true);
+    expect(hasAccepted(pair, PlayerId('p2'))).toBe(false);
+  });
+
+  it('lets the initiator or the accepted partner call it off for both', () => {
+    expect(canCancelReservation(accepted, PlayerId('p1'), open).ok).toBe(true);
+    expect(canCancelReservation(accepted, PlayerId('p2'), open).ok).toBe(true);
+  });
+
+  it('refuses an invitee who has not accepted, and anyone uninvolved', () => {
+    const refused = { ok: false, error: { code: 'NOT_RESERVATION_MEMBER' } };
+    expect(canCancelReservation(pair, PlayerId('p2'), open)).toEqual(refused);
+    expect(canCancelReservation(accepted, PlayerId('p9'), open)).toEqual(refused);
+  });
+
+  it('is frozen while the round is locked', () => {
+    const locked = makeTurnus({ dayLocked: true });
+    expect(canCancelReservation(accepted, PlayerId('p1'), locked)).toEqual({
+      ok: false,
+      error: { code: 'DAY_LOCKED' },
+    });
   });
 });

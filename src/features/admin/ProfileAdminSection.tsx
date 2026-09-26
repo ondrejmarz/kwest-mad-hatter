@@ -4,7 +4,6 @@ import { db } from '../../data/firebase';
 import { leaveAdmin } from '../../data/transactions/leaveAdmin';
 import { useTranslation } from '../../i18n/LocaleProvider';
 import { Button } from '../../ui/Button';
-import { SectionLabel } from '../../ui/SectionLabel';
 import { useSession, useTurnus } from '../session';
 
 import { CategoriesDialog } from './catalog/CategoriesDialog';
@@ -43,8 +42,7 @@ export function ProfileAdminSection() {
   };
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border pt-4">
-      <SectionLabel>{t('nav.admin')}</SectionLabel>
+    <div className="flex flex-col gap-3">
       <Button variant="danger" disabled={dayLocked} onClick={() => setOpen('evaluation')}>
         {t('admin.evaluation')}
       </Button>

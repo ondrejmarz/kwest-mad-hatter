@@ -44,7 +44,6 @@ export function RewardEditDialog({
   const [form, setForm] = useState<RewardForm>(reward?.form ?? 'reward');
   const [minTargets, setMinTargets] = useState(String(reward?.minTargets || 1));
   const [maxTargets, setMaxTargets] = useState(String(reward?.maxTargets || 1));
-  const [exclusive, setExclusive] = useState(reward?.exclusivePerDay ?? false);
   const [active, setActive] = useState(reward?.active ?? true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +69,9 @@ export function RewardEditDialog({
       form,
       minTargets: min,
       maxTargets: max,
-      exclusivePerDay: exclusive,
+      // Every reward is a sealed-bid auction won by one player per day, so exclusivity is inherent —
+      // not an admin option (otherwise a bid would win nothing definite). Always on.
+      exclusivePerDay: true,
       active,
     };
     if (reward === null) void createReward(db, turnusId, fields);
@@ -145,7 +146,6 @@ export function RewardEditDialog({
             />
           </div>
         )}
-        <Checkbox label={t('rewards.exclusiveLabel')} checked={exclusive} onChange={setExclusive} />
         <Checkbox label={t('rewards.activeLabel')} checked={active} onChange={setActive} />
         <FormError message={error} />
         <Button type="submit">{t('rewards.save')}</Button>

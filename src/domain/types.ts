@@ -30,7 +30,9 @@ export interface ActiveTask {
   readonly description: LocalizedText;
   readonly difficulty: number;
   readonly coinReward: number;
-  /** Names of the co-members when this is a group task; empty for a solo task. */
+  /** Ids of the co-members when this is a pair/group task; empty for a solo task. */
+  readonly partnerIds: readonly PlayerId[];
+  /** Names of the co-members, in the same order as `partnerIds`. */
   readonly partnerNames: readonly string[];
   readonly detail?: string;
 }

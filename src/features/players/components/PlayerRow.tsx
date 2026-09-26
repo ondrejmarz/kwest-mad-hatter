@@ -2,12 +2,13 @@ import { memo } from 'react';
 
 import type { PurchaseDoc } from '../../../data/schemas/purchase';
 import type { Player } from '../../../domain/types';
+import { CardTopRight } from '../../../ui/CardTopRight';
 import { CoinAmount } from '../../../ui/CoinAmount';
 import { EditButton } from '../../../ui/EditButton';
 import { ListCard } from '../../../ui/ListCard';
 
 import { PlayerChips } from './PlayerChips';
-import { PlayerFactCards } from './PlayerFactCards';
+import { type FactFilter, hasVisibleFacts, PlayerFactCards } from './PlayerFactCards';
 
 /**
  * One player in the list (spec 9.1): name, status chips, coins and (for an admin) an edit pencil.
@@ -23,6 +24,7 @@ export const PlayerRow = memo(function PlayerRow({
   won,
   targetedBy,
   hasReservation,
+  factFilter,
   onOpen,
   onEdit,
 }: {
@@ -32,6 +34,8 @@ export const PlayerRow = memo(function PlayerRow({
   won: readonly PurchaseDoc[];
   targetedBy: readonly PurchaseDoc[];
   hasReservation: boolean;
+  /** Which nested fact cards to show (the roster's per-tab filter, spec 9.1). */
+  factFilter: FactFilter;
   onOpen: () => void;
   onEdit: () => void;
 }) {
@@ -41,10 +45,10 @@ export const PlayerRow = memo(function PlayerRow({
       highlighted={mine}
       title={player.name}
       topRight={
-        <div className="flex items-center gap-2">
-          {isAdmin && <EditButton onClick={onEdit} />}
-          <CoinAmount amount={player.coins} />
-        </div>
+        <CardTopRight
+          coins={<CoinAmount amount={player.coins} />}
+          {...(isAdmin ? { edit: <EditButton onClick={onEdit} /> } : {})}
+        />
       }
       chips={
         <PlayerChips
@@ -56,9 +60,9 @@ export const PlayerRow = memo(function PlayerRow({
         />
       }
     >
-      {(player.activeTask !== null || won.length > 0 || targetedBy.length > 0) && (
+      {hasVisibleFacts(player, won, targetedBy, factFilter) && (
         <div className="mt-3 flex flex-col gap-2">
-          <PlayerFactCards player={player} won={won} targetedBy={targetedBy} />
+          <PlayerFactCards player={player} won={won} targetedBy={targetedBy} filter={factFilter} />
         </div>
       )}
     </ListCard>

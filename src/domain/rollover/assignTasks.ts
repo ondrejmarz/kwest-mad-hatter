@@ -50,10 +50,10 @@ export function assignTasks(
     winnerByTask.set(claim.taskId, claim.playerIds.map((id) => nameOf(nameById, id)).join(' & '));
 
     for (const playerId of claim.playerIds) {
-      const partnerNames = claim.playerIds
+      const partners = claim.playerIds
         .filter((id) => id !== playerId)
-        .map((id) => nameOf(nameById, id));
-      activeTaskById.set(playerId, buildActiveTask(task, partnerNames));
+        .map((id) => ({ id, name: nameOf(nameById, id) }));
+      activeTaskById.set(playerId, buildActiveTask(task, partners));
       assignments.push({
         playerId,
         playerName: nameOf(nameById, playerId),

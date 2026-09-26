@@ -21,6 +21,7 @@ export type DomainError =
   | { readonly code: 'TARGET_AT_PUNISH_LIMIT'; readonly max: number }
   | { readonly code: 'PARTNER_REQUIRED' }
   | { readonly code: 'PARTNER_IS_SELF' }
+  | { readonly code: 'NOT_RESERVATION_MEMBER' }
   | { readonly code: 'PLAYER_NOT_APPROVED' }
   | { readonly code: 'PLAYER_ALREADY_CLAIMED' }
   | { readonly code: 'INVALID_CODE' }

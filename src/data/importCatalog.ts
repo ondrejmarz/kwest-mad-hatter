@@ -15,7 +15,7 @@ import { parseReward, parseTaskDoc } from './schemas/catalog';
  * are preserved; auto coins are recomputed.
  *
  *   task:   name ⇥ description ⇥ difficulty ⇥ size(N or N-M) ⇥ tag ⇥ tag ⇥ …
- *   reward: name ⇥ description ⇥ price ⇥ form ⇥ tag ⇥ tag ⇥ …
+ *   reward: name ⇥ description ⇥ price ⇥ form   (a reward's form IS its tag — no extra columns)
  */
 export interface ParsedTask {
   readonly name: LocalizedText;
@@ -31,7 +31,6 @@ export interface ParsedReward {
   readonly description: LocalizedText;
   readonly price: number;
   readonly form: RewardForm;
-  readonly categories: readonly LocalizedText[];
 }
 
 function rows(tsv: string): string[] {
@@ -146,13 +145,14 @@ export function defaultTargets(form: RewardForm): { minTargets: number; maxTarge
 export function parseRewards(tsv: string): ParsedReward[] {
   return rows(tsv)
     .map((line) => {
-      const [name = '', description = '', price = '', form = '', ...tags] = line.split('\t');
+      // A reward carries no category tags — its form is its category (spec 9.3), so any cell past the
+      // form is ignored rather than parsed into tags.
+      const [name = '', description = '', price = '', form = ''] = line.split('\t');
       return {
         name: parseLocalized(name),
         description: parseLocalized(description),
         price: Math.max(0, Number.parseInt(price, 10) || 0),
         form: REWARD_FORMS[form.trim()] ?? 'reward',
-        categories: parseTags(tags),
       };
     })
     .filter((reward) => reward.name.cs.length > 0);
@@ -240,10 +240,11 @@ export async function applyRewardImport(
   for (const reward of parsed) {
     const id = existing.get(reward.name.cs);
     if (id !== undefined) {
+      // A re-import no longer manages tags (the form is the tag), so existing `categories` are left
+      // untouched rather than cleared.
       batch.update(rewardDoc(db, t, id), {
         name: reward.name,
         description: reward.description,
-        categories: reward.categories,
         price: reward.price,
         form: reward.form,
         ...defaultTargets(reward.form),
@@ -252,8 +253,10 @@ export async function applyRewardImport(
     } else {
       batch.set(doc(rewardsCol(db, t)), {
         ...reward,
+        categories: [],
         ...defaultTargets(reward.form),
-        exclusivePerDay: false,
+        // Exclusivity is inherent to the auction (one winner per reward per day), so it is always on.
+        exclusivePerDay: true,
         active: true,
       });
       created += 1;

@@ -14,7 +14,9 @@ advances the game to the next round.
 
 The colour system, a cobalt-to-magenta spectrum with a turquoise accent, defined once as
 semantic tokens and themed for light and dark, is documented in [BRANDING.md](BRANDING.md),
-with a full styled sheet at [`docs/brand.html`](docs/brand.html).
+with a full styled sheet on
+[GitHub Pages](https://ondrejmarz.github.io/kwest-mad-hatter/brand.html) (source in
+[`docs/brand.html`](docs/brand.html)).
 
 ## No backend
 
